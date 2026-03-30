@@ -1,0 +1,37 @@
+{
+  "name": "next-nest-turbo-boilerplate",
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "start:dev": "turbo run start:dev",
+    "start:prod": "turbo run start:prod",
+    "lint": "turbo run lint --",
+    "lint:fix": "turbo run lint:fix --",
+    "test:unit": "turbo run test:unit",
+    "test:e2e": "turbo run test:e2e",
+    "test:unit:cov": "turbo run test:unit:cov",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,html,yml,yaml}\"",
+    "prepare": "husky",
+    "docker:build": "turbo run docker:build",
+    "docker:start:dev": "turbo run docker:start:dev",
+    "docker:run:local": "npm run docker:start:dev"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "20.4.2",
+    "@commitlint/config-conventional": "20.4.2",
+    "husky": "9.1.7",
+    "lint-staged": "16.2.7",
+    "prettier": "3.8.1",
+    "ts-node": "10.9.2",
+    "turbo": "2.8.11"
+  },
+  "engines": {
+    "node": "24.14.0",
+    "npm": "11.11.0"
+  },
+  "packageManager": "npm@11.11.0"
+}
