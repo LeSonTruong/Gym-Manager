@@ -18,11 +18,11 @@ const appConfig = (): Record<ConfigKey, unknown> => ({
     process.env.ENABLE_SWAGGER === undefined ? true : process.env.ENABLE_SWAGGER === 'true',
 
   [ConfigKey.POSTGRES_TIMEZONE]: process.env.POSTGRES_TIMEZONE ?? 'UTC',
-  [ConfigKey.POSTGRES_DB_NAME]: process.env.POSTGRES_DB_NAME,
-  [ConfigKey.POSTGRES_PASSWORD]: process.env.POSTGRES_PASSWORD,
+  [ConfigKey.POSTGRES_DB_NAME]: process.env.POSTGRES_DB_NAME ?? 'gym_manager',
+  [ConfigKey.POSTGRES_PASSWORD]: process.env.POSTGRES_PASSWORD ?? 'postgres',
   [ConfigKey.POSTGRES_PORT]: readNumber(process.env.POSTGRES_PORT) ?? 5432,
-  [ConfigKey.POSTGRES_HOST]: process.env.POSTGRES_HOST,
-  [ConfigKey.POSTGRES_USER]: process.env.POSTGRES_USER,
+  [ConfigKey.POSTGRES_HOST]: process.env.POSTGRES_HOST ?? 'localhost',
+  [ConfigKey.POSTGRES_USER]: process.env.POSTGRES_USER ?? 'postgres',
   [ConfigKey.POSTGRES_DEBUG_MODE]:
     process.env.POSTGRES_DEBUG_MODE === undefined ? false : process.env.POSTGRES_DEBUG_MODE === 'true',
 

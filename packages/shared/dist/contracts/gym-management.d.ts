@@ -1,0 +1,336 @@
+export type UserRole = 'ADMIN' | 'PT' | 'STAFF';
+export type UserStatus = 'ACTIVE' | 'INACTIVE';
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CARD';
+export type MembershipPlanType = 'DAY' | 'MONTH' | 'YEAR';
+export type MembershipStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+export type SalesInvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
+export type AttendanceLogStatus = 'OPEN' | 'VALID' | 'HALF' | 'INVALID';
+export type PayrollPeriodStatus = 'OPEN' | 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
+export type PayrollEntryStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
+export type SalaryType = 'MONTHLY' | 'DAILY' | 'HOURLY';
+export type HalfShiftPolicy = 'NO_COUNT' | 'HALF_COUNT';
+export type PtAssignmentStatus = 'ACTIVE' | 'ENDED';
+export type InventoryTransactionType = 'IMPORT' | 'SALE' | 'DAMAGE' | 'INTERNAL_USE' | 'ADJUSTMENT';
+export type ExpenseStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PAID';
+export type OperatingExpenseCategory = 'CLEANING' | 'MAINTENANCE' | 'REPAIR' | 'REPLACEMENT' | 'UTILITY';
+export type EquipmentCondition = 'GOOD' | 'MAINTENANCE_DUE' | 'NEEDS_REPLACEMENT';
+export type DemoUser = {
+    id: string;
+    fullName: string;
+    email: string;
+    role: UserRole;
+    status: UserStatus;
+    passwordHint: string;
+};
+export type PersonalTrainer = {
+    id: string;
+    code: string;
+    fullName: string;
+    gender: Gender;
+    birthDate: string;
+    phone: string;
+    email: string;
+    address: string;
+    status: UserStatus;
+    specialties: string[];
+    experienceYears: number;
+    avatarUrl: string;
+    startDate: string;
+};
+export type PtContract = {
+    id: string;
+    ptId: string;
+    contractType: string;
+    salaryType: SalaryType;
+    baseSalary: number;
+    minValidShiftHours: number;
+    standardShiftHours: number;
+    overtimeHourlyRate: number;
+    performanceBonusThreshold: number;
+    performanceBonusAmount: number;
+    packageCommissionRate: number;
+    salesCommissionRate: number;
+    allowances: number;
+    penaltyRules: string[];
+    effectiveFrom: string;
+    effectiveTo: string;
+};
+export type AttendanceLog = {
+    id: string;
+    ptId: string;
+    attendanceDate: string;
+    checkInAt: string;
+    checkOutAt: string | null;
+    workedHours: number;
+    overtimeHours: number;
+    status: AttendanceLogStatus;
+    workCredit: number;
+};
+export type PayrollPeriod = {
+    id: string;
+    code: string;
+    from: string;
+    to: string;
+    status: PayrollPeriodStatus;
+};
+export type PayrollEntry = {
+    id: string;
+    payrollPeriodId: string;
+    ptId: string;
+    validShiftCredits: number;
+    overtimeHours: number;
+    packageCommission: number;
+    salesCommission: number;
+    performanceBonus: number;
+    penalties: number;
+    grossPay: number;
+    netPay: number;
+    status: PayrollEntryStatus;
+};
+export type Member = {
+    id: string;
+    code: string;
+    fullName: string;
+    gender: Gender;
+    birthDate: string;
+    phone: string;
+    email: string;
+    address: string;
+    heightCm: number;
+    weightKg: number;
+    goal: string;
+    healthNotes: string;
+    registeredAt: string;
+    status: UserStatus;
+};
+export type MembershipPlan = {
+    id: string;
+    code: string;
+    name: string;
+    type: MembershipPlanType;
+    price: number;
+    durationDays: number;
+    usageLimit: number | null;
+    includesPt: boolean;
+    includedPtSessions: number;
+    perks: string[];
+    status: 'ON_SALE' | 'OFF_SALE';
+};
+export type MemberMembership = {
+    id: string;
+    memberId: string;
+    membershipPlanId: string;
+    startDate: string;
+    endDate: string;
+    remainingSessions: number | null;
+    status: MembershipStatus;
+};
+export type MemberPtAssignment = {
+    id: string;
+    memberId: string;
+    ptId: string;
+    memberMembershipId: string;
+    assignedFrom: string;
+    assignedTo: string | null;
+    commissionAmount: number;
+    status: PtAssignmentStatus;
+};
+export type MembershipInvoice = {
+    id: string;
+    code: string;
+    memberId: string;
+    memberMembershipId: string;
+    invoiceDate: string;
+    totalAmount: number;
+    paymentMethod: PaymentMethod;
+    status: 'CONFIRMED' | 'CANCELLED';
+};
+export type Product = {
+    id: string;
+    code: string;
+    name: string;
+    category: string;
+    unitCost: number;
+    salePrice: number;
+    stockOnHand: number;
+    minimumStockLevel: number;
+    status: 'ACTIVE' | 'INACTIVE';
+};
+export type InventoryTransaction = {
+    id: string;
+    productId: string;
+    type: InventoryTransactionType;
+    quantity: number;
+    unitCost: number;
+    transactionDate: string;
+    referenceCode: string;
+    note: string;
+};
+export type SalesInvoiceItem = {
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+    unitCost: number;
+    lineTotal: number;
+};
+export type SalesInvoice = {
+    id: string;
+    code: string;
+    invoiceDate: string;
+    createdByUserId: string;
+    memberId: string | null;
+    customerName: string;
+    status: SalesInvoiceStatus;
+    paymentMethod: PaymentMethod;
+    discountAmount: number;
+    totalAmount: number;
+    note: string;
+    items: SalesInvoiceItem[];
+};
+export type OperatingExpense = {
+    id: string;
+    code: string;
+    expenseDate: string;
+    category: OperatingExpenseCategory;
+    equipmentAssetId: string | null;
+    vendorName: string;
+    amount: number;
+    description: string;
+    approvedByUserId: string | null;
+    attachmentUrl: string | null;
+    status: ExpenseStatus;
+};
+export type EquipmentAsset = {
+    id: string;
+    code: string;
+    name: string;
+    purchasedAt: string;
+    purchaseValue: number;
+    condition: EquipmentCondition;
+    nextMaintenanceAt: string;
+    note: string;
+};
+export type MaintenanceRecord = {
+    id: string;
+    equipmentAssetId: string;
+    maintenanceDate: string;
+    description: string;
+    vendorName: string;
+    amount: number;
+};
+export type SystemConfig = {
+    key: string;
+    label: string;
+    value: string;
+    description: string;
+};
+export type GymManagementDataset = {
+    generatedAt: string;
+    users: DemoUser[];
+    personalTrainers: PersonalTrainer[];
+    ptContracts: PtContract[];
+    attendanceLogs: AttendanceLog[];
+    payrollPeriods: PayrollPeriod[];
+    payrollEntries: PayrollEntry[];
+    members: Member[];
+    membershipPlans: MembershipPlan[];
+    memberMemberships: MemberMembership[];
+    memberPtAssignments: MemberPtAssignment[];
+    membershipInvoices: MembershipInvoice[];
+    products: Product[];
+    inventoryTransactions: InventoryTransaction[];
+    salesInvoices: SalesInvoice[];
+    operatingExpenses: OperatingExpense[];
+    equipmentAssets: EquipmentAsset[];
+    maintenanceRecords: MaintenanceRecord[];
+    systemConfigs: SystemConfig[];
+};
+export type DashboardSummary = {
+    totalMembers: number;
+    totalPts: number;
+    activeMembers: number;
+    activeMemberships: Record<MembershipPlanType, number>;
+    revenue: {
+        daily: number;
+        monthly: number;
+        yearly: number;
+        membership: number;
+        services: number;
+    };
+    totalPtPayroll: number;
+    totalOperatingExpense: number;
+    lowStockProducts: Product[];
+    maintenanceAlerts: EquipmentAsset[];
+};
+export type PtOverviewItem = {
+    pt: PersonalTrainer;
+    contract: PtContract | undefined;
+    activeMembers: number;
+    validShiftCredits: number;
+    overtimeHours: number;
+    estimatedPayroll: number;
+};
+export type MemberOverviewItem = {
+    member: Member;
+    activeMembership: MemberMembership | undefined;
+    membershipPlan: MembershipPlan | undefined;
+    activeAssignment: MemberPtAssignment | undefined;
+    trainer: PersonalTrainer | undefined;
+    totalMembershipSpend: number;
+    totalServiceSpend: number;
+};
+export type InventoryOverview = {
+    totalProducts: number;
+    lowStockCount: number;
+    stockValue: number;
+    topSellingProducts: Array<{
+        product: Product;
+        soldQuantity: number;
+    }>;
+    recentTransactions: InventoryTransaction[];
+};
+export type RevenueReport = {
+    totalRevenue: number;
+    membershipRevenue: number;
+    servicesRevenue: number;
+    membershipInvoiceCount: number;
+    salesInvoiceCount: number;
+};
+export type ExpenseReport = {
+    totalExpense: number;
+    pendingApprovalCount: number;
+    paidCount: number;
+    byCategory: Record<OperatingExpenseCategory, number>;
+};
+export type PayrollReport = {
+    totalPayroll: number;
+    approvedPayroll: number;
+    pendingPayroll: number;
+    byTrainer: Array<{
+        ptId: string;
+        ptName: string;
+        payrollPeriodId: string;
+        payrollPeriodCode: string;
+        netPay: number;
+        status: PayrollEntryStatus;
+    }>;
+};
+export type ProfitReport = {
+    totalRevenue: number;
+    cogs: number;
+    ptPayroll: number;
+    operatingExpense: number;
+    netProfit: number;
+};
+export type GymManagementSnapshot = {
+    dataset: GymManagementDataset;
+    dashboard: DashboardSummary;
+    ptOverview: PtOverviewItem[];
+    memberOverview: MemberOverviewItem[];
+    inventoryOverview: InventoryOverview;
+    revenueReport: RevenueReport;
+    expenseReport: ExpenseReport;
+    payrollReport: PayrollReport;
+    profitReport: ProfitReport;
+};

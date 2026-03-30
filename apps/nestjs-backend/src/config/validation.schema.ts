@@ -12,11 +12,11 @@ const validationSchemaMap: Record<ConfigKey, Joi.Schema> = {
   [ConfigKey.ENABLE_SWAGGER]: Joi.boolean().optional().default(true),
 
   [ConfigKey.POSTGRES_TIMEZONE]: Joi.string().default('UTC'),
-  [ConfigKey.POSTGRES_DB_NAME]: Joi.string().optional(),
-  [ConfigKey.POSTGRES_PASSWORD]: Joi.string().optional(),
+  [ConfigKey.POSTGRES_DB_NAME]: Joi.string().default('gym_manager'),
+  [ConfigKey.POSTGRES_PASSWORD]: Joi.string().default('postgres'),
   [ConfigKey.POSTGRES_PORT]: Joi.number().min(0).max(65_535).default(5432),
-  [ConfigKey.POSTGRES_USER]: Joi.string().optional(),
-  [ConfigKey.POSTGRES_HOST]: Joi.string().optional(),
+  [ConfigKey.POSTGRES_USER]: Joi.string().default('postgres'),
+  [ConfigKey.POSTGRES_HOST]: Joi.string().default('localhost'),
   [ConfigKey.POSTGRES_DEBUG_MODE]: Joi.boolean().optional().default(false),
 
   [ConfigKey.REDIS_HOST]: Joi.string().default('localhost'),

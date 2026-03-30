@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/apps/nextjs-frontend/src/i18n/routing.ts"],"sourcesContent":["import {defineRouting} from 'next-intl/routing';\r\n\r\nexport const routing = defineRouting({\r\n  // A list of all locales that are supported\r\n  locales: ['en', 'de'],\r\n\r\n  // Used when no locale matches\r\n  defaultLocale: 'en',\r\n});\r\n"],"names":[],"mappings":";;;;AAAA;;AAEO,MAAM,UAAU,IAAA,2PAAa,EAAC;IACnC,2CAA2C;IAC3C,SAAS;QAAC;QAAM;KAAK;IAErB,8BAA8B;IAC9B,eAAe;AACjB"}},
+    {"offset": {"line": 35, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/apps/nextjs-frontend/src/middleware.ts"],"sourcesContent":["import createMiddleware from 'next-intl/middleware';\r\nimport {type MiddlewareConfig} from 'next/server';\r\nimport {routing} from './i18n/routing.ts';\r\n\r\nexport default createMiddleware(routing);\r\n\r\nexport const config: MiddlewareConfig = {\r\n  matcher: [\r\n    // Match all pathnames except for\r\n    // - … if they start with `/api`, `/trpc`, `/_next` or `/_vercel`\r\n    // - … the ones containing a dot (e.g. `favicon.ico`)\r\n    // eslint-disable-next-line unicorn/prefer-string-raw\r\n    '/((?!api|trpc|_next|_vercel)(?!.*\\\\..*).*)',\r\n  ],\r\n};\r\n"],"names":[],"mappings":";;;;;;AAAA;AAEA;;;uCAEe,IAAA,yMAAgB,EAAC,uKAAO;AAEhC,MAAM,SAA2B;IACtC,SAAS;QACP,iCAAiC;QACjC,iEAAiE;QACjE,qDAAqD;QACrD,qDAAqD;QACrD;KACD;AACH"}}]
+}

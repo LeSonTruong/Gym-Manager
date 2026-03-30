@@ -1,6 +1,6 @@
 # NestJS Backend
 
-Backend workspace for the template monorepo.
+Backend workspace for the Gym Manager API.
 
 ## Stack
 
@@ -8,7 +8,6 @@ Backend workspace for the template monorepo.
 - `TypeScript`
 - `MikroORM`
 - `PostgreSQL`
-- `Redis`
 - `Swagger`
 - `Joi` validation
 
@@ -17,10 +16,9 @@ Backend workspace for the template monorepo.
 - `config`
 - `common`
 - `health`
-- `email`
-- `redis`
+- `gym-management`
 
-The backend is intentionally minimal and should be extended with your domain modules.
+The backend now includes PostgreSQL entities, a manual MikroORM migration, demo data seeding, and CRUD endpoints for the Gym Manager domain.
 
 ## Commands
 
@@ -30,6 +28,8 @@ npm --workspace nestjs-backend run build
 npm --workspace nestjs-backend run lint
 npm --workspace nestjs-backend run test:unit
 npm --workspace nestjs-backend run start:dev:infra
+npm --workspace nestjs-backend run migration:up
+npm --workspace nestjs-backend run migration:down
 ```
 
 ## Local Endpoints
@@ -44,11 +44,11 @@ Copy `.env.example` to `.env` and configure:
 
 - `FRONTEND_HOST`
 - `POSTGRES_*`
-- `REDIS_*`
-- `MAIL_*`
+- `ENABLE_SWAGGER`
 
 ## Notes
 
 - Config validation runs on startup.
 - Swagger is enabled through `ENABLE_SWAGGER=true`.
-- An example MikroORM entity and an example email template are included as placeholders.
+- On startup the app applies pending MikroORM migrations automatically, then seeds the PostgreSQL database if `users` is empty.
+- `apps/nestjs-backend/docker-compose.yml` can be used to start PostgreSQL, Redis, and Maildev locally.

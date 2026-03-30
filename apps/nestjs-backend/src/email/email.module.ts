@@ -17,9 +17,9 @@ import {EmailService} from './email.service';
           auth:
             configService.get<string>(ConfigKey.MAIL_USER) && configService.get<string>(ConfigKey.MAIL_PASS)
               ? {
-                  user: configService.get<string>(ConfigKey.MAIL_USER),
-                  pass: configService.get<string>(ConfigKey.MAIL_PASS),
-                }
+                user: configService.get<string>(ConfigKey.MAIL_USER),
+                pass: configService.get<string>(ConfigKey.MAIL_PASS),
+              }
               : undefined,
         },
         template: {
