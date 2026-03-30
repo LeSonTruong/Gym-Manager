@@ -1,25 +1,26 @@
 @import 'tailwindcss';
 
-h1 {
-  @apply text-4xl tracking-widest font-bold text-slate-800 mb-4 md:mb-6 lg:mb-8;
+:root {
+  color-scheme: light;
 }
 
-h2 {
-  @apply text-3xl font-bold tracking-wider text-slate-800 mb-4 md:mb-6 lg:mb-8;
+html {
+  scroll-behavior: smooth;
 }
 
-h3 {
-  @apply text-2xl font-bold tracking-wide text-slate-800 mb-2 md:mb-4 lg:mb-6;
+body {
+  font-family: var(--font-manrope), sans-serif;
+  @apply bg-slate-50 text-slate-900 antialiased;
 }
 
-h4 {
-  @apply text-xl font-bold tracking-wide text-slate-800 mb-2 md:mb-4 lg:mb-6;
+.font-display {
+  font-family: var(--font-space-grotesk), sans-serif;
 }
 
-h5 {
-  @apply text-lg font-bold text-slate-800 mb-1 md:mb-2 lg:mb-4;
+a {
+  @apply no-underline;
 }
 
-h6 {
-  @apply text-base font-bold text-slate-800 mb-1 md:mb-2 lg:mb-4;
+::selection {
+  @apply bg-orange-200 text-slate-950;
 }

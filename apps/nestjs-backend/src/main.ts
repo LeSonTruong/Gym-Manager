@@ -40,8 +40,8 @@ async function bootstrap(): Promise<void> {
 
   if (configService.get<boolean>(ConfigKey.ENABLE_SWAGGER)) {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Next Nest Turbo Template API')
-      .setDescription('Backend API for the Next.js + NestJS + Turborepo starter template.')
+      .setTitle('Gym Manager API')
+      .setDescription('Demo API surface for the Gym Management System MVP.')
       .setVersion('1.0')
       .build();
     const documentFactory = (): OpenAPIObject => SwaggerModule.createDocument(app, swaggerConfig);

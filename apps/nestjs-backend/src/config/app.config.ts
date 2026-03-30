@@ -1,26 +1,38 @@
 import {ConfigKey} from './config-key.enum';
 
-const appConfig = (): Record<ConfigKey, unknown> => ({
-  [ConfigKey.NODE_ENV]: process.env.NODE_ENV,
-  [ConfigKey.FRONTEND_HOST]: process.env.FRONTEND_HOST,
-  [ConfigKey.PORT]: process.env.PORT,
-  [ConfigKey.ENABLE_SWAGGER]: Boolean(process.env.ENABLE_SWAGGER === 'true'),
+function readNumber(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
 
-  [ConfigKey.POSTGRES_TIMEZONE]: process.env.POSTGRES_TIMEZONE,
+  const parsedValue = Number(value);
+
+  return Number.isNaN(parsedValue) ? undefined : parsedValue;
+}
+
+const appConfig = (): Record<ConfigKey, unknown> => ({
+  [ConfigKey.NODE_ENV]: process.env.NODE_ENV ?? 'development',
+  [ConfigKey.FRONTEND_HOST]: process.env.FRONTEND_HOST ?? 'http://localhost:3000',
+  [ConfigKey.PORT]: readNumber(process.env.PORT) ?? 4000,
+  [ConfigKey.ENABLE_SWAGGER]:
+    process.env.ENABLE_SWAGGER === undefined ? true : process.env.ENABLE_SWAGGER === 'true',
+
+  [ConfigKey.POSTGRES_TIMEZONE]: process.env.POSTGRES_TIMEZONE ?? 'UTC',
   [ConfigKey.POSTGRES_DB_NAME]: process.env.POSTGRES_DB_NAME,
   [ConfigKey.POSTGRES_PASSWORD]: process.env.POSTGRES_PASSWORD,
-  [ConfigKey.POSTGRES_PORT]: Number(process.env.POSTGRES_PORT),
+  [ConfigKey.POSTGRES_PORT]: readNumber(process.env.POSTGRES_PORT) ?? 5432,
   [ConfigKey.POSTGRES_HOST]: process.env.POSTGRES_HOST,
   [ConfigKey.POSTGRES_USER]: process.env.POSTGRES_USER,
-  [ConfigKey.POSTGRES_DEBUG_MODE]: Boolean(process.env.POSTGRES_DEBUG_MODE === 'true'),
+  [ConfigKey.POSTGRES_DEBUG_MODE]:
+    process.env.POSTGRES_DEBUG_MODE === undefined ? false : process.env.POSTGRES_DEBUG_MODE === 'true',
 
-  [ConfigKey.REDIS_HOST]: process.env.REDIS_HOST,
-  [ConfigKey.REDIS_PORT]: Number(process.env.REDIS_PORT),
+  [ConfigKey.REDIS_HOST]: process.env.REDIS_HOST ?? 'localhost',
+  [ConfigKey.REDIS_PORT]: readNumber(process.env.REDIS_PORT) ?? 6379,
   [ConfigKey.REDIS_PASSWORD]: process.env.REDIS_PASSWORD,
 
-  [ConfigKey.MAILDEV_WEB_PORT]: Number(process.env.MAILDEV_WEB_PORT),
+  [ConfigKey.MAILDEV_WEB_PORT]: readNumber(process.env.MAILDEV_WEB_PORT) ?? 1080,
   [ConfigKey.MAIL_HOST]: process.env.MAIL_HOST,
-  [ConfigKey.MAIL_PORT]: Number(process.env.MAIL_PORT),
+  [ConfigKey.MAIL_PORT]: readNumber(process.env.MAIL_PORT) ?? 587,
   [ConfigKey.MAIL_USER]: process.env.MAIL_USER,
   [ConfigKey.MAIL_PASS]: process.env.MAIL_PASS,
 });

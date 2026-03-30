@@ -4,7 +4,7 @@ import * as Joi from 'joi';
 import {ConfigKey} from './config-key.enum';
 
 const validationSchemaMap: Record<ConfigKey, Joi.Schema> = {
-  [ConfigKey.NODE_ENV]: Joi.string().valid('development', 'staging', 'production').required(),
+  [ConfigKey.NODE_ENV]: Joi.string().valid('development', 'staging', 'production').default('development'),
   [ConfigKey.FRONTEND_HOST]: Joi.string()
     .uri({scheme: ['http', 'https']})
     .default('http://localhost:3000'),
@@ -12,11 +12,11 @@ const validationSchemaMap: Record<ConfigKey, Joi.Schema> = {
   [ConfigKey.ENABLE_SWAGGER]: Joi.boolean().optional().default(true),
 
   [ConfigKey.POSTGRES_TIMEZONE]: Joi.string().default('UTC'),
-  [ConfigKey.POSTGRES_DB_NAME]: Joi.string().required(),
-  [ConfigKey.POSTGRES_PASSWORD]: Joi.string().required(),
+  [ConfigKey.POSTGRES_DB_NAME]: Joi.string().optional(),
+  [ConfigKey.POSTGRES_PASSWORD]: Joi.string().optional(),
   [ConfigKey.POSTGRES_PORT]: Joi.number().min(0).max(65_535).default(5432),
-  [ConfigKey.POSTGRES_USER]: Joi.string().required(),
-  [ConfigKey.POSTGRES_HOST]: Joi.string().required(),
+  [ConfigKey.POSTGRES_USER]: Joi.string().optional(),
+  [ConfigKey.POSTGRES_HOST]: Joi.string().optional(),
   [ConfigKey.POSTGRES_DEBUG_MODE]: Joi.boolean().optional().default(false),
 
   [ConfigKey.REDIS_HOST]: Joi.string().default('localhost'),
@@ -29,9 +29,9 @@ const validationSchemaMap: Record<ConfigKey, Joi.Schema> = {
     otherwise: Joi.forbidden(),
   }),
 
-  [ConfigKey.MAIL_HOST]: Joi.string().required(),
+  [ConfigKey.MAIL_HOST]: Joi.string().optional(),
 
-  [ConfigKey.MAIL_PORT]: Joi.number().min(0).max(65_535).default(587).required(),
+  [ConfigKey.MAIL_PORT]: Joi.number().min(0).max(65_535).default(587).optional(),
 
   [ConfigKey.MAIL_USER]: Joi.string().optional(),
 
