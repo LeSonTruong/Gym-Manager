@@ -1,8 +1,28 @@
-import {type ApiResponse} from '@next-nest-turbo-boilerplate/shared';
-import {Body, Controller, Delete, Get, Param, Patch, Post} from '@nestjs/common';
-import {ApiTags} from '@nestjs/swagger';
-import {IsEmail, IsString, MinLength} from 'class-validator';
+import { type ApiResponse } from '@next-nest-turbo-boilerplate/shared';
 import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  StreamableFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { IsEmail, IsString, MinLength } from 'class-validator';
+import type { Response } from 'express';
+import { AuditAction } from './audit/audit-action.decorator';
+import { AuditLogInterceptor } from './audit/audit-log.interceptor';
+import {
+  AttendanceCheckInDto,
+  AttendanceCheckOutDto,
+  CancelSalesInvoiceDto,
   CreateEquipmentDto,
   CreateMemberDto,
   CreateMembershipPlanDto,
@@ -10,6 +30,7 @@ import {
   CreatePersonalTrainerDto,
   CreateProductDto,
   PatchSystemConfigDto,
+  RejectExpenseDto,
   UpdateEquipmentDto,
   UpdateMemberDto,
   UpdateMembershipPlanDto,
@@ -17,7 +38,13 @@ import {
   UpdatePersonalTrainerDto,
   UpdateProductDto,
 } from './dto/gym-management.dto';
-import {GymManagementService} from './gym-management.service';
+import type { AuthenticatedUser } from './auth/authenticated-user.type';
+import { CurrentUser } from './auth/current-user.decorator';
+import { GymAuthGuard } from './auth/gym-auth.guard';
+import { GymRolesGuard } from './auth/gym-roles.guard';
+import { Public } from './auth/public.decorator';
+import { Roles } from './auth/roles.decorator';
+import { GymManagementService } from './gym-management.service';
 
 class LoginDto {
   @IsEmail()
@@ -28,9 +55,19 @@ class LoginDto {
   password!: string;
 }
 
+class RefreshTokenDto {
+  @IsString()
+  refreshToken!: string;
+}
+
+class LogoutDto {
+  @IsString()
+  refreshToken!: string;
+}
+
 type Snapshot = Awaited<ReturnType<GymManagementService['getSnapshot']>>;
 type LoginResult = Awaited<ReturnType<GymManagementService['login']>>;
-type CurrentUser = Awaited<ReturnType<GymManagementService['getCurrentUser']>>;
+type CurrentUserProfile = Awaited<ReturnType<GymManagementService['getCurrentUser']>>;
 type PtDetail = Awaited<ReturnType<GymManagementService['getPtDetail']>>;
 type MemberDetail = Awaited<ReturnType<GymManagementService['getMemberDetail']>>;
 type PayrollPeriodDetail = Awaited<ReturnType<GymManagementService['getPayrollPeriodDetail']>>;
@@ -44,24 +81,50 @@ type ProductRecord = Awaited<ReturnType<GymManagementService['createProduct']>>;
 type EquipmentRecord = Awaited<ReturnType<GymManagementService['createEquipment']>>;
 type ExpenseRecord = Awaited<ReturnType<GymManagementService['createOperatingExpense']>>;
 type SystemConfigRecord = Awaited<ReturnType<GymManagementService['patchSystemConfig']>>;
+type AttendanceRecord = Awaited<ReturnType<GymManagementService['checkInAttendance']>>;
 
 function createResponse<ResponsePayload>(data: ResponsePayload): ApiResponse<ResponsePayload> {
-  return {data};
+  return { data };
 }
 
 @ApiTags('Gym Management')
 @Controller()
+@UseGuards(GymAuthGuard, GymRolesGuard)
+@UseInterceptors(AuditLogInterceptor)
+@Roles('ADMIN', 'STAFF')
 export class GymManagementController {
-  constructor(private readonly gymManagementService: GymManagementService) {}
+  constructor(private readonly gymManagementService: GymManagementService) { }
 
+  @Public()
   @Post('auth/login')
+  @AuditAction('AUTH_LOGIN', 'auth')
   async login(@Body() loginDto: LoginDto): Promise<ApiResponse<LoginResult>> {
     return createResponse(await this.gymManagementService.login(loginDto.email, loginDto.password));
   }
 
+  @Public()
+  @Post('auth/refresh')
+  @AuditAction('AUTH_REFRESH', 'auth')
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto): Promise<ApiResponse<LoginResult>> {
+    return createResponse(await this.gymManagementService.refreshAccessToken(refreshTokenDto.refreshToken));
+  }
+
+  @Post('auth/logout')
+  @Roles('ADMIN', 'STAFF', 'PT')
+  @AuditAction('AUTH_LOGOUT', 'auth')
+  async logout(
+    @Body() logoutDto: LogoutDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<{ loggedOut: true }>> {
+    await this.gymManagementService.logout(logoutDto.refreshToken, currentUser.accessToken);
+
+    return createResponse({ loggedOut: true });
+  }
+
   @Get('auth/me')
-  async getCurrentUser(): Promise<ApiResponse<CurrentUser>> {
-    return createResponse(await this.gymManagementService.getCurrentUser());
+  @Roles('ADMIN', 'STAFF', 'PT')
+  async getCurrentUser(@CurrentUser() currentUser: AuthenticatedUser): Promise<ApiResponse<CurrentUserProfile>> {
+    return createResponse(await this.gymManagementService.getCurrentUserById(currentUser.user.id));
   }
 
   @Get('dashboard')
@@ -115,6 +178,42 @@ export class GymManagementController {
     return createResponse(snapshot.dataset.attendanceLogs);
   }
 
+  @Post('attendance/check-in')
+  @Roles('ADMIN', 'STAFF', 'PT')
+  @AuditAction('ATTENDANCE_CHECK_IN', 'attendance_logs')
+  async checkInAttendance(
+    @Body() attendanceCheckInDto: AttendanceCheckInDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<AttendanceRecord>> {
+    attendanceCheckInDto.ptId = this.resolveScopedPtId(currentUser, attendanceCheckInDto.ptId);
+
+    return createResponse(await this.gymManagementService.checkInAttendance(attendanceCheckInDto));
+  }
+
+  @Post('attendance/check-out')
+  @Roles('ADMIN', 'STAFF', 'PT')
+  @AuditAction('ATTENDANCE_CHECK_OUT', 'attendance_logs')
+  async checkOutAttendance(
+    @Body() attendanceCheckOutDto: AttendanceCheckOutDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<AttendanceRecord>> {
+    attendanceCheckOutDto.ptId = this.resolveScopedPtId(currentUser, attendanceCheckOutDto.ptId);
+
+    return createResponse(await this.gymManagementService.checkOutAttendance(attendanceCheckOutDto));
+  }
+
+  @Get('attendance/me')
+  @Roles('ADMIN', 'STAFF', 'PT')
+  async getMyAttendance(
+    @Query('ptId') ptId: string | undefined,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<PtDetail['attendance']>> {
+    const scopedPtId = this.resolveScopedPtId(currentUser, ptId);
+    const ptDetail = await this.gymManagementService.getPtDetail(scopedPtId);
+
+    return createResponse(ptDetail.attendance);
+  }
+
   @Get('attendance/pt/:ptId')
   async getAttendanceByPt(@Param('ptId') ptId: string): Promise<ApiResponse<PtDetail['attendance']>> {
     const ptDetail = await this.gymManagementService.getPtDetail(ptId);
@@ -132,6 +231,36 @@ export class GymManagementController {
   @Get('payroll/periods/:id')
   async getPayrollPeriod(@Param('id') payrollPeriodId: string): Promise<ApiResponse<PayrollPeriodDetail>> {
     return createResponse(await this.gymManagementService.getPayrollPeriodDetail(payrollPeriodId));
+  }
+
+  @Post('payroll/periods/:id/submit')
+  @Roles('ADMIN')
+  @AuditAction('PAYROLL_PERIOD_SUBMIT', 'payroll_periods')
+  async submitPayrollPeriod(
+    @Param('id') payrollPeriodId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<PayrollPeriodDetail>> {
+    return createResponse(await this.gymManagementService.submitPayrollPeriod(payrollPeriodId, currentUser.user.id));
+  }
+
+  @Post('payroll/periods/:id/approve')
+  @Roles('ADMIN')
+  @AuditAction('PAYROLL_PERIOD_APPROVE', 'payroll_periods')
+  async approvePayrollPeriod(
+    @Param('id') payrollPeriodId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<PayrollPeriodDetail>> {
+    return createResponse(await this.gymManagementService.approvePayrollPeriod(payrollPeriodId, currentUser.user.id));
+  }
+
+  @Post('payroll/periods/:id/mark-paid')
+  @Roles('ADMIN')
+  @AuditAction('PAYROLL_PERIOD_MARK_PAID', 'payroll_periods')
+  async markPayrollPeriodPaid(
+    @Param('id') payrollPeriodId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<PayrollPeriodDetail>> {
+    return createResponse(await this.gymManagementService.markPayrollPeriodPaid(payrollPeriodId, currentUser.user.id));
   }
 
   @Get('members')
@@ -265,6 +394,24 @@ export class GymManagementController {
     return createResponse(await this.gymManagementService.getSalesInvoiceDetail(salesInvoiceId));
   }
 
+  @Post('sales/invoices/:id/confirm')
+  @AuditAction('SALES_INVOICE_CONFIRM', 'sales_invoices')
+  async confirmSalesInvoice(@Param('id') salesInvoiceId: string): Promise<ApiResponse<SalesInvoiceDetail>> {
+    return createResponse(await this.gymManagementService.confirmSalesInvoice(salesInvoiceId));
+  }
+
+  @Post('sales/invoices/:id/cancel')
+  @Roles('ADMIN')
+  @AuditAction('SALES_INVOICE_CANCEL', 'sales_invoices')
+  async cancelSalesInvoice(
+    @Param('id') salesInvoiceId: string,
+    @Body() cancelSalesInvoiceDto: CancelSalesInvoiceDto,
+  ): Promise<ApiResponse<SalesInvoiceDetail>> {
+    return createResponse(
+      await this.gymManagementService.cancelSalesInvoice(salesInvoiceId, cancelSalesInvoiceDto.cancellationReason),
+    );
+  }
+
   @Get('expenses')
   async getExpenses(): Promise<ApiResponse<Snapshot['dataset']['operatingExpenses']>> {
     const snapshot = await this.gymManagementService.getSnapshot();
@@ -273,6 +420,7 @@ export class GymManagementController {
   }
 
   @Post('expenses')
+  @AuditAction('EXPENSE_CREATE', 'operating_expenses')
   async createExpense(@Body() createOperatingExpenseDto: CreateOperatingExpenseDto): Promise<ApiResponse<ExpenseRecord>> {
     return createResponse(await this.gymManagementService.createOperatingExpense(createOperatingExpenseDto));
   }
@@ -283,11 +431,45 @@ export class GymManagementController {
   }
 
   @Patch('expenses/:id')
+  @AuditAction('EXPENSE_UPDATE', 'operating_expenses')
   async updateExpense(
     @Param('id') expenseId: string,
     @Body() updateOperatingExpenseDto: UpdateOperatingExpenseDto,
   ): Promise<ApiResponse<ExpenseRecord>> {
     return createResponse(await this.gymManagementService.updateOperatingExpense(expenseId, updateOperatingExpenseDto));
+  }
+
+  @Post('expenses/:id/submit')
+  @AuditAction('EXPENSE_SUBMIT', 'operating_expenses')
+  async submitExpense(@Param('id') expenseId: string): Promise<ApiResponse<ExpenseRecord>> {
+    return createResponse(await this.gymManagementService.submitExpense(expenseId));
+  }
+
+  @Post('expenses/:id/approve')
+  @Roles('ADMIN')
+  @AuditAction('EXPENSE_APPROVE', 'operating_expenses')
+  async approveExpense(
+    @Param('id') expenseId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<ExpenseRecord>> {
+    return createResponse(await this.gymManagementService.approveExpense(expenseId, currentUser.user.id));
+  }
+
+  @Post('expenses/:id/reject')
+  @Roles('ADMIN')
+  @AuditAction('EXPENSE_REJECT', 'operating_expenses')
+  async rejectExpense(
+    @Param('id') expenseId: string,
+    @Body() rejectExpenseDto: RejectExpenseDto,
+  ): Promise<ApiResponse<ExpenseRecord>> {
+    return createResponse(await this.gymManagementService.rejectExpense(expenseId, rejectExpenseDto.rejectionReason));
+  }
+
+  @Post('expenses/:id/mark-paid')
+  @Roles('ADMIN')
+  @AuditAction('EXPENSE_MARK_PAID', 'operating_expenses')
+  async markExpensePaid(@Param('id') expenseId: string): Promise<ApiResponse<ExpenseRecord>> {
+    return createResponse(await this.gymManagementService.markExpensePaid(expenseId));
   }
 
   @Get('equipment')
@@ -336,6 +518,21 @@ export class GymManagementController {
     return createResponse(snapshot.payrollReport);
   }
 
+  @Get('reports/:reportType/export')
+  @Roles('ADMIN')
+  async exportReport(
+    @Param('reportType') reportType: 'payroll' | 'revenue' | 'expenses' | 'profit',
+    @Query('format') format: 'pdf' | 'xlsx',
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const exportedReport = await this.gymManagementService.exportReport(reportType, format ?? 'pdf');
+
+    response.setHeader('Content-Type', exportedReport.mimeType);
+    response.setHeader('Content-Disposition', `attachment; filename="${exportedReport.fileName}"`);
+
+    return new StreamableFile(exportedReport.content);
+  }
+
   @Get('reports/inventory')
   async getInventoryReport(): Promise<ApiResponse<Snapshot['inventoryOverview']>> {
     const snapshot = await this.gymManagementService.getSnapshot();
@@ -370,5 +567,25 @@ export class GymManagementController {
     @Body() patchSystemConfigDto: PatchSystemConfigDto,
   ): Promise<ApiResponse<SystemConfigRecord>> {
     return createResponse(await this.gymManagementService.patchSystemConfig(configKey, patchSystemConfigDto));
+  }
+
+  private resolveScopedPtId(currentUser: AuthenticatedUser, requestedPtId?: string): string {
+    if (currentUser.role !== 'PT') {
+      if (!requestedPtId) {
+        throw new ForbiddenException('ptId is required for non-PT users');
+      }
+
+      return requestedPtId;
+    }
+
+    if (!currentUser.ptId) {
+      throw new ForbiddenException('PT account is not linked to a trainer profile');
+    }
+
+    if (requestedPtId && requestedPtId !== currentUser.ptId) {
+      throw new ForbiddenException('PT can only access own attendance data');
+    }
+
+    return currentUser.ptId;
   }
 }

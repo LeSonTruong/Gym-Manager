@@ -19,6 +19,7 @@ const app_config_1 = require("./config/app.config");
 const validation_schema_1 = require("./config/validation.schema");
 const gym_management_module_1 = require("./gym-management/gym-management.module");
 const health_module_1 = require("./health/health.module");
+const redis_module_1 = require("./redis/redis.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -43,6 +44,7 @@ exports.AppModule = AppModule = __decorate([
                 ],
             }),
             common_module_1.CommonModule,
+            redis_module_1.RedisModule,
             gym_management_module_1.GymManagementModule,
             health_module_1.HealthModule,
         ],

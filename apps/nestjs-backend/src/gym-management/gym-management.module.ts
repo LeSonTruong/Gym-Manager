@@ -1,8 +1,13 @@
-import {MikroOrmModule} from '@mikro-orm/nestjs';
-import {Module} from '@nestjs/common';
-import {GymManagementController} from './gym-management.controller';
+import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { Module } from '@nestjs/common';
+import { AuditLogInterceptor } from './audit/audit-log.interceptor';
+import { AuditLogService } from './audit/audit-log.service';
+import { GymManagementController } from './gym-management.controller';
+import { GymAuthGuard } from './auth/gym-auth.guard';
+import { GymRolesGuard } from './auth/gym-roles.guard';
 import {
   AttendanceLogEntity,
+  AuditLogEntity,
   EquipmentAssetEntity,
   InventoryTransactionEntity,
   MaintenanceRecordEntity,
@@ -22,8 +27,8 @@ import {
   SystemConfigEntity,
   UserEntity,
 } from './entities/gym-management.entity';
-import {GymManagementSeedService} from './gym-management.seed.service';
-import {GymManagementService} from './gym-management.service';
+import { GymManagementSeedService } from './gym-management.seed.service';
+import { GymManagementService } from './gym-management.service';
 
 @Module({
   imports: [
@@ -32,6 +37,7 @@ import {GymManagementService} from './gym-management.service';
       PersonalTrainerEntity,
       PtContractEntity,
       AttendanceLogEntity,
+      AuditLogEntity,
       PayrollPeriodEntity,
       PayrollEntryEntity,
       MemberEntity,
@@ -50,6 +56,13 @@ import {GymManagementService} from './gym-management.service';
     ]),
   ],
   controllers: [GymManagementController],
-  providers: [GymManagementService, GymManagementSeedService],
+  providers: [
+    GymManagementService,
+    GymManagementSeedService,
+    GymAuthGuard,
+    GymRolesGuard,
+    AuditLogService,
+    AuditLogInterceptor,
+  ],
 })
-export class GymManagementModule {}
+export class GymManagementModule { }

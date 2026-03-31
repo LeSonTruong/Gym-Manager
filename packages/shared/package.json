@@ -4,8 +4,8 @@
   "scripts": {
     "start:dev": "tsc --watch",
     "build": "tsc",
-    "lint": "xo",
-    "lint:fix": "xo --fix"
+    "lint": "xo src",
+    "lint:fix": "xo src --fix"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

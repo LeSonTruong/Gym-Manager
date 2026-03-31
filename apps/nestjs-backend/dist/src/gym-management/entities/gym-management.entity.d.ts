@@ -52,6 +52,10 @@ export declare class PayrollPeriodEntity extends BaseEntity {
     fromDate: Date;
     toDate: Date;
     status: string;
+    submittedAt?: Date | null;
+    approvedByUser?: UserEntity | null;
+    approvedAt?: Date | null;
+    paidAt?: Date | null;
 }
 export declare class PayrollEntryEntity extends BaseEntity {
     payrollPeriod: PayrollPeriodEntity;
@@ -149,6 +153,9 @@ export declare class SalesInvoiceEntity extends BaseEntity {
     discountAmount: string;
     totalAmount: string;
     note: string;
+    confirmedAt?: Date | null;
+    cancelledAt?: Date | null;
+    cancellationReason?: string | null;
 }
 export declare class SalesInvoiceItemEntity extends BaseEntity {
     salesInvoice: SalesInvoiceEntity;
@@ -176,6 +183,11 @@ export declare class OperatingExpenseEntity extends BaseEntity {
     amount: string;
     description: string;
     approvedByUser?: UserEntity | null;
+    submittedAt?: Date | null;
+    approvedAt?: Date | null;
+    rejectedAt?: Date | null;
+    rejectionReason?: string | null;
+    paidAt?: Date | null;
     attachmentUrl?: string | null;
     status: string;
 }
@@ -185,6 +197,17 @@ export declare class MaintenanceRecordEntity extends BaseEntity {
     description: string;
     vendorName: string;
     amount: string;
+}
+export declare class AuditLogEntity extends BaseEntity {
+    action: string;
+    resource: string;
+    recordId?: string | null;
+    changedByUser?: UserEntity | null;
+    method: string;
+    path: string;
+    statusCode: number;
+    requestBody?: unknown;
+    responseBody?: unknown;
 }
 export declare class SystemConfigEntity {
     key: string;

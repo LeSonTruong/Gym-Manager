@@ -1,10 +1,11 @@
-import {PartialType} from '@nestjs/mapped-types';
+import { PartialType } from '@nestjs/mapped-types';
 import {
   IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
   IsInt,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -37,7 +38,7 @@ export class CreatePersonalTrainerDto {
   status!: string;
 
   @IsArray()
-  @IsString({each: true})
+  @IsString({ each: true })
   specialties!: string[];
 
   @IsInt()
@@ -51,7 +52,7 @@ export class CreatePersonalTrainerDto {
   startDate!: string;
 }
 
-export class UpdatePersonalTrainerDto extends PartialType(CreatePersonalTrainerDto) {}
+export class UpdatePersonalTrainerDto extends PartialType(CreatePersonalTrainerDto) { }
 
 export class CreateMemberDto {
   @IsString()
@@ -96,7 +97,7 @@ export class CreateMemberDto {
   status!: string;
 }
 
-export class UpdateMemberDto extends PartialType(CreateMemberDto) {}
+export class UpdateMemberDto extends PartialType(CreateMemberDto) { }
 
 export class CreateMembershipPlanDto {
   @IsString()
@@ -127,14 +128,14 @@ export class CreateMembershipPlanDto {
   includedPtSessions!: number;
 
   @IsArray()
-  @IsString({each: true})
+  @IsString({ each: true })
   perks!: string[];
 
   @IsString()
   status!: string;
 }
 
-export class UpdateMembershipPlanDto extends PartialType(CreateMembershipPlanDto) {}
+export class UpdateMembershipPlanDto extends PartialType(CreateMembershipPlanDto) { }
 
 export class CreateProductDto {
   @IsString()
@@ -163,7 +164,7 @@ export class CreateProductDto {
   status!: string;
 }
 
-export class UpdateProductDto extends PartialType(CreateProductDto) {}
+export class UpdateProductDto extends PartialType(CreateProductDto) { }
 
 export class CreateEquipmentDto {
   @IsString()
@@ -188,7 +189,7 @@ export class CreateEquipmentDto {
   note!: string;
 }
 
-export class UpdateEquipmentDto extends PartialType(CreateEquipmentDto) {}
+export class UpdateEquipmentDto extends PartialType(CreateEquipmentDto) { }
 
 export class CreateOperatingExpenseDto {
   @IsString()
@@ -215,19 +216,48 @@ export class CreateOperatingExpenseDto {
 
   @IsOptional()
   @IsString()
-  approvedByUserId?: string;
-
-  @IsOptional()
-  @IsString()
   attachmentUrl?: string;
-
-  @IsString()
-  status!: string;
 }
 
-export class UpdateOperatingExpenseDto extends PartialType(CreateOperatingExpenseDto) {}
+export class UpdateOperatingExpenseDto extends PartialType(CreateOperatingExpenseDto) { }
+
+export class RejectExpenseDto {
+  @IsString()
+  @IsNotEmpty()
+  rejectionReason!: string;
+}
+
+export class CancelSalesInvoiceDto {
+  @IsString()
+  @IsNotEmpty()
+  cancellationReason!: string;
+}
 
 export class PatchSystemConfigDto {
   @IsString()
   value!: string;
+}
+
+export class AttendanceCheckInDto {
+  @IsOptional()
+  @IsString()
+  ptId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  checkInAt?: string;
+}
+
+export class AttendanceCheckOutDto {
+  @IsOptional()
+  @IsString()
+  ptId?: string;
+
+  @IsOptional()
+  @IsString()
+  attendanceLogId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  checkOutAt?: string;
 }

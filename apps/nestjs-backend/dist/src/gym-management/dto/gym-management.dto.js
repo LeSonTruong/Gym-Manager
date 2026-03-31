@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PatchSystemConfigDto = exports.UpdateOperatingExpenseDto = exports.CreateOperatingExpenseDto = exports.UpdateEquipmentDto = exports.CreateEquipmentDto = exports.UpdateProductDto = exports.CreateProductDto = exports.UpdateMembershipPlanDto = exports.CreateMembershipPlanDto = exports.UpdateMemberDto = exports.CreateMemberDto = exports.UpdatePersonalTrainerDto = exports.CreatePersonalTrainerDto = void 0;
+exports.AttendanceCheckOutDto = exports.AttendanceCheckInDto = exports.PatchSystemConfigDto = exports.CancelSalesInvoiceDto = exports.RejectExpenseDto = exports.UpdateOperatingExpenseDto = exports.CreateOperatingExpenseDto = exports.UpdateEquipmentDto = exports.CreateEquipmentDto = exports.UpdateProductDto = exports.CreateProductDto = exports.UpdateMembershipPlanDto = exports.CreateMembershipPlanDto = exports.UpdateMemberDto = exports.CreateMemberDto = exports.UpdatePersonalTrainerDto = exports.CreatePersonalTrainerDto = void 0;
 const mapped_types_1 = require("@nestjs/mapped-types");
 const class_validator_1 = require("class-validator");
 class CreatePersonalTrainerDto {
@@ -309,9 +309,7 @@ class CreateOperatingExpenseDto {
     vendorName;
     amount;
     description;
-    approvedByUserId;
     attachmentUrl;
-    status;
 }
 exports.CreateOperatingExpenseDto = CreateOperatingExpenseDto;
 __decorate([
@@ -347,19 +345,28 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateOperatingExpenseDto.prototype, "approvedByUserId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
 ], CreateOperatingExpenseDto.prototype, "attachmentUrl", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOperatingExpenseDto.prototype, "status", void 0);
 class UpdateOperatingExpenseDto extends (0, mapped_types_1.PartialType)(CreateOperatingExpenseDto) {
 }
 exports.UpdateOperatingExpenseDto = UpdateOperatingExpenseDto;
+class RejectExpenseDto {
+    rejectionReason;
+}
+exports.RejectExpenseDto = RejectExpenseDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], RejectExpenseDto.prototype, "rejectionReason", void 0);
+class CancelSalesInvoiceDto {
+    cancellationReason;
+}
+exports.CancelSalesInvoiceDto = CancelSalesInvoiceDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CancelSalesInvoiceDto.prototype, "cancellationReason", void 0);
 class PatchSystemConfigDto {
     value;
 }
@@ -368,4 +375,40 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], PatchSystemConfigDto.prototype, "value", void 0);
+class AttendanceCheckInDto {
+    ptId;
+    checkInAt;
+}
+exports.AttendanceCheckInDto = AttendanceCheckInDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AttendanceCheckInDto.prototype, "ptId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], AttendanceCheckInDto.prototype, "checkInAt", void 0);
+class AttendanceCheckOutDto {
+    ptId;
+    attendanceLogId;
+    checkOutAt;
+}
+exports.AttendanceCheckOutDto = AttendanceCheckOutDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AttendanceCheckOutDto.prototype, "ptId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AttendanceCheckOutDto.prototype, "attendanceLogId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], AttendanceCheckOutDto.prototype, "checkOutAt", void 0);
 //# sourceMappingURL=gym-management.dto.js.map

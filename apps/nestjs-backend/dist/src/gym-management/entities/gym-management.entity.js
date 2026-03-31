@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SystemConfigEntity = exports.MaintenanceRecordEntity = exports.OperatingExpenseEntity = exports.EquipmentAssetEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.InventoryTransactionEntity = exports.ProductEntity = exports.MembershipInvoiceEntity = exports.MemberPtAssignmentEntity = exports.MemberMembershipEntity = exports.MembershipPlanEntity = exports.MemberEntity = exports.PayrollEntryEntity = exports.PayrollPeriodEntity = exports.AttendanceLogEntity = exports.PtContractEntity = exports.PersonalTrainerEntity = exports.UserEntity = void 0;
+exports.SystemConfigEntity = exports.AuditLogEntity = exports.MaintenanceRecordEntity = exports.OperatingExpenseEntity = exports.EquipmentAssetEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.InventoryTransactionEntity = exports.ProductEntity = exports.MembershipInvoiceEntity = exports.MemberPtAssignmentEntity = exports.MemberMembershipEntity = exports.MembershipPlanEntity = exports.MemberEntity = exports.PayrollEntryEntity = exports.PayrollPeriodEntity = exports.AttendanceLogEntity = exports.PtContractEntity = exports.PersonalTrainerEntity = exports.UserEntity = void 0;
 const core_1 = require("@mikro-orm/core");
 const base_entity_1 = require("../../common/entities/base.entity");
 let UserEntity = class UserEntity extends base_entity_1.BaseEntity {
@@ -241,6 +241,10 @@ let PayrollPeriodEntity = class PayrollPeriodEntity extends base_entity_1.BaseEn
     fromDate;
     toDate;
     status;
+    submittedAt;
+    approvedByUser;
+    approvedAt;
+    paidAt;
 };
 exports.PayrollPeriodEntity = PayrollPeriodEntity;
 __decorate([
@@ -259,6 +263,22 @@ __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
 ], PayrollPeriodEntity.prototype, "status", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], PayrollPeriodEntity.prototype, "submittedAt", void 0);
+__decorate([
+    (0, core_1.ManyToOne)(() => UserEntity, { fieldName: 'approved_by_user_id', nullable: true }),
+    __metadata("design:type", Object)
+], PayrollPeriodEntity.prototype, "approvedByUser", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], PayrollPeriodEntity.prototype, "approvedAt", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], PayrollPeriodEntity.prototype, "paidAt", void 0);
 exports.PayrollPeriodEntity = PayrollPeriodEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'payroll_periods' })
 ], PayrollPeriodEntity);
@@ -666,6 +686,9 @@ let SalesInvoiceEntity = class SalesInvoiceEntity extends base_entity_1.BaseEnti
     discountAmount;
     totalAmount;
     note;
+    confirmedAt;
+    cancelledAt;
+    cancellationReason;
 };
 exports.SalesInvoiceEntity = SalesInvoiceEntity;
 __decorate([
@@ -708,6 +731,18 @@ __decorate([
     (0, core_1.Property)({ type: core_1.types.text }),
     __metadata("design:type", String)
 ], SalesInvoiceEntity.prototype, "note", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], SalesInvoiceEntity.prototype, "confirmedAt", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], SalesInvoiceEntity.prototype, "cancelledAt", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.text, nullable: true }),
+    __metadata("design:type", Object)
+], SalesInvoiceEntity.prototype, "cancellationReason", void 0);
 exports.SalesInvoiceEntity = SalesInvoiceEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'sales_invoices' })
 ], SalesInvoiceEntity);
@@ -797,6 +832,11 @@ let OperatingExpenseEntity = class OperatingExpenseEntity extends base_entity_1.
     amount;
     description;
     approvedByUser;
+    submittedAt;
+    approvedAt;
+    rejectedAt;
+    rejectionReason;
+    paidAt;
     attachmentUrl;
     status;
 };
@@ -833,6 +873,26 @@ __decorate([
     (0, core_1.ManyToOne)(() => UserEntity, { fieldName: 'approved_by_user_id', nullable: true }),
     __metadata("design:type", Object)
 ], OperatingExpenseEntity.prototype, "approvedByUser", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], OperatingExpenseEntity.prototype, "submittedAt", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], OperatingExpenseEntity.prototype, "approvedAt", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], OperatingExpenseEntity.prototype, "rejectedAt", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.text, nullable: true }),
+    __metadata("design:type", Object)
+], OperatingExpenseEntity.prototype, "rejectionReason", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], OperatingExpenseEntity.prototype, "paidAt", void 0);
 __decorate([
     (0, core_1.Property)({ length: 500, nullable: true }),
     __metadata("design:type", Object)
@@ -875,6 +935,57 @@ __decorate([
 exports.MaintenanceRecordEntity = MaintenanceRecordEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'maintenance_records' })
 ], MaintenanceRecordEntity);
+let AuditLogEntity = class AuditLogEntity extends base_entity_1.BaseEntity {
+    action;
+    resource;
+    recordId;
+    changedByUser;
+    method;
+    path;
+    statusCode;
+    requestBody;
+    responseBody;
+};
+exports.AuditLogEntity = AuditLogEntity;
+__decorate([
+    (0, core_1.Property)({ length: 120 }),
+    __metadata("design:type", String)
+], AuditLogEntity.prototype, "action", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 120 }),
+    __metadata("design:type", String)
+], AuditLogEntity.prototype, "resource", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 120, nullable: true }),
+    __metadata("design:type", Object)
+], AuditLogEntity.prototype, "recordId", void 0);
+__decorate([
+    (0, core_1.ManyToOne)(() => UserEntity, { fieldName: 'changed_by_user_id', nullable: true }),
+    __metadata("design:type", Object)
+], AuditLogEntity.prototype, "changedByUser", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 16 }),
+    __metadata("design:type", String)
+], AuditLogEntity.prototype, "method", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 255 }),
+    __metadata("design:type", String)
+], AuditLogEntity.prototype, "path", void 0);
+__decorate([
+    (0, core_1.Property)(),
+    __metadata("design:type", Number)
+], AuditLogEntity.prototype, "statusCode", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.json, nullable: true }),
+    __metadata("design:type", Object)
+], AuditLogEntity.prototype, "requestBody", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.json, nullable: true }),
+    __metadata("design:type", Object)
+], AuditLogEntity.prototype, "responseBody", void 0);
+exports.AuditLogEntity = AuditLogEntity = __decorate([
+    (0, core_1.Entity)({ tableName: 'audit_logs' })
+], AuditLogEntity);
 let SystemConfigEntity = class SystemConfigEntity {
     key;
     label;

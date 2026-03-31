@@ -40,6 +40,30 @@ let RedisService = class RedisService {
         }
         await this.publisher.publish(channel, serialized);
     }
+    async setValue(key, value, ttlSeconds) {
+        const client = this.getPublisher();
+        if (ttlSeconds && ttlSeconds > 0) {
+            await client.set(key, value, 'EX', ttlSeconds);
+            return;
+        }
+        await client.set(key, value);
+    }
+    async getValue(key) {
+        return (await this.getPublisher().get(key)) ?? undefined;
+    }
+    async deleteKey(key) {
+        await this.getPublisher().del(key);
+    }
+    async setJson(key, value, ttlSeconds) {
+        await this.setValue(key, JSON.stringify(value), ttlSeconds);
+    }
+    async getJson(key) {
+        const value = await this.getValue(key);
+        if (!value) {
+            return undefined;
+        }
+        return JSON.parse(value);
+    }
     async subscribe(channel, callback) {
         if (!this.subscriber) {
             throw new Error('Redis subscriber is not initialized');
@@ -67,6 +91,12 @@ let RedisService = class RedisService {
     async onModuleDestroy() {
         await this.publisher?.quit();
         await this.subscriber?.quit();
+    }
+    getPublisher() {
+        if (!this.publisher) {
+            throw new Error('Redis publisher is not initialized');
+        }
+        return this.publisher;
     }
 };
 exports.RedisService = RedisService;

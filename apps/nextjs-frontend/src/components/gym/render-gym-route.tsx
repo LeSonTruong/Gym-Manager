@@ -1,6 +1,6 @@
-import {type JSX} from 'react';
-import {notFound} from 'next/navigation';
-import {Link} from '@/i18n/navigation.ts';
+import { type JSX } from 'react';
+import { notFound } from 'next/navigation';
+import { Link } from '@/i18n/navigation.ts';
 import {
   formatCurrency,
   formatDate,
@@ -19,9 +19,9 @@ import {
   sortMembersByDate,
   sortProductsByStock,
 } from '@/lib/gym-data.ts';
-import {Badge, DataTable, KeyValueList, PageHeader, SectionCard, StatsGrid} from './gym-ui.tsx';
+import { Badge, DataTable, KeyValueList, PageHeader, SectionCard, StatsGrid } from './gym-ui.tsx';
 
-function ActionLink({href, children}: {readonly href: string; readonly children: string}): JSX.Element {
+function ActionLink({ href, children }: { readonly href: string; readonly children: string }): JSX.Element {
   return (
     <Link
       href={href}
@@ -89,10 +89,10 @@ function buildDashboardPage(): JSX.Element {
         >
           <KeyValueList
             items={[
-              {label: 'Daily revenue', value: formatCurrency(snapshot.dashboard.revenue.daily)},
-              {label: 'Yearly revenue', value: formatCurrency(snapshot.dashboard.revenue.yearly)},
-              {label: 'Operating expense', value: formatCurrency(snapshot.dashboard.totalOperatingExpense)},
-              {label: 'Net profit', value: formatCurrency(snapshot.profitReport.netProfit)},
+              { label: 'Daily revenue', value: formatCurrency(snapshot.dashboard.revenue.daily) },
+              { label: 'Yearly revenue', value: formatCurrency(snapshot.dashboard.revenue.yearly) },
+              { label: 'Operating expense', value: formatCurrency(snapshot.dashboard.totalOperatingExpense) },
+              { label: 'Net profit', value: formatCurrency(snapshot.profitReport.netProfit) },
             ]}
           />
         </SectionCard>
@@ -231,10 +231,10 @@ function buildPtDetailPage(ptId: string): JSX.Element {
 
       <StatsGrid
         items={[
-          {label: 'Active members', value: `${ptOverview.activeMembers}`, note: 'Member assignments dang mo.'},
-          {label: 'Shift credits', value: `${ptOverview.validShiftCredits}`, note: 'Cong VALID/HALF trong ky.'},
-          {label: 'Overtime', value: formatHours(ptOverview.overtimeHours), note: 'Tong gio tang ca.'},
-          {label: 'Latest payroll', value: formatCurrency(ptOverview.estimatedPayroll), note: 'Net pay ky gan nhat.'},
+          { label: 'Active members', value: `${ptOverview.activeMembers}`, note: 'Member assignments dang mo.' },
+          { label: 'Shift credits', value: `${ptOverview.validShiftCredits}`, note: 'Cong VALID/HALF trong ky.' },
+          { label: 'Overtime', value: formatHours(ptOverview.overtimeHours), note: 'Tong gio tang ca.' },
+          { label: 'Latest payroll', value: formatCurrency(ptOverview.estimatedPayroll), note: 'Net pay ky gan nhat.' },
         ]}
       />
 
@@ -242,12 +242,12 @@ function buildPtDetailPage(ptId: string): JSX.Element {
         <SectionCard title="Profile summary">
           <KeyValueList
             items={[
-              {label: 'Email', value: ptOverview.pt.email},
-              {label: 'Phone', value: ptOverview.pt.phone},
-              {label: 'Address', value: ptOverview.pt.address},
-              {label: 'Experience', value: `${ptOverview.pt.experienceYears} years`},
-              {label: 'Status', value: <Badge tone={getStatusTone(ptOverview.pt.status)}>{ptOverview.pt.status}</Badge>},
-              {label: 'Contract type', value: ptOverview.contract?.contractType ?? 'No contract'},
+              { label: 'Email', value: ptOverview.pt.email },
+              { label: 'Phone', value: ptOverview.pt.phone },
+              { label: 'Address', value: ptOverview.pt.address },
+              { label: 'Experience', value: `${ptOverview.pt.experienceYears} years` },
+              { label: 'Status', value: <Badge tone={getStatusTone(ptOverview.pt.status)}>{ptOverview.pt.status}</Badge> },
+              { label: 'Contract type', value: ptOverview.contract?.contractType ?? 'No contract' },
             ]}
           />
         </SectionCard>
@@ -325,16 +325,16 @@ function buildPtContractsPage(ptId: string): JSX.Element {
       <SectionCard title="Contract settings">
         <KeyValueList
           items={[
-            {label: 'Salary type', value: contract.salaryType},
-            {label: 'Base salary', value: formatCurrency(contract.baseSalary)},
-            {label: 'Min valid shift', value: formatHours(contract.minValidShiftHours)},
-            {label: 'Standard shift', value: formatHours(contract.standardShiftHours)},
-            {label: 'Overtime rate', value: `${formatCurrency(contract.overtimeHourlyRate)} / hour`},
-            {label: 'Package commission', value: `${contract.packageCommissionRate * 100}%`},
-            {label: 'Sales commission', value: `${contract.salesCommissionRate * 100}%`},
-            {label: 'Performance bonus', value: `${formatCurrency(contract.performanceBonusAmount)} at ${contract.performanceBonusThreshold} active members`},
-            {label: 'Allowances', value: formatCurrency(contract.allowances)},
-            {label: 'Effective', value: `${formatDate(contract.effectiveFrom)} - ${formatDate(contract.effectiveTo)}`},
+            { label: 'Salary type', value: contract.salaryType },
+            { label: 'Base salary', value: formatCurrency(contract.baseSalary) },
+            { label: 'Min valid shift', value: formatHours(contract.minValidShiftHours) },
+            { label: 'Standard shift', value: formatHours(contract.standardShiftHours) },
+            { label: 'Overtime rate', value: `${formatCurrency(contract.overtimeHourlyRate)} / hour` },
+            { label: 'Package commission', value: `${contract.packageCommissionRate * 100}%` },
+            { label: 'Sales commission', value: `${contract.salesCommissionRate * 100}%` },
+            { label: 'Performance bonus', value: `${formatCurrency(contract.performanceBonusAmount)} at ${contract.performanceBonusThreshold} active members` },
+            { label: 'Allowances', value: formatCurrency(contract.allowances) },
+            { label: 'Effective', value: `${formatDate(contract.effectiveFrom)} - ${formatDate(contract.effectiveTo)}` },
           ]}
         />
       </SectionCard>
@@ -413,7 +413,7 @@ function buildPayrollPage(): JSX.Element {
 
       <StatsGrid
         items={[
-          {label: 'Total payroll', value: formatCurrency(snapshot.payrollReport.totalPayroll), note: 'Tong net pay tat ca ky.'},
+          { label: 'Total payroll', value: formatCurrency(snapshot.payrollReport.totalPayroll), note: 'Tong net pay tat ca ky.' },
           {
             label: 'Approved payroll',
             value: formatCurrency(snapshot.payrollReport.approvedPayroll),
@@ -424,7 +424,7 @@ function buildPayrollPage(): JSX.Element {
             value: formatCurrency(snapshot.payrollReport.pendingPayroll),
             note: 'Net pay dang cho review.',
           },
-          {label: 'Periods', value: `${snapshot.dataset.payrollPeriods.length}`, note: 'So ky luong co san trong demo dataset.'},
+          { label: 'Periods', value: `${snapshot.dataset.payrollPeriods.length}`, note: 'So ky luong co san trong demo dataset.' },
         ]}
       />
 
@@ -517,8 +517,8 @@ function buildMembersPage(): JSX.Element {
 
       <StatsGrid
         items={[
-          {label: 'Total members', value: `${snapshot.dataset.members.length}`, note: 'Bao gom ca active va inactive.'},
-          {label: 'Members with PT', value: `${membersWithPt}`, note: 'Duoc tinh tu ACTIVE assignments.'},
+          { label: 'Total members', value: `${snapshot.dataset.members.length}`, note: 'Bao gom ca active va inactive.' },
+          { label: 'Members with PT', value: `${membersWithPt}`, note: 'Duoc tinh tu ACTIVE assignments.' },
           {
             label: 'Active yearly plans',
             value: `${snapshot.dashboard.activeMemberships.YEAR}`,
@@ -584,12 +584,12 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
         <SectionCard title="Profile summary">
           <KeyValueList
             items={[
-              {label: 'Phone', value: member.phone},
-              {label: 'Email', value: member.email},
-              {label: 'Address', value: member.address},
-              {label: 'Body profile', value: `${member.heightCm} cm | ${member.weightKg} kg`},
-              {label: 'Health notes', value: member.healthNotes},
-              {label: 'Status', value: <Badge tone={getStatusTone(member.status)}>{member.status}</Badge>},
+              { label: 'Phone', value: member.phone },
+              { label: 'Email', value: member.email },
+              { label: 'Address', value: member.address },
+              { label: 'Body profile', value: `${member.heightCm} cm | ${member.weightKg} kg` },
+              { label: 'Health notes', value: member.healthNotes },
+              { label: 'Status', value: <Badge tone={getStatusTone(member.status)}>{member.status}</Badge> },
             ]}
           />
         </SectionCard>
@@ -747,10 +747,10 @@ function buildProductsPage(): JSX.Element {
       <PageHeader eyebrow="Retail catalog" title="Products" description="San pham dich vu trong gym, gia ban, gia von va trang thai ton kho hien tai." />
       <StatsGrid
         items={[
-          {label: 'Total products', value: `${snapshot.inventoryOverview.totalProducts}`, note: 'So SKU dang duoc track trong phong gym.'},
-          {label: 'Low stock', value: `${snapshot.inventoryOverview.lowStockCount}`, note: 'Can restock ngay trong ky.'},
-          {label: 'Stock value', value: formatCurrency(snapshot.inventoryOverview.stockValue), note: 'Ton kho tinh theo unit cost.'},
-          {label: 'Service revenue', value: formatCurrency(snapshot.revenueReport.servicesRevenue), note: 'Doanh thu tu sales invoices confirmed.'},
+          { label: 'Total products', value: `${snapshot.inventoryOverview.totalProducts}`, note: 'So SKU dang duoc track trong phong gym.' },
+          { label: 'Low stock', value: `${snapshot.inventoryOverview.lowStockCount}`, note: 'Can restock ngay trong ky.' },
+          { label: 'Stock value', value: formatCurrency(snapshot.inventoryOverview.stockValue), note: 'Ton kho tinh theo unit cost.' },
+          { label: 'Service revenue', value: formatCurrency(snapshot.revenueReport.servicesRevenue), note: 'Doanh thu tu sales invoices confirmed.' },
         ]}
       />
 
@@ -779,10 +779,10 @@ function buildInventoryPage(): JSX.Element {
       <PageHeader eyebrow="Inventory" title="Inventory transactions" description="Theo doi bien dong import, sale, adjustment va muc ton kho hien tai." actions={<ActionLink href="/inventory/import">Open imports</ActionLink>} />
       <StatsGrid
         items={[
-          {label: 'Stock value', value: formatCurrency(snapshot.inventoryOverview.stockValue), note: 'Tinh theo unit cost.'},
-          {label: 'Recent transactions', value: `${snapshot.inventoryOverview.recentTransactions.length}`, note: '6 giao dich gan nhat.'},
-          {label: 'Top seller', value: snapshot.inventoryOverview.topSellingProducts[0]?.product.name ?? 'N/A', note: 'San pham ban chay nhat.'},
-          {label: 'Low stock count', value: `${snapshot.inventoryOverview.lowStockCount}`, note: 'So SKU dang canh bao.'},
+          { label: 'Stock value', value: formatCurrency(snapshot.inventoryOverview.stockValue), note: 'Tinh theo unit cost.' },
+          { label: 'Recent transactions', value: `${snapshot.inventoryOverview.recentTransactions.length}`, note: '6 giao dich gan nhat.' },
+          { label: 'Top seller', value: snapshot.inventoryOverview.topSellingProducts[0]?.product.name ?? 'N/A', note: 'San pham ban chay nhat.' },
+          { label: 'Low stock count', value: `${snapshot.inventoryOverview.lowStockCount}`, note: 'So SKU dang canh bao.' },
         ]}
       />
 
@@ -882,12 +882,12 @@ function buildInvoiceDetailPage(invoiceId: string): JSX.Element {
       <SectionCard title="Invoice summary">
         <KeyValueList
           items={[
-            {label: 'Customer', value: invoice.customerName},
-            {label: 'Member', value: invoice.memberId ? getMemberName(snapshot, invoice.memberId) : 'Walk-in'},
-            {label: 'Payment method', value: invoice.paymentMethod},
-            {label: 'Discount', value: formatCurrency(invoice.discountAmount)},
-            {label: 'Total', value: formatCurrency(invoice.totalAmount)},
-            {label: 'Status', value: <Badge tone={getStatusTone(invoice.status)}>{humanizeStatus(invoice.status)}</Badge>},
+            { label: 'Customer', value: invoice.customerName },
+            { label: 'Member', value: invoice.memberId ? getMemberName(snapshot, invoice.memberId) : 'Walk-in' },
+            { label: 'Payment method', value: invoice.paymentMethod },
+            { label: 'Discount', value: formatCurrency(invoice.discountAmount) },
+            { label: 'Total', value: formatCurrency(invoice.totalAmount) },
+            { label: 'Status', value: <Badge tone={getStatusTone(invoice.status)}>{humanizeStatus(invoice.status)}</Badge> },
           ]}
         />
       </SectionCard>
@@ -918,10 +918,10 @@ function buildExpensesPage(): JSX.Element {
       <PageHeader eyebrow="Operating expenses" title="Expense requests" description="Theo doi phi cleaning, maintenance, repair va utility theo vong doi approval." />
       <StatsGrid
         items={[
-          {label: 'Counted expense', value: formatCurrency(snapshot.expenseReport.totalExpense), note: 'Chi tinh APPROVED va PAID.'},
-          {label: 'Pending approval', value: `${snapshot.expenseReport.pendingApprovalCount}`, note: 'Can Admin review.'},
-          {label: 'Paid slips', value: `${snapshot.expenseReport.paidCount}`, note: 'Da thanh toan xong.'},
-          {label: 'Largest category', value: 'Repair', note: 'Chi phi repair dang chiem ty trong lon nhat trong ky.'},
+          { label: 'Counted expense', value: formatCurrency(snapshot.expenseReport.totalExpense), note: 'Chi tinh APPROVED va PAID.' },
+          { label: 'Pending approval', value: `${snapshot.expenseReport.pendingApprovalCount}`, note: 'Can Admin review.' },
+          { label: 'Paid slips', value: `${snapshot.expenseReport.paidCount}`, note: 'Da thanh toan xong.' },
+          { label: 'Largest category', value: 'Repair', note: 'Chi phi repair dang chiem ty trong lon nhat trong ky.' },
         ]}
       />
 
@@ -961,12 +961,12 @@ function buildExpenseDetailPage(expenseId: string): JSX.Element {
       <SectionCard title="Expense summary">
         <KeyValueList
           items={[
-            {label: 'Expense date', value: formatDate(expense.expenseDate)},
-            {label: 'Vendor', value: expense.vendorName},
-            {label: 'Equipment', value: getEquipmentName(snapshot, expense.equipmentAssetId)},
-            {label: 'Amount', value: formatCurrency(expense.amount)},
-            {label: 'Description', value: expense.description},
-            {label: 'Status', value: <Badge tone={getStatusTone(expense.status)}>{humanizeStatus(expense.status)}</Badge>},
+            { label: 'Expense date', value: formatDate(expense.expenseDate) },
+            { label: 'Vendor', value: expense.vendorName },
+            { label: 'Equipment', value: getEquipmentName(snapshot, expense.equipmentAssetId) },
+            { label: 'Amount', value: formatCurrency(expense.amount) },
+            { label: 'Description', value: expense.description },
+            { label: 'Status', value: <Badge tone={getStatusTone(expense.status)}>{humanizeStatus(expense.status)}</Badge> },
           ]}
         />
       </SectionCard>
@@ -982,14 +982,14 @@ function buildEquipmentPage(): JSX.Element {
       <PageHeader eyebrow="Assets" title="Equipment register" description="Danh muc thiet bi, tinh trang su dung va lich bao tri ke tiep." />
       <StatsGrid
         items={[
-          {label: 'Assets tracked', value: `${snapshot.dataset.equipmentAssets.length}`, note: 'Tong so thiet bi trong registry.'},
+          { label: 'Assets tracked', value: `${snapshot.dataset.equipmentAssets.length}`, note: 'Tong so thiet bi trong registry.' },
           {
             label: 'Need attention',
             value: `${snapshot.dataset.equipmentAssets.filter((asset) => asset.condition !== 'GOOD').length}`,
             note: 'Asset can bao tri hoac thay the.',
           },
-          {label: 'Maintenance records', value: `${snapshot.dataset.maintenanceRecords.length}`, note: 'Tong event bao tri da ghi nhan.'},
-          {label: 'Open alerts', value: `${snapshot.dashboard.maintenanceAlerts.length}`, note: 'Can xu ly trong 14 ngay.'},
+          { label: 'Maintenance records', value: `${snapshot.dataset.maintenanceRecords.length}`, note: 'Tong event bao tri da ghi nhan.' },
+          { label: 'Open alerts', value: `${snapshot.dashboard.maintenanceAlerts.length}`, note: 'Can xu ly trong 14 ngay.' },
         ]}
       />
 
@@ -1032,12 +1032,12 @@ function buildEquipmentDetailPage(equipmentId: string): JSX.Element {
       <SectionCard title="Asset summary">
         <KeyValueList
           items={[
-            {label: 'Code', value: equipmentAsset.code},
-            {label: 'Purchased at', value: formatDate(equipmentAsset.purchasedAt)},
-            {label: 'Purchase value', value: formatCurrency(equipmentAsset.purchaseValue)},
-            {label: 'Condition', value: <Badge tone={getStatusTone(equipmentAsset.condition)}>{humanizeStatus(equipmentAsset.condition)}</Badge>},
-            {label: 'Next maintenance', value: formatDate(equipmentAsset.nextMaintenanceAt)},
-            {label: 'Note', value: equipmentAsset.note},
+            { label: 'Code', value: equipmentAsset.code },
+            { label: 'Purchased at', value: formatDate(equipmentAsset.purchasedAt) },
+            { label: 'Purchase value', value: formatCurrency(equipmentAsset.purchaseValue) },
+            { label: 'Condition', value: <Badge tone={getStatusTone(equipmentAsset.condition)}>{humanizeStatus(equipmentAsset.condition)}</Badge> },
+            { label: 'Next maintenance', value: formatDate(equipmentAsset.nextMaintenanceAt) },
+            { label: 'Note', value: equipmentAsset.note },
           ]}
         />
       </SectionCard>
@@ -1087,10 +1087,10 @@ function buildRevenueReportPage(): JSX.Element {
       <PageHeader eyebrow="Reports" title="Revenue report" description="Tong hop doanh thu membership va doanh thu retail tren cung mot dashboard." />
       <StatsGrid
         items={[
-          {label: 'Total revenue', value: formatCurrency(snapshot.revenueReport.totalRevenue), note: 'Membership + retail confirmed.'},
-          {label: 'Membership revenue', value: formatCurrency(snapshot.revenueReport.membershipRevenue), note: 'Thu tu membership invoices.'},
-          {label: 'Service revenue', value: formatCurrency(snapshot.revenueReport.servicesRevenue), note: 'Thu tu sales invoices.'},
-          {label: 'Invoice count', value: `${snapshot.revenueReport.membershipInvoiceCount + snapshot.revenueReport.salesInvoiceCount}`, note: 'Tong invoice da confirm.'},
+          { label: 'Total revenue', value: formatCurrency(snapshot.revenueReport.totalRevenue), note: 'Membership + retail confirmed.' },
+          { label: 'Membership revenue', value: formatCurrency(snapshot.revenueReport.membershipRevenue), note: 'Thu tu membership invoices.' },
+          { label: 'Service revenue', value: formatCurrency(snapshot.revenueReport.servicesRevenue), note: 'Thu tu sales invoices.' },
+          { label: 'Invoice count', value: `${snapshot.revenueReport.membershipInvoiceCount + snapshot.revenueReport.salesInvoiceCount}`, note: 'Tong invoice da confirm.' },
         ]}
       />
 
@@ -1127,10 +1127,10 @@ function buildPayrollReportPage(): JSX.Element {
       <PageHeader eyebrow="Reports" title="Payroll report" description="Tong chi luong PT, status approval va phan bo net pay theo trainer." />
       <StatsGrid
         items={[
-          {label: 'Total payroll', value: formatCurrency(snapshot.payrollReport.totalPayroll), note: 'Tong net pay toan bo history.'},
-          {label: 'Approved', value: formatCurrency(snapshot.payrollReport.approvedPayroll), note: 'Da approved hoac paid.'},
-          {label: 'Pending', value: formatCurrency(snapshot.payrollReport.pendingPayroll), note: 'Dang cho duyet.'},
-          {label: 'Entries', value: `${snapshot.payrollReport.byTrainer.length}`, note: 'So dong payroll trong dataset.'},
+          { label: 'Total payroll', value: formatCurrency(snapshot.payrollReport.totalPayroll), note: 'Tong net pay toan bo history.' },
+          { label: 'Approved', value: formatCurrency(snapshot.payrollReport.approvedPayroll), note: 'Da approved hoac paid.' },
+          { label: 'Pending', value: formatCurrency(snapshot.payrollReport.pendingPayroll), note: 'Dang cho duyet.' },
+          { label: 'Entries', value: `${snapshot.payrollReport.byTrainer.length}`, note: 'So dong payroll trong dataset.' },
         ]}
       />
       <SectionCard title="Payroll by trainer">
@@ -1158,10 +1158,10 @@ function buildInventoryReportPage(): JSX.Element {
       <PageHeader eyebrow="Reports" title="Inventory report" description="Ton kho hien tai, top sellers va transaction flow trong ky." />
       <StatsGrid
         items={[
-          {label: 'Stock value', value: formatCurrency(snapshot.inventoryOverview.stockValue), note: 'Ton kho theo cost.'},
-          {label: 'Low stock count', value: `${snapshot.inventoryOverview.lowStockCount}`, note: 'SKU dang can canh bao.'},
-          {label: 'Products tracked', value: `${snapshot.inventoryOverview.totalProducts}`, note: 'Tong SKU dang active.'},
-          {label: 'Recent moves', value: `${snapshot.inventoryOverview.recentTransactions.length}`, note: '6 giao dich gan nhat.'},
+          { label: 'Stock value', value: formatCurrency(snapshot.inventoryOverview.stockValue), note: 'Ton kho theo cost.' },
+          { label: 'Low stock count', value: `${snapshot.inventoryOverview.lowStockCount}`, note: 'SKU dang can canh bao.' },
+          { label: 'Products tracked', value: `${snapshot.inventoryOverview.totalProducts}`, note: 'Tong SKU dang active.' },
+          { label: 'Recent moves', value: `${snapshot.inventoryOverview.recentTransactions.length}`, note: '6 giao dich gan nhat.' },
         ]}
       />
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
@@ -1199,10 +1199,10 @@ function buildExpenseReportPage(): JSX.Element {
       <PageHeader eyebrow="Reports" title="Expense report" description="Chi phi van hanh theo category va trang thai approval." />
       <StatsGrid
         items={[
-          {label: 'Counted expense', value: formatCurrency(snapshot.expenseReport.totalExpense), note: 'Chi APPROVED + PAID.'},
-          {label: 'Pending approval', value: `${snapshot.expenseReport.pendingApprovalCount}`, note: 'Can duyet bo sung.'},
-          {label: 'Paid expense count', value: `${snapshot.expenseReport.paidCount}`, note: 'Da mark paid.'},
-          {label: 'Top category', value: 'Repair', note: 'Category co tong amount lon nhat hien tai.'},
+          { label: 'Counted expense', value: formatCurrency(snapshot.expenseReport.totalExpense), note: 'Chi APPROVED + PAID.' },
+          { label: 'Pending approval', value: `${snapshot.expenseReport.pendingApprovalCount}`, note: 'Can duyet bo sung.' },
+          { label: 'Paid expense count', value: `${snapshot.expenseReport.paidCount}`, note: 'Da mark paid.' },
+          { label: 'Top category', value: 'Repair', note: 'Category co tong amount lon nhat hien tai.' },
         ]}
       />
       <SectionCard title="Expense by category">
@@ -1223,20 +1223,20 @@ function buildProfitReportPage(): JSX.Element {
       <PageHeader eyebrow="Reports" title="Profit report" description="Cong thuc: revenue - COGS - PT payroll - operating expense." />
       <StatsGrid
         items={[
-          {label: 'Revenue', value: formatCurrency(snapshot.profitReport.totalRevenue), note: 'Tong doanh thu confirmed.'},
-          {label: 'COGS', value: formatCurrency(snapshot.profitReport.cogs), note: 'Gia von tu retail items da ban.'},
-          {label: 'PT payroll', value: formatCurrency(snapshot.profitReport.ptPayroll), note: 'Ky payroll hien tai.'},
-          {label: 'Net profit', value: formatCurrency(snapshot.profitReport.netProfit), note: 'Ket qua sau khi tru chi phi va payroll.'},
+          { label: 'Revenue', value: formatCurrency(snapshot.profitReport.totalRevenue), note: 'Tong doanh thu confirmed.' },
+          { label: 'COGS', value: formatCurrency(snapshot.profitReport.cogs), note: 'Gia von tu retail items da ban.' },
+          { label: 'PT payroll', value: formatCurrency(snapshot.profitReport.ptPayroll), note: 'Ky payroll hien tai.' },
+          { label: 'Net profit', value: formatCurrency(snapshot.profitReport.netProfit), note: 'Ket qua sau khi tru chi phi va payroll.' },
         ]}
       />
       <SectionCard title="Profit formula">
         <KeyValueList
           items={[
-            {label: 'Total revenue', value: formatCurrency(snapshot.profitReport.totalRevenue)},
-            {label: 'Minus COGS', value: formatCurrency(snapshot.profitReport.cogs)},
-            {label: 'Minus PT payroll', value: formatCurrency(snapshot.profitReport.ptPayroll)},
-            {label: 'Minus operating expense', value: formatCurrency(snapshot.profitReport.operatingExpense)},
-            {label: 'Net result', value: <span className="font-semibold text-slate-950">{formatCurrency(snapshot.profitReport.netProfit)}</span>},
+            { label: 'Total revenue', value: formatCurrency(snapshot.profitReport.totalRevenue) },
+            { label: 'Minus COGS', value: formatCurrency(snapshot.profitReport.cogs) },
+            { label: 'Minus PT payroll', value: formatCurrency(snapshot.profitReport.ptPayroll) },
+            { label: 'Minus operating expense', value: formatCurrency(snapshot.profitReport.operatingExpense) },
+            { label: 'Net result', value: <span className="font-semibold text-slate-950">{formatCurrency(snapshot.profitReport.netProfit)}</span> },
           ]}
         />
       </SectionCard>
@@ -1296,7 +1296,7 @@ function buildLoginPage(): JSX.Element {
 
       <SectionCard title="Quick test">
         <pre className="overflow-x-auto rounded-[1.25rem] bg-slate-950 p-4 text-sm leading-7 text-slate-100">
-{`POST ${backendUrl}/api/auth/login
+          {`POST ${backendUrl}/api/auth/login
 {
   "email": "admin@gymmanager.local",
   "password": "demo123"
@@ -1325,11 +1325,11 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (slug[0] === 'pts' && slug.length === 2) {
-    return buildPtDetailPage(slug[1]);
+    return buildPtDetailPage(slug[1]!);
   }
 
   if (slug[0] === 'pts' && slug.length === 3 && slug[2] === 'contracts') {
-    return buildPtContractsPage(slug[1]);
+    return buildPtContractsPage(slug[1]!);
   }
 
   if (slug[0] === 'payroll' && slug.length === 1) {
@@ -1337,7 +1337,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (slug[0] === 'payroll' && slug.length === 2) {
-    return buildPayrollPeriodPage(slug[1]);
+    return buildPayrollPeriodPage(slug[1]!);
   }
 
   if (slug[0] === 'members' && slug.length === 1) {
@@ -1349,7 +1349,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (slug[0] === 'members' && slug.length === 2) {
-    return buildMemberDetailPage(slug[1]);
+    return buildMemberDetailPage(slug[1]!);
   }
 
   if (slug[0] === 'membership-plans') {
@@ -1377,7 +1377,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (slug[0] === 'invoices' && slug.length === 2) {
-    return buildInvoiceDetailPage(slug[1]);
+    return buildInvoiceDetailPage(slug[1]!);
   }
 
   if (slug[0] === 'expenses' && slug.length === 1) {
@@ -1385,7 +1385,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (slug[0] === 'expenses' && slug.length === 2) {
-    return buildExpenseDetailPage(slug[1]);
+    return buildExpenseDetailPage(slug[1]!);
   }
 
   if (slug[0] === 'equipment' && slug.length === 1) {
@@ -1393,7 +1393,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (slug[0] === 'equipment' && slug.length === 2) {
-    return buildEquipmentDetailPage(slug[1]);
+    return buildEquipmentDetailPage(slug[1]!);
   }
 
   if (slug[0] === 'maintenance') {

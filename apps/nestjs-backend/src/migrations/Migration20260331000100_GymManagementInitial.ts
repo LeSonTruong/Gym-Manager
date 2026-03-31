@@ -1,4 +1,4 @@
-import {Migration} from '@mikro-orm/migrations';
+import { Migration } from '@mikro-orm/migrations';
 
 export class GymManagementInitialMigration20260331000100 extends Migration {
   override async up(): Promise<void> {
@@ -163,10 +163,15 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         "from_date" date not null,
         "to_date" date not null,
         "status" varchar(30) not null,
+        "submitted_at" timestamp null,
+        "approved_by_user_id" varchar(120) null,
+        "approved_at" timestamp null,
+        "paid_at" timestamp null,
         "created_at" timestamp not null,
         "updated_at" timestamp not null,
         constraint "payroll_periods_pkey" primary key ("id"),
-        constraint "payroll_periods_code_unique" unique ("code")
+        constraint "payroll_periods_code_unique" unique ("code"),
+        constraint "payroll_periods_approved_by_user_id_foreign" foreign key ("approved_by_user_id") references "users" ("id") on update cascade on delete set null
       );
 
       create table "member_memberships" (
@@ -280,6 +285,9 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         "discount_amount" numeric(15,2) not null,
         "total_amount" numeric(15,2) not null,
         "note" text not null,
+        "confirmed_at" timestamp null,
+        "cancelled_at" timestamp null,
+        "cancellation_reason" text null,
         "created_at" timestamp not null,
         "updated_at" timestamp not null,
         constraint "sales_invoices_pkey" primary key ("id"),
@@ -298,6 +306,11 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         "amount" numeric(15,2) not null,
         "description" text not null,
         "approved_by_user_id" varchar(120) null,
+        "submitted_at" timestamp null,
+        "approved_at" timestamp null,
+        "rejected_at" timestamp null,
+        "rejection_reason" text null,
+        "paid_at" timestamp null,
         "attachment_url" varchar(500) null,
         "status" varchar(30) not null,
         "created_at" timestamp not null,
@@ -325,6 +338,23 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         constraint "sales_invoice_items_product_id_foreign" foreign key ("product_id") references "products" ("id") on update cascade
       );
 
+      create table "audit_logs" (
+        "id" varchar(120) not null,
+        "action" varchar(120) not null,
+        "resource" varchar(120) not null,
+        "record_id" varchar(120) null,
+        "changed_by_user_id" varchar(120) null,
+        "method" varchar(16) not null,
+        "path" varchar(255) not null,
+        "status_code" int not null,
+        "request_body" jsonb null,
+        "response_body" jsonb null,
+        "created_at" timestamp not null,
+        "updated_at" timestamp not null,
+        constraint "audit_logs_pkey" primary key ("id"),
+        constraint "audit_logs_changed_by_user_id_foreign" foreign key ("changed_by_user_id") references "users" ("id") on update cascade on delete set null
+      );
+
       create index "attendance_logs_pt_id_index" on "attendance_logs" ("pt_id");
       create index "attendance_logs_attendance_date_index" on "attendance_logs" ("attendance_date");
       create index "member_memberships_member_id_index" on "member_memberships" ("member_id");
@@ -337,10 +367,12 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
       create index "sales_invoices_invoice_date_index" on "sales_invoices" ("invoice_date");
       create index "operating_expenses_expense_date_index" on "operating_expenses" ("expense_date");
       create index "operating_expenses_status_index" on "operating_expenses" ("status");
+      create index "audit_logs_resource_record_id_index" on "audit_logs" ("resource", "record_id");
     `);
   }
 
   override async down(): Promise<void> {
+    this.addSql('drop table if exists "audit_logs" cascade;');
     this.addSql('drop table if exists "sales_invoice_items" cascade;');
     this.addSql('drop table if exists "operating_expenses" cascade;');
     this.addSql('drop table if exists "sales_invoices" cascade;');

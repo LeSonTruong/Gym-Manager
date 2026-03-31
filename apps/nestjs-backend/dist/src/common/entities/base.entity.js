@@ -10,10 +10,10 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseEntity = void 0;
+const node_crypto_1 = require("node:crypto");
 const core_1 = require("@mikro-orm/core");
-const uuid_1 = require("uuid");
 class BaseEntity {
-    id = (0, uuid_1.v4)();
+    id = (0, node_crypto_1.randomUUID)();
     createdAt = new Date();
     updatedAt = new Date();
     [core_1.OptionalProps];
@@ -21,7 +21,7 @@ class BaseEntity {
 exports.BaseEntity = BaseEntity;
 __decorate([
     (0, core_1.PrimaryKey)({ type: core_1.types.string, length: 120 }),
-    __metadata("design:type", Object)
+    __metadata("design:type", String)
 ], BaseEntity.prototype, "id", void 0);
 __decorate([
     (0, core_1.Property)({ onCreate: () => new Date(), type: core_1.types.datetime, columnType: 'timestamp' }),

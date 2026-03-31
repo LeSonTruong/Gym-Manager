@@ -1,14 +1,14 @@
-import {Injectable, OnModuleInit, OnModuleDestroy} from '@nestjs/common';
-import {ConfigService} from '@nestjs/config';
-import Redis, {RedisOptions} from 'ioredis';
-import {ConfigKey} from 'src/config/config-key.enum';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis, { RedisOptions } from 'ioredis';
+import { ConfigKey } from 'src/config/config-key.enum';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   private publisher: Redis | undefined;
   private subscriber: Redis | undefined;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   onModuleInit(): void {
     const redisConfig: RedisOptions = {
@@ -32,6 +32,39 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.publisher.publish(channel, serialized);
+  }
+
+  async setValue(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    const client = this.getPublisher();
+
+    if (ttlSeconds && ttlSeconds > 0) {
+      await client.set(key, value, 'EX', ttlSeconds);
+      return;
+    }
+
+    await client.set(key, value);
+  }
+
+  async getValue(key: string): Promise<string | undefined> {
+    return (await this.getPublisher().get(key)) ?? undefined;
+  }
+
+  async deleteKey(key: string): Promise<void> {
+    await this.getPublisher().del(key);
+  }
+
+  async setJson<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
+    await this.setValue(key, JSON.stringify(value), ttlSeconds);
+  }
+
+  async getJson<T>(key: string): Promise<T | undefined> {
+    const value = await this.getValue(key);
+
+    if (!value) {
+      return undefined;
+    }
+
+    return JSON.parse(value) as T;
   }
 
   async subscribe<T>(channel: string, callback: (message: T) => void): Promise<void> {
@@ -64,5 +97,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy(): Promise<void> {
     await this.publisher?.quit();
     await this.subscriber?.quit();
+  }
+
+  private getPublisher(): Redis {
+    if (!this.publisher) {
+      throw new Error('Redis publisher is not initialized');
+    }
+
+    return this.publisher;
   }
 }

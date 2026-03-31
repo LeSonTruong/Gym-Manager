@@ -81,14 +81,27 @@ export declare class CreateOperatingExpenseDto {
     vendorName: string;
     amount: number;
     description: string;
-    approvedByUserId?: string;
     attachmentUrl?: string;
-    status: string;
 }
 declare const UpdateOperatingExpenseDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateOperatingExpenseDto>>;
 export declare class UpdateOperatingExpenseDto extends UpdateOperatingExpenseDto_base {
 }
+export declare class RejectExpenseDto {
+    rejectionReason: string;
+}
+export declare class CancelSalesInvoiceDto {
+    cancellationReason: string;
+}
 export declare class PatchSystemConfigDto {
     value: string;
+}
+export declare class AttendanceCheckInDto {
+    ptId?: string;
+    checkInAt?: string;
+}
+export declare class AttendanceCheckOutDto {
+    ptId?: string;
+    attendanceLogId?: string;
+    checkOutAt?: string;
 }
 export {};

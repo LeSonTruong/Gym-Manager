@@ -26,7 +26,7 @@ import type {
   SalesInvoice,
 } from '../contracts/gym-management';
 
-const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
+const dayInMilliseconds = 24 * 60 * 60 * 1000;
 
 function sumValues(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
@@ -129,8 +129,8 @@ export function getActiveAssignmentForMember(
 
 function buildDashboardSummary(dataset: GymManagementDataset): DashboardSummary {
   const referenceDate = dataset.generatedAt;
-  const confirmedMembershipInvoices = dataset.membershipInvoices.filter(isConfirmedMembershipInvoice);
-  const confirmedSalesInvoices = dataset.salesInvoices.filter(isConfirmedSalesInvoice);
+  const confirmedMembershipInvoices = dataset.membershipInvoices.filter((invoice) => isConfirmedMembershipInvoice(invoice));
+  const confirmedSalesInvoices = dataset.salesInvoices.filter((invoice) => isConfirmedSalesInvoice(invoice));
   const activeMemberships = dataset.memberMemberships.filter((membership) => membership.status === 'ACTIVE');
   const lowStockProducts = dataset.products.filter((product) => product.stockOnHand <= product.minimumStockLevel);
   const maintenanceAlerts = dataset.equipmentAssets.filter((equipmentAsset) => {
@@ -139,30 +139,27 @@ function buildDashboardSummary(dataset: GymManagementDataset): DashboardSummary 
     }
 
     const daysUntilMaintenance = Math.floor(
-      (toTimeValue(equipmentAsset.nextMaintenanceAt) - toTimeValue(referenceDate)) / DAY_IN_MILLISECONDS,
+      (toTimeValue(equipmentAsset.nextMaintenanceAt) - toTimeValue(referenceDate)) / dayInMilliseconds,
     );
 
     return daysUntilMaintenance <= 14;
   });
 
+  const activeMembershipsByType = Object.fromEntries(
+    (['DAY', 'MONTH', 'YEAR'] as const).map((membershipType) => [
+      membershipType,
+      activeMemberships.filter((membership) => {
+        const plan = findMembershipPlanById(dataset, membership.membershipPlanId);
+        return plan?.type === membershipType;
+      }).length,
+    ]),
+  ) as DashboardSummary['activeMemberships'];
+
   return {
     totalMembers: dataset.members.length,
     totalPts: dataset.personalTrainers.length,
     activeMembers: dataset.members.filter((member) => member.status === 'ACTIVE').length,
-    activeMemberships: {
-      DAY: activeMemberships.filter((membership) => {
-        const plan = findMembershipPlanById(dataset, membership.membershipPlanId);
-        return plan?.type === 'DAY';
-      }).length,
-      MONTH: activeMemberships.filter((membership) => {
-        const plan = findMembershipPlanById(dataset, membership.membershipPlanId);
-        return plan?.type === 'MONTH';
-      }).length,
-      YEAR: activeMemberships.filter((membership) => {
-        const plan = findMembershipPlanById(dataset, membership.membershipPlanId);
-        return plan?.type === 'YEAR';
-      }).length,
-    },
+    activeMemberships: activeMembershipsByType,
     revenue: {
       daily: sumValues(
         [
@@ -199,11 +196,11 @@ function buildDashboardSummary(dataset: GymManagementDataset): DashboardSummary 
     },
     totalPtPayroll: sumValues(
       dataset.payrollEntries
-        .filter((entry) => entry.payrollPeriodId === dataset.payrollPeriods[dataset.payrollPeriods.length - 1]?.id)
+        .filter((entry) => entry.payrollPeriodId === dataset.payrollPeriods.at(-1)?.id)
         .map((entry) => entry.netPay),
     ),
     totalOperatingExpense: sumValues(
-      dataset.operatingExpenses.filter(isExpenseCounted).map((expense) => expense.amount),
+      dataset.operatingExpenses.filter((expense) => isExpenseCounted(expense)).map((expense) => expense.amount),
     ),
     lowStockProducts,
     maintenanceAlerts,
@@ -275,7 +272,7 @@ function buildInventoryOverview(dataset: GymManagementDataset): InventoryOvervie
       product: dataset.products.find((product) => product.id === productId),
       soldQuantity,
     }))
-    .filter((entry): entry is {product: Product; soldQuantity: number} => entry.product !== undefined)
+    .filter((entry): entry is { product: Product; soldQuantity: number } => entry.product !== undefined)
     .sort((firstEntry, secondEntry) => secondEntry.soldQuantity - firstEntry.soldQuantity)
     .slice(0, 3);
 
@@ -295,8 +292,8 @@ function buildInventoryOverview(dataset: GymManagementDataset): InventoryOvervie
 }
 
 function buildRevenueReport(dataset: GymManagementDataset): RevenueReport {
-  const confirmedMembershipInvoices = dataset.membershipInvoices.filter(isConfirmedMembershipInvoice);
-  const confirmedSalesInvoices = dataset.salesInvoices.filter(isConfirmedSalesInvoice);
+  const confirmedMembershipInvoices = dataset.membershipInvoices.filter((invoice) => isConfirmedMembershipInvoice(invoice));
+  const confirmedSalesInvoices = dataset.salesInvoices.filter((invoice) => isConfirmedSalesInvoice(invoice));
 
   return {
     totalRevenue: sumValues([
@@ -311,20 +308,16 @@ function buildRevenueReport(dataset: GymManagementDataset): RevenueReport {
 }
 
 function buildExpenseReport(dataset: GymManagementDataset): ExpenseReport {
-  const byCategory: ExpenseReport['byCategory'] = {
-    CLEANING: 0,
-    MAINTENANCE: 0,
-    REPAIR: 0,
-    REPLACEMENT: 0,
-    UTILITY: 0,
-  };
+  const byCategory = Object.fromEntries(
+    (['CLEANING', 'MAINTENANCE', 'REPAIR', 'REPLACEMENT', 'UTILITY'] as const).map((category) => [category, 0]),
+  ) as ExpenseReport['byCategory'];
 
-  for (const expense of dataset.operatingExpenses.filter(isExpenseCounted)) {
+  for (const expense of dataset.operatingExpenses.filter((item) => isExpenseCounted(item))) {
     byCategory[expense.category] += expense.amount;
   }
 
   return {
-    totalExpense: sumValues(dataset.operatingExpenses.filter(isExpenseCounted).map((expense) => expense.amount)),
+    totalExpense: sumValues(dataset.operatingExpenses.filter((expense) => isExpenseCounted(expense)).map((expense) => expense.amount)),
     pendingApprovalCount: dataset.operatingExpenses.filter((expense) => expense.status === 'PENDING_APPROVAL').length,
     paidCount: dataset.operatingExpenses.filter((expense) => expense.status === 'PAID').length,
     byCategory,
@@ -365,10 +358,10 @@ function calculateCogsFromSalesInvoices(salesInvoices: SalesInvoice[]): number {
 }
 
 function buildProfitReport(dataset: GymManagementDataset): ProfitReport {
-  const confirmedSalesInvoices = dataset.salesInvoices.filter(isConfirmedSalesInvoice);
+  const confirmedSalesInvoices = dataset.salesInvoices.filter((invoice) => isConfirmedSalesInvoice(invoice));
   const revenueReport = buildRevenueReport(dataset);
   const expenseReport = buildExpenseReport(dataset);
-  const latestPayrollPeriodId = dataset.payrollPeriods[dataset.payrollPeriods.length - 1]?.id;
+  const latestPayrollPeriodId = dataset.payrollPeriods.at(-1)?.id;
   const currentPayrollEntries = dataset.payrollEntries.filter((entry) => entry.payrollPeriodId === latestPayrollPeriodId);
   const ptPayroll = sumValues(currentPayrollEntries.map((entry) => entry.netPay));
   const cogs = calculateCogsFromSalesInvoices(confirmedSalesInvoices);

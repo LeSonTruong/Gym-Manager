@@ -9,7 +9,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GymManagementModule = void 0;
 const nestjs_1 = require("@mikro-orm/nestjs");
 const common_1 = require("@nestjs/common");
+const audit_log_interceptor_1 = require("./audit/audit-log.interceptor");
+const audit_log_service_1 = require("./audit/audit-log.service");
 const gym_management_controller_1 = require("./gym-management.controller");
+const gym_auth_guard_1 = require("./auth/gym-auth.guard");
+const gym_roles_guard_1 = require("./auth/gym-roles.guard");
 const gym_management_entity_1 = require("./entities/gym-management.entity");
 const gym_management_seed_service_1 = require("./gym-management.seed.service");
 const gym_management_service_1 = require("./gym-management.service");
@@ -24,6 +28,7 @@ exports.GymManagementModule = GymManagementModule = __decorate([
                 gym_management_entity_1.PersonalTrainerEntity,
                 gym_management_entity_1.PtContractEntity,
                 gym_management_entity_1.AttendanceLogEntity,
+                gym_management_entity_1.AuditLogEntity,
                 gym_management_entity_1.PayrollPeriodEntity,
                 gym_management_entity_1.PayrollEntryEntity,
                 gym_management_entity_1.MemberEntity,
@@ -42,7 +47,14 @@ exports.GymManagementModule = GymManagementModule = __decorate([
             ]),
         ],
         controllers: [gym_management_controller_1.GymManagementController],
-        providers: [gym_management_service_1.GymManagementService, gym_management_seed_service_1.GymManagementSeedService],
+        providers: [
+            gym_management_service_1.GymManagementService,
+            gym_management_seed_service_1.GymManagementSeedService,
+            gym_auth_guard_1.GymAuthGuard,
+            gym_roles_guard_1.GymRolesGuard,
+            audit_log_service_1.AuditLogService,
+            audit_log_interceptor_1.AuditLogInterceptor,
+        ],
     })
 ], GymManagementModule);
 //# sourceMappingURL=gym-management.module.js.map

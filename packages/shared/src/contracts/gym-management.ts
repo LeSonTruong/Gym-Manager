@@ -65,7 +65,7 @@ export type AttendanceLog = {
   ptId: string;
   attendanceDate: string;
   checkInAt: string;
-  checkOutAt: string | null;
+  checkOutAt?: string;
   workedHours: number;
   overtimeHours: number;
   status: AttendanceLogStatus;
@@ -119,7 +119,7 @@ export type MembershipPlan = {
   type: MembershipPlanType;
   price: number;
   durationDays: number;
-  usageLimit: number | null;
+  usageLimit?: number;
   includesPt: boolean;
   includedPtSessions: number;
   perks: string[];
@@ -132,7 +132,7 @@ export type MemberMembership = {
   membershipPlanId: string;
   startDate: string;
   endDate: string;
-  remainingSessions: number | null;
+  remainingSessions?: number;
   status: MembershipStatus;
 };
 
@@ -142,7 +142,7 @@ export type MemberPtAssignment = {
   ptId: string;
   memberMembershipId: string;
   assignedFrom: string;
-  assignedTo: string | null;
+  assignedTo?: string;
   commissionAmount: number;
   status: PtAssignmentStatus;
 };
@@ -194,7 +194,7 @@ export type SalesInvoice = {
   code: string;
   invoiceDate: string;
   createdByUserId: string;
-  memberId: string | null;
+  memberId?: string;
   customerName: string;
   status: SalesInvoiceStatus;
   paymentMethod: PaymentMethod;
@@ -209,12 +209,12 @@ export type OperatingExpense = {
   code: string;
   expenseDate: string;
   category: OperatingExpenseCategory;
-  equipmentAssetId: string | null;
+  equipmentAssetId?: string;
   vendorName: string;
   amount: number;
   description: string;
-  approvedByUserId: string | null;
-  attachmentUrl: string | null;
+  approvedByUserId?: string;
+  attachmentUrl?: string;
   status: ExpenseStatus;
 };
 
