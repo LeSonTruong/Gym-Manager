@@ -1,1 +1,28 @@
-node_modules
+node_modules/
+
+# Turbo/Task cache
+.turbo/
+
+# Build outputs
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Next.js outputs
+.next/
+out/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Local runtime files
+*.sqlite
+*.sqlite3
+run-logs/
+
+# Environment files
+.env
+.env.*
+!.env.example

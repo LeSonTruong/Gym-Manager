@@ -1,0 +1,49 @@
+{
+  "validation": {
+    "required": "Trường này không được để trống. Vui lòng nhập giá trị.",
+    "invalidEmail": "Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.",
+    "invalidUrl": "Đường dẫn URL không hợp lệ. Vui lòng nhập đúng định dạng.",
+    "invalidFormat": "Định dạng không hợp lệ. Vui lòng nhập đúng giá trị.",
+    "invalidType": "Kiểu dữ liệu không hợp lệ. Mong đợi {expected}, nhưng nhận được {received}.",
+    "invalidValue": "Giá trị nhập vào không hợp lệ.",
+    "tooShort": "Dữ liệu quá ngắn. Phải chứa tối thiểu {minimum} ký tự.",
+    "tooLong": "Dữ liệu quá dài. Không được vượt quá {maximum} ký tự.",
+    "numberTooSmall": "Giá trị quá nhỏ. Phải từ {minimum} trở lên.",
+    "numberTooLarge": "Giá trị quá lớn. Không được vượt quá {maximum}.",
+    "unrecognizedKeys": "Các trường sau không được nhận diện: {keys}.",
+    "invalidUnion": "Dữ liệu không khớp với bất kỳ định dạng cho phép nào.",
+    "notMultipleOf": "Giá trị phải là bội số của {multipleOf}.",
+    "customError": "Dữ liệu không hợp lệ. Vui lòng rà soát và thử lại."
+  },
+  "Navigation": {
+    "Dashboard": "Trang chủ",
+    "PT": "Nhân sự PT",
+    "Members": "Hội viên",
+    "Plans": "Gói tập",
+    "Products": "Sản phẩm",
+    "Expenses": "Chi phí",
+    "Equipment": "Thiết bị",
+    "Reports": "Báo cáo",
+    "Attendance": "Chấm công",
+    "Payroll": "Bảng lương",
+    "MyPayroll": "Lương của tôi",
+    "SoldMemberships": "Gói đã bán",
+    "Assignments": "Phân công PT",
+    "MembershipInvoices": "Hóa đơn thẻ",
+    "Inventory": "Tồn kho",
+    "SalesInvoices": "Hóa đơn dịch vụ",
+    "Maintenance": "Bảo trì",
+    "Settings": "Cấu hình"
+  },
+  "AppShell": {
+    "Title": "Trung tâm điều hành",
+    "Subtitle": "Bộ định tuyến luồng dữ liệu, session và core logic đang được gọi từ backend Gym Manager.",
+    "GroupPrimary": "ĐIỀU HƯỚNG CHÍNH",
+    "GroupOperations": "VẬN HÀNH DỮ LIỆU",
+    "Workspace": "Không gian làm việc",
+    "WorkspaceTag": "Múi giờ UTC+7",
+    "Logout": "Đăng xuất",
+    "Login": "Đăng nhập",
+    "SwitchLocale": "English"
+  }
+}

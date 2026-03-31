@@ -85,7 +85,7 @@ export function mapUserEntity(entity: UserEntity): DemoUser {
     email: entity.email,
     role: entity.role as DemoUser['role'],
     status: entity.status as DemoUser['status'],
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
 
@@ -93,7 +93,7 @@ export function mapPersonalTrainerEntity(entity: PersonalTrainerEntity): Persona
   return {
     id: entity.id,
     code: entity.code,
-    userId: entity.user?.id ?? null,
+    userId: entity.user?.id ?? undefined,
     fullName: entity.fullName,
     gender: entity.gender as PersonalTrainer['gender'],
     birthDate: toDateOnlyString(entity.birthDate),
@@ -105,7 +105,7 @@ export function mapPersonalTrainerEntity(entity: PersonalTrainerEntity): Persona
     experienceYears: entity.experienceYears,
     avatarUrl: entity.avatarUrl,
     startDate: toDateOnlyString(entity.startDate),
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
 
@@ -127,7 +127,7 @@ export function mapPtContractEntity(entity: PtContractEntity): PtContract {
     allowances: Number(entity.allowances),
     penaltyRules: entity.penaltyRules,
     effectiveFrom: toDateOnlyString(entity.effectiveFrom),
-    effectiveTo: entity.effectiveTo ? toDateOnlyString(entity.effectiveTo) : null,
+    effectiveTo: entity.effectiveTo ? toDateOnlyString(entity.effectiveTo) : undefined,
   };
 }
 
@@ -137,13 +137,13 @@ export function mapAttendanceLogEntity(entity: AttendanceLogEntity): AttendanceL
     ptId: entity.personalTrainer.id,
     attendanceDate: toDateOnlyString(entity.attendanceDate),
     checkInAt: toDateTimeString(entity.checkInAt),
-    checkOutAt: entity.checkOutAt ? toDateTimeString(entity.checkOutAt) : null,
+    checkOutAt: entity.checkOutAt ? toDateTimeString(entity.checkOutAt) : undefined,
     workedHours: Number(entity.workedHours),
     paidHours: Number(entity.paidHours),
     overtimeHours: Number(entity.overtimeHours),
     status: entity.status as AttendanceLog['status'],
     workCredit: Number(entity.workCredit),
-    note: entity.note ?? null,
+    note: entity.note ?? undefined,
   };
 }
 
@@ -154,10 +154,10 @@ export function mapPayrollPeriodEntity(entity: PayrollPeriodEntity): PayrollPeri
     from: toDateOnlyString(entity.fromDate),
     to: toDateOnlyString(entity.toDate),
     status: entity.status as PayrollPeriod['status'],
-    submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : null,
-    approvedByUserId: entity.approvedByUser?.id ?? null,
-    approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : null,
-    paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : null,
+    submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
+    approvedByUserId: entity.approvedByUser?.id ?? undefined,
+    approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
+    paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : undefined,
   };
 }
 
@@ -166,7 +166,7 @@ export function mapPayrollEntryEntity(entity: PayrollEntryEntity): PayrollEntry 
     id: entity.id,
     payrollPeriodId: entity.payrollPeriod.id,
     ptId: entity.personalTrainer.id,
-    contractId: entity.contract?.id ?? null,
+    contractId: entity.contract?.id ?? undefined,
     validShiftCredits: Number(entity.validShiftCredits),
     paidHours: Number(entity.paidHours),
     overtimeHours: Number(entity.overtimeHours),
@@ -201,7 +201,7 @@ export function mapMemberEntity(entity: MemberEntity): Member {
     healthNotes: entity.healthNotes,
     registeredAt: toDateOnlyString(entity.registeredAt),
     status: entity.status as Member['status'],
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
 
@@ -213,7 +213,7 @@ export function mapMembershipPlanEntity(entity: MembershipPlanEntity): Membershi
     type: entity.type as MembershipPlan['type'],
     price: Number(entity.price),
     durationDays: entity.durationDays,
-    usageLimit: entity.usageLimit ?? null,
+    usageLimit: entity.usageLimit ?? undefined,
     includesPt: entity.includesPt,
     includedPtSessions: entity.includedPtSessions,
     perks: entity.perks,
@@ -228,9 +228,9 @@ export function mapMemberMembershipEntity(entity: MemberMembershipEntity): Membe
     membershipPlanId: entity.membershipPlan.id,
     startDate: toDateOnlyString(entity.startDate),
     endDate: toDateOnlyString(entity.endDate),
-    remainingSessions: entity.remainingSessions ?? null,
+    remainingSessions: entity.remainingSessions ?? undefined,
     status: entity.status as MemberMembership['status'],
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
 
@@ -241,12 +241,12 @@ export function mapMemberPtAssignmentEntity(entity: MemberPtAssignmentEntity): M
     ptId: entity.personalTrainer.id,
     memberMembershipId: entity.memberMembership.id,
     assignedFrom: toDateOnlyString(entity.assignedFrom),
-    assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : null,
-    commissionType: (entity.commissionType as MemberPtAssignment['commissionType']) ?? null,
-    commissionValue: entity.commissionValue ? Number(entity.commissionValue) : null,
+    assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
+    commissionType: (entity.commissionType as MemberPtAssignment['commissionType']) ?? undefined,
+    commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,
     commissionAmount: Number(entity.commissionAmount),
     status: entity.status as MemberPtAssignment['status'],
-    note: entity.note ?? null,
+    note: entity.note ?? undefined,
   };
 }
 
@@ -274,7 +274,7 @@ export function mapProductEntity(entity: ProductEntity): Product {
     stockOnHand: entity.stockOnHand,
     minimumStockLevel: entity.minimumStockLevel,
     status: entity.status as Product['status'],
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
 
@@ -307,7 +307,7 @@ export function mapSalesInvoiceEntity(entity: SalesInvoiceEntity, items: SalesIn
     code: entity.code,
     invoiceDate: toDateTimeString(entity.invoiceDate),
     createdByUserId: entity.createdByUser.id,
-    memberId: entity.member?.id ?? null,
+    memberId: entity.member?.id ?? undefined,
     customerName: entity.customerName,
     status: entity.status as SalesInvoice['status'],
     paymentMethod: entity.paymentMethod as SalesInvoice['paymentMethod'],
@@ -315,9 +315,9 @@ export function mapSalesInvoiceEntity(entity: SalesInvoiceEntity, items: SalesIn
     totalAmount: Number(entity.totalAmount),
     note: entity.note,
     items,
-    confirmedAt: entity.confirmedAt ? toDateTimeString(entity.confirmedAt) : null,
-    cancelledAt: entity.cancelledAt ? toDateTimeString(entity.cancelledAt) : null,
-    cancellationReason: entity.cancellationReason ?? null,
+    confirmedAt: entity.confirmedAt ? toDateTimeString(entity.confirmedAt) : undefined,
+    cancelledAt: entity.cancelledAt ? toDateTimeString(entity.cancelledAt) : undefined,
+    cancellationReason: entity.cancellationReason ?? undefined,
   };
 }
 
@@ -326,17 +326,17 @@ export function mapEquipmentAssetEntity(entity: EquipmentAssetEntity): Equipment
     id: entity.id,
     code: entity.code,
     name: entity.name,
-    category: entity.category ?? null,
+    category: entity.category ?? undefined,
     purchasedAt: toDateOnlyString(entity.purchasedAt),
     purchaseValue: Number(entity.purchaseValue),
-    status: (entity.status as EquipmentAsset['status']) ?? null,
+    status: (entity.status as EquipmentAsset['status']) ?? undefined,
     condition: entity.condition as EquipmentAsset['condition'],
-    location: entity.location ?? null,
+    location: entity.location ?? undefined,
     nextMaintenanceAt: entity.nextMaintenanceAt
       ? toDateOnlyString(entity.nextMaintenanceAt)
-      : null,
+      : undefined,
     note: entity.note,
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
 
@@ -346,18 +346,18 @@ export function mapOperatingExpenseEntity(entity: OperatingExpenseEntity): Opera
     code: entity.code,
     expenseDate: toDateOnlyString(entity.expenseDate),
     category: entity.category as OperatingExpense['category'],
-    equipmentAssetId: entity.equipmentAsset?.id ?? null,
+    equipmentAssetId: entity.equipmentAsset?.id ?? undefined,
     vendorName: entity.vendorName,
     amount: Number(entity.amount),
     description: entity.description,
-    approvedByUserId: entity.approvedByUser?.id ?? null,
-    attachmentUrl: entity.attachmentUrl ?? null,
+    approvedByUserId: entity.approvedByUser?.id ?? undefined,
+    attachmentUrl: entity.attachmentUrl ?? undefined,
     status: entity.status as OperatingExpense['status'],
-    submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : null,
-    approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : null,
-    rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : null,
-    rejectionReason: entity.rejectionReason ?? null,
-    paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : null,
+    submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
+    approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
+    rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : undefined,
+    rejectionReason: entity.rejectionReason ?? undefined,
+    paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : undefined,
   };
 }
 
@@ -366,13 +366,13 @@ export function mapMaintenanceRecordEntity(entity: MaintenanceRecordEntity): Mai
     id: entity.id,
     equipmentAssetId: entity.equipmentAsset.id,
     maintenanceDate: toDateOnlyString(entity.maintenanceDate),
-    maintenanceType: (entity.maintenanceType as MaintenanceRecord['maintenanceType']) ?? null,
+    maintenanceType: (entity.maintenanceType as MaintenanceRecord['maintenanceType']) ?? undefined,
     description: entity.description,
     vendorName: entity.vendorName,
     amount: Number(entity.amount),
-    resultStatus: (entity.resultStatus as MaintenanceRecord['resultStatus']) ?? null,
-    note: entity.note ?? null,
-    createdByUserId: entity.createdByUser?.id ?? null,
+    resultStatus: (entity.resultStatus as MaintenanceRecord['resultStatus']) ?? undefined,
+    note: entity.note ?? undefined,
+    createdByUserId: entity.createdByUser?.id ?? undefined,
   };
 }
 
@@ -382,7 +382,7 @@ export function mapSystemConfigEntity(entity: SystemConfigEntity): SystemConfig 
     label: entity.label,
     value: entity.value,
     description: entity.description,
-    updatedByUserId: entity.updatedByUser?.id ?? null,
+    updatedByUserId: entity.updatedByUser?.id ?? undefined,
     updatedAt: toDateTimeString(entity.updatedAt),
   };
 }
@@ -446,3 +446,4 @@ export function mapDatasetFromEntities(
     systemConfigs: collections.systemConfigs.map((entity) => mapSystemConfigEntity(entity)),
   };
 }
+

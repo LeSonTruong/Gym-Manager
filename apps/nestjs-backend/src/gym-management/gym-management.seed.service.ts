@@ -51,7 +51,10 @@ export class GymManagementSeedService implements OnModuleInit {
   constructor(private readonly orm: MikroORM) {}
 
   async onModuleInit(): Promise<void> {
-    await this.orm.migrator.up();
+    await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'
+      ? this.orm.schema.updateSchema()
+      : this.orm.migrator.up());
+
     await this.seedIfEmpty();
   }
 
@@ -480,6 +483,10 @@ export class GymManagementSeedService implements OnModuleInit {
     );
 
     await em.flush();
-    this.logger.log('Seeded Gym Manager demo data into PostgreSQL');
+    this.logger.log(
+      (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite')
+        ? 'Seeded Gym Manager demo data into local SQLite fallback'
+        : 'Seeded Gym Manager demo data into PostgreSQL',
+    );
   }
 }

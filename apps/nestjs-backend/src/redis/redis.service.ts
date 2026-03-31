@@ -5,12 +5,20 @@ import { ConfigKey } from 'src/config/config-key.enum';
 
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
+  private readonly memoryStore = new Map<string, { expiresAt?: number; value: string }>();
+  private readonly memorySubscribers = new Map<string, Set<(message: string) => void>>();
   private publisher: Redis | undefined;
   private subscriber: Redis | undefined;
+  private useInMemoryRedis = false;
 
   constructor(private readonly configService: ConfigService) { }
 
   onModuleInit(): void {
+    if ((this.configService.get<string>(ConfigKey.REDIS_HOST) ?? '').toLowerCase() === 'memory') {
+      this.useInMemoryRedis = true;
+      return;
+    }
+
     const redisConfig: RedisOptions = {
       host: this.configService.get(ConfigKey.REDIS_HOST),
       port: this.configService.get<number>(ConfigKey.REDIS_PORT),
@@ -27,6 +35,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async publish<T>(channel: string, message: T): Promise<void> {
     const serialized = JSON.stringify(message);
+
+    if (this.useInMemoryRedis) {
+      for (const callback of this.memorySubscribers.get(channel) ?? []) {
+        callback(serialized);
+      }
+
+      return;
+    }
+
     if (!this.publisher) {
       throw new Error('Redis publisher is not initialized');
     }
@@ -35,6 +52,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async setValue(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    if (this.useInMemoryRedis) {
+      this.memoryStore.set(key, {
+        value,
+        expiresAt: ttlSeconds && ttlSeconds > 0 ? Date.now() + ttlSeconds * 1000 : undefined,
+      });
+      return;
+    }
+
     const client = this.getPublisher();
 
     if (ttlSeconds && ttlSeconds > 0) {
@@ -46,10 +71,30 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getValue(key: string): Promise<string | undefined> {
+    if (this.useInMemoryRedis) {
+      const entry = this.memoryStore.get(key);
+
+      if (!entry) {
+        return undefined;
+      }
+
+      if (entry.expiresAt && entry.expiresAt <= Date.now()) {
+        this.memoryStore.delete(key);
+        return undefined;
+      }
+
+      return entry.value;
+    }
+
     return (await this.getPublisher().get(key)) ?? undefined;
   }
 
   async deleteKey(key: string): Promise<void> {
+    if (this.useInMemoryRedis) {
+      this.memoryStore.delete(key);
+      return;
+    }
+
     await this.getPublisher().del(key);
   }
 
@@ -68,6 +113,20 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async subscribe<T>(channel: string, callback: (message: T) => void): Promise<void> {
+    if (this.useInMemoryRedis) {
+      const callbacks = this.memorySubscribers.get(channel) ?? new Set<(message: string) => void>();
+
+      callbacks.add((message) => {
+        try {
+          callback(JSON.parse(message) as T);
+        } catch {
+          callback(message as T);
+        }
+      });
+      this.memorySubscribers.set(channel, callbacks);
+      return;
+    }
+
     if (!this.subscriber) {
       throw new Error('Redis subscriber is not initialized');
     }
@@ -87,6 +146,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async unsubscribe(channel: string): Promise<void> {
+    if (this.useInMemoryRedis) {
+      this.memorySubscribers.delete(channel);
+      return;
+    }
+
     if (!this.subscriber) {
       throw new Error('Redis subscriber is not initialized');
     }
@@ -95,6 +159,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
+    if (this.useInMemoryRedis) {
+      this.memoryStore.clear();
+      this.memorySubscribers.clear();
+      return;
+    }
+
     await this.publisher?.quit();
     await this.subscriber?.quit();
   }

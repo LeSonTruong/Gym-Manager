@@ -1889,6 +1889,147 @@ function buildMembershipOverviewPage(
   );
 }
 
+function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Element {
+  const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="PT assigning"
+        title="Member assignments"
+        description="Quan ly viec phan cong hoac thay doi PT huong dan cho member dua tren tung membership."
+      />
+
+      <StatsGrid
+        items={[
+          {
+            label: "Active assignments",
+            value: `${snapshot.dataset.memberPtAssignments.filter(a => a.status === 'ACTIVE').length}`,
+            note: "Tong so PT dang theo doi members.",
+          },
+          {
+            label: "Total assignments",
+            value: `${snapshot.dataset.memberPtAssignments.length}`,
+            note: "Lich su toan bo danh sach phan cong.",
+          },
+        ]}
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <SectionCard title="Assignments log">
+          <DataTable
+            headers={[
+              "Member",
+              "PT",
+              "Commission",
+              "Assigned from",
+              "To",
+              "Status",
+              "Action",
+            ]}
+            rows={snapshot.dataset.memberPtAssignments.map((assignment) => [
+              getMemberName(snapshot, assignment.memberId),
+              getTrainerName(snapshot, assignment.ptId),
+              assignment.commissionType === "PERCENT"
+                ? `${(assignment.commissionValue ?? 0) * 100}%`
+                : formatCurrency(assignment.commissionValue ?? 0),
+              formatDate(assignment.assignedFrom),
+              assignment.assignedTo ? formatDate(assignment.assignedTo) : "-",
+              <Badge
+                key={assignment.id}
+                tone={getStatusTone(assignment.status)}
+              >
+                {assignment.status}
+              </Badge>,
+              assignment.status === "ACTIVE" ? (
+                <form key={`${assignment.id}-form`} action={endAssignmentAction}>
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="assignmentId" value={assignment.id} />
+                  <button type="submit" className="text-sm font-semibold text-rose-600 hover:text-rose-700">End</button>
+                </form>
+              ) : null,
+            ])}
+          />
+        </SectionCard>
+
+        {canManageGym(options) ? (
+          <SectionCard
+            title="Create assignment"
+            description="Phan cong PT cho member dua vao goi tap premium hoac co PT di kem."
+          >
+            <form action={createAssignmentAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormSelect
+                  label="Member"
+                  name="memberId"
+                  options={snapshot.dataset.members.map((m) => ({
+                    value: m.id,
+                    label: m.fullName,
+                  }))}
+                  required
+                />
+                <FormSelect
+                  label="PT"
+                  name="ptId"
+                  options={snapshot.dataset.personalTrainers.filter(pt => pt.status === 'ACTIVE').map((pt) => ({
+                    value: pt.id,
+                    label: pt.fullName,
+                  }))}
+                  required
+                />
+                <FormSelect
+                  label="Membership"
+                  name="memberMembershipId"
+                  options={snapshot.dataset.memberMemberships.filter(m => m.status === 'ACTIVE').map((m) => ({
+                    value: m.id,
+                    label: `${getPlanName(snapshot, m.membershipPlanId)} (${getMemberName(snapshot, m.memberId)})`,
+                  }))}
+                  required
+                />
+                <FormField
+                  label="Assigned from"
+                  name="assignedFrom"
+                  type="date"
+                  required
+                />
+                <FormField
+                  label="Assigned to"
+                  name="assignedTo"
+                  type="date"
+                />
+                <FormSelect
+                  label="Commission type"
+                  name="commissionType"
+                  options={[
+                    { value: "PERCENT", label: "Percentage" },
+                    { value: "FIXED", label: "Fixed amount" },
+                  ]}
+                  defaultValue="PERCENT"
+                />
+                <FormField
+                  label="Commission value"
+                  name="commissionValue"
+                  type="number"
+                  step="0.01"
+                  required
+                />
+              </FormGrid>
+              <FormTextArea
+                label="Note"
+                name="note"
+                placeholder="Details about this assignment"
+              />
+              <SubmitButton label="Create assignment" />
+            </form>
+          </SectionCard>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
 function buildMembershipPlansPage(): JSX.Element {
   const snapshot = getGymSnapshot();
 
@@ -3171,6 +3312,10 @@ export function renderGymRoute(
 
   if (section === "members" && slug.length === 2 && entityId) {
     return buildMemberDetailPage(entityId);
+  }
+
+  if (section === "member-assignments" && slug.length === 1) {
+    return buildMemberAssignmentsPage(options);
   }
 
   if (section === "membership-plans") {

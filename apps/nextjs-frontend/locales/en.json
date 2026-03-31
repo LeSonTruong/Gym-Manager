@@ -15,63 +15,35 @@
     "notMultipleOf": "The value must be a multiple of {multipleOf}.",
     "customError": "The input provided is invalid. Please review and correct it."
   },
-  "components": {
-    "header": {},
-    "footer": {
-      "title": "Clean starter template",
-      "description": "A fullstack monorepo starter with Next.js, NestJS, shared contracts, Docker and CI already wired together.",
-      "copyrightNotice": "Next Nest Turbo Template. All rights reserved.",
-      "localeSelect": {
-        "languages": {
-          "de": "German",
-          "en": "English"
-        }
-      }
-    },
-    "confirmDialog": {
-      "header": "Confirm",
-      "message": "Are you sure you want to proceed?",
-      "buttons": {
-        "accept": "Yes",
-        "reject": "No"
-      }
-    }
+  "Navigation": {
+    "Dashboard": "Dashboard",
+    "PT": "PT Management",
+    "Members": "Members",
+    "Plans": "Membership Plans",
+    "Products": "Products",
+    "Expenses": "Expenses",
+    "Equipment": "Equipment",
+    "Reports": "Reports",
+    "Attendance": "Attendance",
+    "Payroll": "PT Payroll",
+    "MyPayroll": "My Payroll",
+    "SoldMemberships": "Sold Memberships",
+    "Assignments": "PT Assignments",
+    "MembershipInvoices": "Membership Invoices",
+    "Inventory": "Inventory",
+    "SalesInvoices": "Sales Invoices",
+    "Maintenance": "Maintenance",
+    "Settings": "Settings"
   },
-  "pages": {
-    "home": {
-      "eyebrow": "Production-ready monorepo starter",
-      "title": "Build product code, not project scaffolding.",
-      "description": "Use this repo as a clean baseline for fullstack applications with a Next.js frontend, a NestJS backend, shared TypeScript contracts and solid developer tooling.",
-      "actions": {
-        "apiDocs": "Open API docs",
-        "structure": "Project structure"
-      },
-      "cards": {
-        "frontend": {
-          "title": "Frontend app",
-          "description": "Next.js App Router, React Query, next-intl, PrimeReact and form tooling are set up and ready."
-        },
-        "backend": {
-          "title": "Backend app",
-          "description": "NestJS, MikroORM, PostgreSQL, Redis, health checks, Swagger and validation are already wired."
-        },
-        "shared": {
-          "title": "Shared package",
-          "description": "Cross-app contracts live in a dedicated workspace so frontend and backend can share types cleanly."
-        },
-        "ops": {
-          "title": "Developer workflow",
-          "description": "Turbo tasks, Dockerfiles, Husky hooks and GitHub Actions give the repo a usable delivery baseline."
-        }
-      },
-      "nextSteps": {
-        "title": "Recommended first steps",
-        "items": {
-          "env": "Copy the .env.example files and fill in your local values.",
-          "infra": "Start PostgreSQL, Redis and Maildev for local development.",
-          "domain": "Replace placeholder modules and begin building your domain features."
-        }
-      }
-    }
+  "AppShell": {
+    "Title": "Operations Hub",
+    "Subtitle": "Session, read models, and core workflows are running on Gym Manager backend.",
+    "GroupPrimary": "PRIMARY",
+    "GroupOperations": "OPERATIONS",
+    "Workspace": "Workspace",
+    "WorkspaceTag": "UTC+7 workspace",
+    "Logout": "Logout",
+    "Login": "Login",
+    "SwitchLocale": "Tiếng Việt"
   }
 }
