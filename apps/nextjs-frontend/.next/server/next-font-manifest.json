@@ -1,0 +1,9 @@
+{
+  "app": {
+    "[project]/apps/nextjs-frontend/src/app/[locale]/[...slug]/page": [],
+    "[project]/apps/nextjs-frontend/src/app/[locale]/page": []
+  },
+  "appUsingSizeAdjust": false,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

@@ -1,41 +1,67 @@
-import {type FlatXoConfig} from 'xo';
+import { type FlatXoConfig } from "xo";
 
 const xoConfig: FlatXoConfig = [
   {
-    ignores: ['node_modules', 'postcss.config.mjs'],
+    ignores: ["node_modules", "postcss.config.mjs"],
   },
   {
     react: true,
-    prettier: 'compat',
+    prettier: "compat",
     space: true,
     rules: {
       // Since Next.js is used this can be disabled
-      'react/react-in-jsx-scope': 'off',
+      "react/react-in-jsx-scope": "off",
 
       // Disable console logs in frontend
-      'no-console': ['error'],
+      "no-console": ["error"],
 
       // Force exhaustive dependencies in useEffect hooks by default
-      'react-hooks/exhaustive-deps': 'error',
+      "react-hooks/exhaustive-deps": "error",
 
       // Annoying
-      '@typescript-eslint/capitalized-comments': 'off',
-      'capitalized-comments': 'off',
-      'unicorn/prevent-abbreviations': 'off',
+      "@typescript-eslint/capitalized-comments": "off",
+      "capitalized-comments": "off",
+      "unicorn/prevent-abbreviations": "off",
 
       // Typescript rules
-      '@typescript-eslint/explicit-function-return-type': 'error',
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-non-null-assertion': 'error',
-      '@typescript-eslint/no-var-requires': 'error',
-      '@typescript-eslint/no-unused-vars': 'error',
+      "@typescript-eslint/explicit-function-return-type": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/no-var-requires": "error",
+      "@typescript-eslint/no-unused-vars": "error",
 
       // Code rules
-      'max-params': 'error',
+      "max-params": "error",
 
       // Import rules
-      'import-x/extensions': 'error',
-      'n/file-extension-in-import': 'error',
+      "import-x/extensions": "error",
+      "n/file-extension-in-import": "error",
+    },
+  },
+  {
+    files: ["src/components/gym/render-gym-route.tsx"],
+    rules: {
+      complexity: "off",
+      "max-lines": "off",
+    },
+  },
+  {
+    files: ["src/components/gym/gym-ui.tsx"],
+    rules: {
+      "react/no-array-index-key": "off",
+    },
+  },
+  {
+    files: ["src/app/**/layout.tsx"],
+    rules: {
+      "new-cap": "off",
+    },
+  },
+  {
+    files: ["next-env.d.ts"],
+    rules: {
+      "@typescript-eslint/triple-slash-reference": "off",
+      "import-x/no-unassigned-import": "off",
     },
   },
 ];

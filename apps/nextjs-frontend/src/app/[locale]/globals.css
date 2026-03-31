@@ -1,7 +1,10 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 :root {
   color-scheme: light;
+  --font-manrope: "Aptos", "Segoe UI", sans-serif;
+  --font-space-grotesk:
+    "Bahnschrift", "Trebuchet MS", "Arial Narrow", sans-serif;
 }
 
 html {

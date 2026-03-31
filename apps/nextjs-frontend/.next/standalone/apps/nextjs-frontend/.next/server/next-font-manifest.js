@@ -1,0 +1,1 @@
+self.__NEXT_FONT_MANIFEST="{\n  \"app\": {\n    \"[project]/apps/nextjs-frontend/src/app/[locale]/[...slug]/page\": [],\n    \"[project]/apps/nextjs-frontend/src/app/[locale]/page\": []\n  },\n  \"appUsingSizeAdjust\": false,\n  \"pages\": {},\n  \"pagesUsingSizeAdjust\": false\n}"
