@@ -19,6 +19,7 @@ const PDFDocument = require("pdfkit");
 const XLSX = require("xlsx");
 const redis_service_1 = require("../redis/redis.service");
 const gym_management_entity_1 = require("./entities/gym-management.entity");
+const auth_crypto_1 = require("./auth/auth-crypto");
 const gym_management_mapper_1 = require("./gym-management.mapper");
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -58,11 +59,15 @@ let GymManagementService = class GymManagementService {
     async login(email, password) {
         const em = this.createEntityManager();
         const userEntity = await em.findOne(gym_management_entity_1.UserEntity, { email });
-        if (!userEntity || password !== userEntity.passwordHint) {
+        if (!userEntity || !(0, auth_crypto_1.verifyPassword)(password, userEntity.passwordHash)) {
             throw new common_1.UnauthorizedException("Invalid demo credentials");
         }
-        if (userEntity.status !== "ACTIVE") {
+        if (userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
             throw new common_1.UnauthorizedException("User account is inactive");
+        }
+        if (!userEntity.passwordHash.startsWith("scrypt$")) {
+            userEntity.passwordHash = (0, auth_crypto_1.hashPassword)(password);
+            await em.flush();
         }
         const user = (0, gym_management_mapper_1.mapUserEntity)(userEntity);
         const ptId = user.role === "PT"
@@ -83,36 +88,49 @@ let GymManagementService = class GymManagementService {
         };
     }
     async refreshAccessToken(refreshToken) {
-        const payload = await this.redisService.getJson(this.toRefreshTokenKey(refreshToken));
-        if (!payload) {
+        const em = this.createEntityManager();
+        const refreshTokenEntity = await em.findOne(gym_management_entity_1.RefreshTokenEntity, {
+            tokenHash: (0, auth_crypto_1.hashOpaqueToken)(refreshToken),
+            revokedAt: null,
+        }, {
+            populate: ["user"],
+        });
+        if (!refreshTokenEntity ||
+            refreshTokenEntity.expiresAt.getTime() <= Date.now()) {
             throw new common_1.UnauthorizedException("Refresh token is invalid or expired");
         }
-        const em = this.createEntityManager();
-        const userEntity = await em.findOne(gym_management_entity_1.UserEntity, { id: payload.userId });
-        if (!userEntity || userEntity.status !== "ACTIVE") {
+        const userEntity = refreshTokenEntity.user;
+        if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
             throw new common_1.UnauthorizedException("User account is inactive");
         }
-        await this.redisService.deleteKey(this.toRefreshTokenKey(refreshToken));
         const user = (0, gym_management_mapper_1.mapUserEntity)(userEntity);
         const ptId = user.role === "PT"
             ? await this.resolvePtIdForUser(em, userEntity)
             : undefined;
-        const issuedTokens = await this.issueAuthTokens({
-            sessionId: payload.sessionId,
+        const accessToken = await this.issueAccessToken({
+            sessionId: refreshTokenEntity.sessionId,
             userId: user.id,
             role: user.role,
             ptId,
         });
         return {
             user,
-            accessToken: issuedTokens.accessToken,
-            refreshToken: issuedTokens.refreshToken,
+            accessToken,
+            refreshToken,
             accessTokenExpiresIn: ACCESS_TOKEN_TTL_SECONDS,
             refreshTokenExpiresIn: REFRESH_TOKEN_TTL_SECONDS,
         };
     }
     async logout(refreshToken, accessToken) {
-        await this.redisService.deleteKey(this.toRefreshTokenKey(refreshToken));
+        const em = this.createEntityManager();
+        const refreshTokenEntity = await em.findOne(gym_management_entity_1.RefreshTokenEntity, {
+            tokenHash: (0, auth_crypto_1.hashOpaqueToken)(refreshToken),
+            revokedAt: null,
+        });
+        if (refreshTokenEntity) {
+            refreshTokenEntity.revokedAt = new Date();
+            await em.flush();
+        }
         if (accessToken) {
             await this.redisService.deleteKey(this.toAccessTokenKey(accessToken));
             await this.redisService.setValue(this.toRevokedAccessTokenKey(accessToken), "1", ACCESS_TOKEN_TTL_SECONDS);
@@ -129,7 +147,7 @@ let GymManagementService = class GymManagementService {
         }
         const em = this.createEntityManager();
         const userEntity = await em.findOne(gym_management_entity_1.UserEntity, { id: payload.userId });
-        if (!userEntity || userEntity.status !== "ACTIVE") {
+        if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
             throw new common_1.UnauthorizedException("User account is inactive");
         }
         return {
@@ -147,7 +165,7 @@ let GymManagementService = class GymManagementService {
     async getCurrentUserById(userId) {
         const em = this.createEntityManager();
         const currentUser = await em.findOne(gym_management_entity_1.UserEntity, { id: userId });
-        if (!currentUser || currentUser.status !== "ACTIVE") {
+        if (!currentUser || currentUser.status !== "ACTIVE" || currentUser.deletedAt) {
             throw new common_1.UnauthorizedException("No demo users configured");
         }
         return (0, gym_management_mapper_1.mapUserEntity)(currentUser);
@@ -188,9 +206,11 @@ let GymManagementService = class GymManagementService {
             checkInAt,
             checkOutAt: null,
             workedHours: "0",
+            paidHours: "0",
             overtimeHours: "0",
             status: "OPEN",
             workCredit: "0",
+            note: null,
         });
         em.persist(attendanceLog);
         await em.flush();
@@ -247,6 +267,7 @@ let GymManagementService = class GymManagementService {
             : 0;
         attendanceLog.checkOutAt = checkOutAt;
         attendanceLog.workedHours = workedHours.toString();
+        attendanceLog.paidHours = workedHours.toString();
         attendanceLog.overtimeHours = overtimeHours.toString();
         attendanceLog.status = status;
         attendanceLog.workCredit = workCredit.toString();
@@ -320,6 +341,593 @@ let GymManagementService = class GymManagementService {
         }
         return equipmentAsset;
     }
+    async createPtContract(ptId, createPtContractDto) {
+        const em = this.createEntityManager();
+        const trainer = await this.getRequiredPersonalTrainerEntity(em, ptId);
+        const effectiveFrom = (0, gym_management_mapper_1.parseDateOnly)(createPtContractDto.effectiveFrom);
+        const effectiveTo = createPtContractDto.effectiveTo
+            ? (0, gym_management_mapper_1.parseDateOnly)(createPtContractDto.effectiveTo)
+            : null;
+        this.ensureValidDateRange(effectiveFrom, effectiveTo, "PT contract");
+        await this.ensurePtContractDateRangeAvailable(em, ptId, effectiveFrom, effectiveTo);
+        const contract = em.create(gym_management_entity_1.PtContractEntity, {
+            personalTrainer: trainer,
+            contractCode: createPtContractDto.contractCode ??
+                this.generateReferenceCode(`PTC-${trainer.code}`),
+            contractType: createPtContractDto.contractType,
+            salaryType: createPtContractDto.salaryType,
+            baseSalary: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.baseSalary),
+            minValidShiftHours: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.minValidShiftHours),
+            standardShiftHours: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.standardShiftHours),
+            overtimeHourlyRate: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.overtimeHourlyRate),
+            performanceBonusThreshold: createPtContractDto.performanceBonusThreshold,
+            performanceBonusAmount: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.performanceBonusAmount),
+            packageCommissionRate: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.packageCommissionRate),
+            salesCommissionRate: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.salesCommissionRate),
+            allowances: (0, gym_management_mapper_1.toDecimalString)(createPtContractDto.allowances),
+            penaltyRules: createPtContractDto.penaltyRules,
+            effectiveFrom,
+            effectiveTo,
+        });
+        em.persist(contract);
+        await em.flush();
+        return (0, gym_management_mapper_1.mapPtContractEntity)(contract);
+    }
+    async updatePtContract(ptId, contractId, updatePtContractDto) {
+        const em = this.createEntityManager();
+        await this.getRequiredPersonalTrainerEntity(em, ptId);
+        const contract = await em.findOne(gym_management_entity_1.PtContractEntity, { id: contractId, personalTrainer: ptId }, { populate: ["personalTrainer"] });
+        if (!contract) {
+            throw new common_1.NotFoundException(`PT contract ${contractId} not found`);
+        }
+        const effectiveFrom = updatePtContractDto.effectiveFrom
+            ? (0, gym_management_mapper_1.parseDateOnly)(updatePtContractDto.effectiveFrom)
+            : contract.effectiveFrom;
+        const effectiveTo = updatePtContractDto.effectiveTo !== undefined
+            ? (0, gym_management_mapper_1.parseDateOnly)(updatePtContractDto.effectiveTo)
+            : (contract.effectiveTo ?? null);
+        this.ensureValidDateRange(effectiveFrom, effectiveTo, "PT contract");
+        await this.ensurePtContractDateRangeAvailable(em, ptId, effectiveFrom, effectiveTo, contract.id);
+        (0, core_1.wrap)(contract).assign({
+            contractCode: updatePtContractDto.contractCode,
+            contractType: updatePtContractDto.contractType,
+            salaryType: updatePtContractDto.salaryType,
+            baseSalary: updatePtContractDto.baseSalary === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.baseSalary),
+            minValidShiftHours: updatePtContractDto.minValidShiftHours === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.minValidShiftHours),
+            standardShiftHours: updatePtContractDto.standardShiftHours === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.standardShiftHours),
+            overtimeHourlyRate: updatePtContractDto.overtimeHourlyRate === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.overtimeHourlyRate),
+            performanceBonusThreshold: updatePtContractDto.performanceBonusThreshold,
+            performanceBonusAmount: updatePtContractDto.performanceBonusAmount === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.performanceBonusAmount),
+            packageCommissionRate: updatePtContractDto.packageCommissionRate === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.packageCommissionRate),
+            salesCommissionRate: updatePtContractDto.salesCommissionRate === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.salesCommissionRate),
+            allowances: updatePtContractDto.allowances === undefined
+                ? undefined
+                : (0, gym_management_mapper_1.toDecimalString)(updatePtContractDto.allowances),
+            penaltyRules: updatePtContractDto.penaltyRules,
+            effectiveFrom,
+            effectiveTo,
+        }, { ignoreUndefined: true });
+        await em.flush();
+        return (0, gym_management_mapper_1.mapPtContractEntity)(contract);
+    }
+    async createMemberMembership(createMemberMembershipDto) {
+        const em = this.createEntityManager();
+        const member = await this.getRequiredMemberEntity(em, createMemberMembershipDto.memberId);
+        const membershipPlan = await this.getRequiredMembershipPlanEntity(em, createMemberMembershipDto.membershipPlanId);
+        const activeMembership = await em.findOne(gym_management_entity_1.MemberMembershipEntity, {
+            member,
+            status: "ACTIVE",
+            deletedAt: null,
+        });
+        if (activeMembership) {
+            throw new common_1.ConflictException(`Member ${member.id} already has an active membership`);
+        }
+        const startDate = (0, gym_management_mapper_1.parseDateOnly)(createMemberMembershipDto.startDate);
+        return this.createMembershipSale(em, member, membershipPlan, startDate, createMemberMembershipDto.paymentMethod, createMemberMembershipDto.totalAmount);
+    }
+    async renewMemberMembership(membershipId, renewMemberMembershipDto) {
+        const em = this.createEntityManager();
+        const membership = await em.findOne(gym_management_entity_1.MemberMembershipEntity, { id: membershipId, deletedAt: null }, { populate: ["member", "membershipPlan"] });
+        if (!membership) {
+            throw new common_1.NotFoundException(`Membership ${membershipId} not found`);
+        }
+        const startDate = renewMemberMembershipDto.startDate
+            ? (0, gym_management_mapper_1.parseDateOnly)(renewMemberMembershipDto.startDate)
+            : this.addDays(membership.endDate, 1);
+        return this.createMembershipSale(em, membership.member, membership.membershipPlan, startDate, renewMemberMembershipDto.paymentMethod ?? "CASH");
+    }
+    async cancelMemberMembership(membershipId, cancelledAt) {
+        const em = this.createEntityManager();
+        const membership = await em.findOne(gym_management_entity_1.MemberMembershipEntity, {
+            id: membershipId,
+            deletedAt: null,
+        });
+        if (!membership) {
+            throw new common_1.NotFoundException(`Membership ${membershipId} not found`);
+        }
+        const cancelledDate = cancelledAt ? (0, gym_management_mapper_1.parseDateOnly)(cancelledAt) : new Date();
+        if (cancelledDate < membership.startDate) {
+            throw new common_1.BadRequestException("cancelledAt must be on or after membership startDate");
+        }
+        membership.status = "CANCELLED";
+        membership.endDate = cancelledDate;
+        await em.flush();
+        return (0, gym_management_mapper_1.mapMemberMembershipEntity)(membership);
+    }
+    async createMemberAssignment(createMemberAssignmentDto) {
+        const em = this.createEntityManager();
+        const member = await this.getRequiredMemberEntity(em, createMemberAssignmentDto.memberId);
+        const trainer = await this.getRequiredPersonalTrainerEntity(em, createMemberAssignmentDto.ptId);
+        const membership = await em.findOne(gym_management_entity_1.MemberMembershipEntity, {
+            id: createMemberAssignmentDto.memberMembershipId,
+            member,
+            deletedAt: null,
+        }, { populate: ["membershipPlan"] });
+        if (!membership) {
+            throw new common_1.NotFoundException(`Membership ${createMemberAssignmentDto.memberMembershipId} not found for member ${member.id}`);
+        }
+        const assignedFrom = (0, gym_management_mapper_1.parseDateOnly)(createMemberAssignmentDto.assignedFrom);
+        const activeAssignments = await em.find(gym_management_entity_1.MemberPtAssignmentEntity, {
+            member,
+            status: "ACTIVE",
+        });
+        for (const activeAssignment of activeAssignments) {
+            activeAssignment.status = "ENDED";
+            activeAssignment.assignedTo = assignedFrom;
+        }
+        const commissionAmount = this.calculateAssignmentCommissionAmount(Number(membership.membershipPlan.price), createMemberAssignmentDto.commissionType, createMemberAssignmentDto.commissionValue, createMemberAssignmentDto.commissionAmount);
+        const assignment = em.create(gym_management_entity_1.MemberPtAssignmentEntity, {
+            member,
+            personalTrainer: trainer,
+            memberMembership: membership,
+            assignedFrom,
+            assignedTo: null,
+            commissionType: createMemberAssignmentDto.commissionType ?? "FIXED",
+            commissionValue: createMemberAssignmentDto.commissionValue === undefined
+                ? null
+                : (0, gym_management_mapper_1.toDecimalString)(createMemberAssignmentDto.commissionValue),
+            commissionAmount: (0, gym_management_mapper_1.toDecimalString)(commissionAmount),
+            status: "ACTIVE",
+            note: createMemberAssignmentDto.note ?? null,
+        });
+        em.persist(assignment);
+        await em.flush();
+        return (0, gym_management_mapper_1.mapMemberPtAssignmentEntity)(assignment);
+    }
+    async endMemberAssignment(assignmentId, endMemberAssignmentDto) {
+        const em = this.createEntityManager();
+        const assignment = await em.findOne(gym_management_entity_1.MemberPtAssignmentEntity, {
+            id: assignmentId,
+        });
+        if (!assignment) {
+            throw new common_1.NotFoundException(`Assignment ${assignmentId} not found`);
+        }
+        assignment.assignedTo = endMemberAssignmentDto.assignedTo
+            ? (0, gym_management_mapper_1.parseDateOnly)(endMemberAssignmentDto.assignedTo)
+            : new Date();
+        assignment.status = "ENDED";
+        await em.flush();
+        return (0, gym_management_mapper_1.mapMemberPtAssignmentEntity)(assignment);
+    }
+    async createPayrollPeriod(createPayrollPeriodDto) {
+        const em = this.createEntityManager();
+        const fromDate = (0, gym_management_mapper_1.parseDateOnly)(createPayrollPeriodDto.from);
+        const toDate = (0, gym_management_mapper_1.parseDateOnly)(createPayrollPeriodDto.to);
+        this.ensureValidDateRange(fromDate, toDate, "Payroll period");
+        const payrollPeriod = em.create(gym_management_entity_1.PayrollPeriodEntity, {
+            code: createPayrollPeriodDto.code ??
+                `${createPayrollPeriodDto.from.slice(0, 7)}`,
+            fromDate,
+            toDate,
+            status: "OPEN",
+            submittedAt: null,
+            approvedByUser: null,
+            approvedAt: null,
+            paidAt: null,
+        });
+        em.persist(payrollPeriod);
+        await em.flush();
+        return (0, gym_management_mapper_1.mapPayrollPeriodEntity)(payrollPeriod);
+    }
+    async generatePayroll(generatePayrollDto) {
+        const em = this.createEntityManager();
+        const payrollPeriod = await em.findOne(gym_management_entity_1.PayrollPeriodEntity, {
+            id: generatePayrollDto.payrollPeriodId,
+        });
+        if (!payrollPeriod) {
+            throw new common_1.NotFoundException(`Payroll period ${generatePayrollDto.payrollPeriodId} not found`);
+        }
+        if (payrollPeriod.status !== "OPEN") {
+            throw new common_1.BadRequestException("Payroll can only be generated while the period is OPEN");
+        }
+        const existingEntries = await em.find(gym_management_entity_1.PayrollEntryEntity, {
+            payrollPeriod,
+        });
+        if (existingEntries.length > 0) {
+            em.remove(existingEntries);
+            await em.flush();
+        }
+        const trainers = await em.find(gym_management_entity_1.PersonalTrainerEntity, { deletedAt: null, status: "ACTIVE" }, { populate: ["user"] });
+        const assignments = await em.find(gym_management_entity_1.MemberPtAssignmentEntity, {}, { populate: ["memberMembership", "personalTrainer"] });
+        const membershipInvoices = await em.find(gym_management_entity_1.MembershipInvoiceEntity, {}, { populate: ["memberMembership", "member"] });
+        const salesInvoices = await em.find(gym_management_entity_1.SalesInvoiceEntity, { status: "CONFIRMED" }, { populate: ["createdByUser", "member"] });
+        for (const trainer of trainers) {
+            const contract = await this.findPtContractForPeriod(em, trainer.id, payrollPeriod.fromDate, payrollPeriod.toDate);
+            if (!contract) {
+                continue;
+            }
+            const attendanceLogs = await em.find(gym_management_entity_1.AttendanceLogEntity, {
+                personalTrainer: trainer,
+                attendanceDate: {
+                    $gte: payrollPeriod.fromDate,
+                    $lte: payrollPeriod.toDate,
+                },
+            });
+            const validShiftCredits = this.sumNumbers(attendanceLogs.map((attendanceLog) => Number(attendanceLog.workCredit)));
+            const paidHours = this.sumNumbers(attendanceLogs.map((attendanceLog) => Number(attendanceLog.paidHours)));
+            const overtimeHours = this.sumNumbers(attendanceLogs.map((attendanceLog) => Number(attendanceLog.overtimeHours)));
+            const assignmentInvoices = membershipInvoices.filter((invoice) => this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod));
+            const packageCommission = this.sumNumbers(assignmentInvoices.map((invoice) => {
+                const assignment = assignments.find((candidate) => candidate.personalTrainer.id === trainer.id &&
+                    candidate.memberMembership.id === invoice.memberMembership.id &&
+                    this.isAssignmentActiveOnDate(candidate, invoice.invoiceDate));
+                if (!assignment) {
+                    return 0;
+                }
+                return this.calculateAssignmentCommissionAmount(Number(invoice.totalAmount), assignment.commissionType, assignment.commissionValue ? Number(assignment.commissionValue) : null, Number(assignment.commissionAmount), Number(contract.packageCommissionRate));
+            }));
+            const packageCount = assignmentInvoices.filter((invoice) => assignments.some((assignment) => assignment.personalTrainer.id === trainer.id &&
+                assignment.memberMembership.id === invoice.memberMembership.id &&
+                this.isAssignmentActiveOnDate(assignment, invoice.invoiceDate))).length;
+            const salesCommission = this.sumNumbers(salesInvoices
+                .filter((invoice) => this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod) &&
+                invoice.createdByUser.id === trainer.user?.id)
+                .map((invoice) => Number(invoice.totalAmount) * Number(contract.salesCommissionRate)));
+            const performanceBonus = packageCount >= contract.performanceBonusThreshold
+                ? Number(contract.performanceBonusAmount)
+                : 0;
+            const overtimeAmount = overtimeHours * Number(contract.overtimeHourlyRate);
+            const baseSalaryAmount = Number(contract.baseSalary);
+            const attendanceBonusAmount = 0;
+            const allowanceAmount = Number(contract.allowances);
+            const deductionAmount = 0;
+            const penalties = 0;
+            const grossPay = this.sumNumbers([
+                baseSalaryAmount,
+                attendanceBonusAmount,
+                overtimeAmount,
+                packageCommission,
+                salesCommission,
+                performanceBonus,
+                allowanceAmount,
+            ]);
+            const netPay = grossPay - deductionAmount - penalties;
+            const payrollEntry = em.create(gym_management_entity_1.PayrollEntryEntity, {
+                payrollPeriod,
+                personalTrainer: trainer,
+                contract,
+                validShiftCredits: (0, gym_management_mapper_1.toDecimalString)(validShiftCredits),
+                paidHours: (0, gym_management_mapper_1.toDecimalString)(paidHours),
+                overtimeHours: (0, gym_management_mapper_1.toDecimalString)(overtimeHours),
+                baseSalaryAmount: (0, gym_management_mapper_1.toDecimalString)(baseSalaryAmount),
+                attendanceBonusAmount: (0, gym_management_mapper_1.toDecimalString)(attendanceBonusAmount),
+                overtimeAmount: (0, gym_management_mapper_1.toDecimalString)(overtimeAmount),
+                packageCommission: (0, gym_management_mapper_1.toDecimalString)(packageCommission),
+                salesCommission: (0, gym_management_mapper_1.toDecimalString)(salesCommission),
+                performanceBonus: (0, gym_management_mapper_1.toDecimalString)(performanceBonus),
+                allowanceAmount: (0, gym_management_mapper_1.toDecimalString)(allowanceAmount),
+                deductionAmount: (0, gym_management_mapper_1.toDecimalString)(deductionAmount),
+                penalties: (0, gym_management_mapper_1.toDecimalString)(penalties),
+                grossPay: (0, gym_management_mapper_1.toDecimalString)(grossPay),
+                netPay: (0, gym_management_mapper_1.toDecimalString)(netPay),
+                status: "PENDING_APPROVAL",
+            });
+            em.persist(payrollEntry);
+        }
+        await em.flush();
+        return this.getPayrollPeriodDetail(payrollPeriod.id);
+    }
+    async getPayrollMe(userId) {
+        const em = this.createEntityManager();
+        const user = await this.getRequiredUserEntity(em, userId);
+        const ptId = await this.resolvePtIdForUser(em, user);
+        if (!ptId) {
+            throw new common_1.NotFoundException(`No PT profile linked to user ${userId}`);
+        }
+        const dataset = await this.loadDataset();
+        return dataset.payrollEntries.filter((entry) => entry.ptId === ptId);
+    }
+    async createSalesInvoice(createSalesInvoiceDto, createdByUserId) {
+        const em = this.createEntityManager();
+        const createdByUser = await this.getRequiredUserEntity(em, createdByUserId);
+        const member = createSalesInvoiceDto.memberId
+            ? await this.getRequiredMemberEntity(em, createSalesInvoiceDto.memberId)
+            : null;
+        if (createSalesInvoiceDto.items.length === 0) {
+            throw new common_1.BadRequestException("Sales invoice must include at least one item");
+        }
+        const resolvedItems = await Promise.all(createSalesInvoiceDto.items.map(async (item) => ({
+            dto: item,
+            product: await this.getRequiredProductEntity(em, item.productId),
+        })));
+        const lineTotal = this.sumNumbers(resolvedItems.map(({ dto, product }) => dto.quantity * Number(product.salePrice)));
+        const discountAmount = createSalesInvoiceDto.discountAmount ?? 0;
+        const totalAmount = Math.max(0, lineTotal - discountAmount);
+        const salesInvoice = em.create(gym_management_entity_1.SalesInvoiceEntity, {
+            code: createSalesInvoiceDto.code ??
+                this.generateReferenceCode("SI"),
+            invoiceDate: createSalesInvoiceDto.invoiceDate
+                ? new Date(createSalesInvoiceDto.invoiceDate)
+                : new Date(),
+            createdByUser,
+            member,
+            customerName: createSalesInvoiceDto.customerName,
+            status: "DRAFT",
+            paymentMethod: createSalesInvoiceDto.paymentMethod,
+            discountAmount: (0, gym_management_mapper_1.toDecimalString)(discountAmount),
+            totalAmount: (0, gym_management_mapper_1.toDecimalString)(totalAmount),
+            note: createSalesInvoiceDto.note ?? "",
+            confirmedAt: null,
+            cancelledAt: null,
+            cancellationReason: null,
+        });
+        em.persist(salesInvoice);
+        await em.flush();
+        for (const resolvedItem of resolvedItems) {
+            em.persist(em.create(gym_management_entity_1.SalesInvoiceItemEntity, {
+                salesInvoice,
+                product: resolvedItem.product,
+                quantity: resolvedItem.dto.quantity,
+                unitPrice: (0, gym_management_mapper_1.toDecimalString)(Number(resolvedItem.product.salePrice)),
+                unitCost: (0, gym_management_mapper_1.toDecimalString)(Number(resolvedItem.product.unitCost)),
+                lineTotal: (0, gym_management_mapper_1.toDecimalString)(resolvedItem.dto.quantity * Number(resolvedItem.product.salePrice)),
+            }));
+        }
+        await em.flush();
+        return this.getSalesInvoiceDetail(salesInvoice.id);
+    }
+    async importInventory(inventoryImportDto) {
+        const em = this.createEntityManager();
+        const product = await this.getRequiredProductEntity(em, inventoryImportDto.productId);
+        const transaction = em.create(gym_management_entity_1.InventoryTransactionEntity, {
+            product,
+            type: "IMPORT",
+            quantity: inventoryImportDto.quantity,
+            unitCost: (0, gym_management_mapper_1.toDecimalString)(inventoryImportDto.unitCost),
+            transactionDate: inventoryImportDto.transactionDate
+                ? new Date(inventoryImportDto.transactionDate)
+                : new Date(),
+            referenceCode: inventoryImportDto.referenceCode ??
+                this.generateReferenceCode(`IMP-${product.code}`),
+            note: inventoryImportDto.note ?? "Inventory import",
+        });
+        product.stockOnHand += inventoryImportDto.quantity;
+        em.persist(transaction);
+        await em.flush();
+        return (0, gym_management_mapper_1.mapInventoryTransactionEntity)(transaction);
+    }
+    async createMaintenance(createMaintenanceDto, createdByUserId) {
+        const em = this.createEntityManager();
+        const equipmentAsset = await this.getRequiredEquipmentAssetEntity(em, createMaintenanceDto.equipmentAssetId);
+        const createdByUser = await this.getRequiredUserEntity(em, createdByUserId);
+        const maintenanceRecord = em.create(gym_management_entity_1.MaintenanceRecordEntity, {
+            equipmentAsset,
+            maintenanceType: createMaintenanceDto.maintenanceType ?? "PREVENTIVE",
+            maintenanceDate: (0, gym_management_mapper_1.parseDateOnly)(createMaintenanceDto.maintenanceDate),
+            description: createMaintenanceDto.description,
+            vendorName: createMaintenanceDto.vendorName,
+            amount: (0, gym_management_mapper_1.toDecimalString)(createMaintenanceDto.amount),
+            resultStatus: createMaintenanceDto.resultStatus ?? "RESOLVED",
+            note: createMaintenanceDto.note ?? null,
+            createdByUser,
+        });
+        if (createMaintenanceDto.equipmentStatus !== undefined) {
+            equipmentAsset.status = createMaintenanceDto.equipmentStatus;
+        }
+        if (createMaintenanceDto.equipmentCondition !== undefined) {
+            equipmentAsset.condition = createMaintenanceDto.equipmentCondition;
+        }
+        if (createMaintenanceDto.nextMaintenanceAt !== undefined) {
+            equipmentAsset.nextMaintenanceAt = (0, gym_management_mapper_1.parseDateOnly)(createMaintenanceDto.nextMaintenanceAt);
+        }
+        em.persist(maintenanceRecord);
+        await em.flush();
+        return (0, gym_management_mapper_1.mapMaintenanceRecordEntity)(maintenanceRecord);
+    }
+    async patchAttendance(attendanceLogId, patchAttendanceDto) {
+        const em = this.createEntityManager();
+        const attendanceLog = await em.findOne(gym_management_entity_1.AttendanceLogEntity, { id: attendanceLogId }, { populate: ["personalTrainer"] });
+        if (!attendanceLog) {
+            throw new common_1.NotFoundException(`Attendance log ${attendanceLogId} not found`);
+        }
+        if (patchAttendanceDto.checkInAt !== undefined) {
+            const checkInAt = new Date(patchAttendanceDto.checkInAt);
+            if (Number.isNaN(checkInAt.getTime())) {
+                throw new common_1.BadRequestException("Invalid check in time");
+            }
+            attendanceLog.checkInAt = checkInAt;
+            attendanceLog.attendanceDate = this.toVietnamDate(checkInAt);
+        }
+        if (patchAttendanceDto.checkOutAt !== undefined) {
+            const checkOutAt = new Date(patchAttendanceDto.checkOutAt);
+            if (Number.isNaN(checkOutAt.getTime())) {
+                throw new common_1.BadRequestException("Invalid check out time");
+            }
+            attendanceLog.checkOutAt = checkOutAt;
+        }
+        if (patchAttendanceDto.note !== undefined) {
+            attendanceLog.note = patchAttendanceDto.note;
+        }
+        await this.recalculateAttendanceLog(em, attendanceLog);
+        await em.flush();
+        return (0, gym_management_mapper_1.mapAttendanceLogEntity)(attendanceLog);
+    }
+    async createMembershipSale(em, member, membershipPlan, startDate, paymentMethod, totalAmount) {
+        const endDate = this.addDays(startDate, membershipPlan.durationDays - 1);
+        const remainingSessions = membershipPlan.usageLimit ??
+            (membershipPlan.includedPtSessions > 0
+                ? membershipPlan.includedPtSessions
+                : null);
+        const membership = em.create(gym_management_entity_1.MemberMembershipEntity, {
+            member,
+            membershipPlan,
+            startDate,
+            endDate,
+            remainingSessions,
+            status: "ACTIVE",
+            deletedAt: null,
+        });
+        em.persist(membership);
+        await em.flush();
+        const invoice = em.create(gym_management_entity_1.MembershipInvoiceEntity, {
+            code: this.generateReferenceCode("MI"),
+            member,
+            memberMembership: membership,
+            invoiceDate: new Date(),
+            totalAmount: (0, gym_management_mapper_1.toDecimalString)(totalAmount ?? Number(membershipPlan.price)),
+            paymentMethod,
+            status: "CONFIRMED",
+        });
+        em.persist(invoice);
+        await em.flush();
+        return {
+            membership: (0, gym_management_mapper_1.mapMemberMembershipEntity)(membership),
+            invoice: (0, gym_management_mapper_1.mapMembershipInvoiceEntity)(invoice),
+        };
+    }
+    ensureValidDateRange(fromDate, toDate, context) {
+        if (toDate && toDate < fromDate) {
+            throw new common_1.BadRequestException(`${context} end date must be on or after the start date`);
+        }
+    }
+    async ensurePtContractDateRangeAvailable(em, ptId, effectiveFrom, effectiveTo, excludeContractId) {
+        const existingContracts = await em.find(gym_management_entity_1.PtContractEntity, {
+            personalTrainer: ptId,
+        });
+        for (const existingContract of existingContracts) {
+            if (existingContract.id === excludeContractId) {
+                continue;
+            }
+            if (this.doDateRangesOverlap(existingContract.effectiveFrom, existingContract.effectiveTo, effectiveFrom, effectiveTo)) {
+                throw new common_1.ConflictException(`PT ${ptId} already has a contract overlapping this effective period`);
+            }
+        }
+    }
+    doDateRangesOverlap(leftFrom, leftTo, rightFrom, rightTo) {
+        const leftToValue = leftTo === null || leftTo === undefined
+            ? Number.POSITIVE_INFINITY
+            : new Date(leftTo).getTime();
+        const rightToValue = rightTo === null || rightTo === undefined
+            ? Number.POSITIVE_INFINITY
+            : new Date(rightTo).getTime();
+        return leftFrom.getTime() <= rightToValue && rightFrom.getTime() <= leftToValue;
+    }
+    addDays(date, days) {
+        const clone = new Date(date);
+        clone.setUTCDate(clone.getUTCDate() + days);
+        return clone;
+    }
+    sumNumbers(values) {
+        return Number(values.reduce((total, value) => total + value, 0).toFixed(2));
+    }
+    calculateAssignmentCommissionAmount(baseAmount, commissionType, commissionValue, commissionAmount, fallbackRate) {
+        if (commissionAmount !== undefined && commissionAmount !== null) {
+            return Number(commissionAmount.toFixed(2));
+        }
+        if (commissionType === "PERCENT" && commissionValue !== undefined && commissionValue !== null) {
+            const normalizedRate = commissionValue > 1 ? commissionValue / 100 : commissionValue;
+            return Number((baseAmount * normalizedRate).toFixed(2));
+        }
+        if (commissionValue !== undefined && commissionValue !== null) {
+            return Number(commissionValue.toFixed(2));
+        }
+        if (fallbackRate !== undefined) {
+            return Number((baseAmount * fallbackRate).toFixed(2));
+        }
+        return 0;
+    }
+    isDateWithinPeriod(value, payrollPeriod) {
+        const timestamp = value.getTime();
+        return (timestamp >= payrollPeriod.fromDate.getTime() &&
+            timestamp <= this.addDays(payrollPeriod.toDate, 1).getTime());
+    }
+    isAssignmentActiveOnDate(assignment, value) {
+        const timestamp = value.getTime();
+        const assignedFrom = assignment.assignedFrom.getTime();
+        const assignedTo = assignment.assignedTo?.getTime() ?? Number.POSITIVE_INFINITY;
+        return (assignment.status === "ACTIVE" ||
+            (timestamp >= assignedFrom && timestamp <= assignedTo));
+    }
+    async findPtContractForPeriod(em, ptId, fromDate, toDate) {
+        const contracts = await em.find(gym_management_entity_1.PtContractEntity, {
+            personalTrainer: ptId,
+        }, {
+            orderBy: { effectiveFrom: "desc", createdAt: "desc" },
+        });
+        return contracts.find((contract) => this.doDateRangesOverlap(contract.effectiveFrom, contract.effectiveTo, fromDate, toDate));
+    }
+    async recalculateAttendanceLog(em, attendanceLog) {
+        if (!attendanceLog.checkOutAt) {
+            attendanceLog.workedHours = "0";
+            attendanceLog.paidHours = "0";
+            attendanceLog.overtimeHours = "0";
+            attendanceLog.status = "OPEN";
+            attendanceLog.workCredit = "0";
+            return;
+        }
+        if (attendanceLog.checkOutAt <= attendanceLog.checkInAt) {
+            throw new common_1.BadRequestException("Check out time must be after check in time");
+        }
+        const workedHours = Number(((attendanceLog.checkOutAt.getTime() - attendanceLog.checkInAt.getTime()) /
+            36e5).toFixed(2));
+        const ptContract = await this.findActivePtContractEntity(em, attendanceLog.personalTrainer.id, attendanceLog.attendanceDate);
+        const minValidShiftHours = ptContract
+            ? Number(ptContract.minValidShiftHours)
+            : await this.getNumberSystemConfig(em, "min_valid_shift_hours", 5);
+        const standardShiftHours = ptContract
+            ? Number(ptContract.standardShiftHours)
+            : 8;
+        const halfShiftPolicy = await this.getStringSystemConfig(em, "half_shift_policy", "NO_COUNT");
+        let status;
+        let workCredit;
+        if (workedHours >= minValidShiftHours) {
+            status = "VALID";
+            workCredit = 1;
+        }
+        else if (halfShiftPolicy === "HALF_COUNT") {
+            status = "HALF";
+            workCredit = 0.5;
+        }
+        else {
+            status = "INVALID";
+            workCredit = 0;
+        }
+        const overtimeHours = workedHours > standardShiftHours
+            ? Number((workedHours - standardShiftHours).toFixed(2))
+            : 0;
+        attendanceLog.workedHours = (0, gym_management_mapper_1.toDecimalString)(workedHours);
+        attendanceLog.paidHours = (0, gym_management_mapper_1.toDecimalString)(workedHours);
+        attendanceLog.overtimeHours = (0, gym_management_mapper_1.toDecimalString)(overtimeHours);
+        attendanceLog.status = status;
+        attendanceLog.workCredit = (0, gym_management_mapper_1.toDecimalString)(workCredit);
+    }
+    generateReferenceCode(prefix) {
+        return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${(0, node_crypto_1.randomUUID)().slice(0, 8).toUpperCase()}`;
+    }
     async submitPayrollPeriod(payrollPeriodId, submittedByUserId) {
         return this.transitionPayrollPeriodStatus(payrollPeriodId, "PENDING_APPROVAL", submittedByUserId);
     }
@@ -375,6 +983,9 @@ let GymManagementService = class GymManagementService {
     async createPersonalTrainer(createPersonalTrainerDto) {
         const em = this.createEntityManager();
         const trainerData = this.toPersonalTrainerEntityData(createPersonalTrainerDto);
+        if (createPersonalTrainerDto.userId) {
+            trainerData.user = await this.getRequiredUserEntity(em, createPersonalTrainerDto.userId);
+        }
         const trainer = em.create(gym_management_entity_1.PersonalTrainerEntity, trainerData);
         em.persist(trainer);
         await em.flush();
@@ -383,7 +994,13 @@ let GymManagementService = class GymManagementService {
     async updatePersonalTrainer(ptId, updatePersonalTrainerDto) {
         const em = this.createEntityManager();
         const trainer = await this.getRequiredPersonalTrainerEntity(em, ptId);
-        (0, core_1.wrap)(trainer).assign(this.toPersonalTrainerEntityData(updatePersonalTrainerDto), { ignoreUndefined: true });
+        const trainerData = this.toPersonalTrainerEntityData(updatePersonalTrainerDto);
+        if (updatePersonalTrainerDto.userId !== undefined) {
+            trainerData.user = updatePersonalTrainerDto.userId
+                ? await this.getRequiredUserEntity(em, updatePersonalTrainerDto.userId)
+                : null;
+        }
+        (0, core_1.wrap)(trainer).assign(trainerData, { ignoreUndefined: true });
         await em.flush();
         return (0, gym_management_mapper_1.mapPersonalTrainerEntity)(trainer);
     }
@@ -391,6 +1008,7 @@ let GymManagementService = class GymManagementService {
         const em = this.createEntityManager();
         const trainer = await this.getRequiredPersonalTrainerEntity(em, ptId);
         trainer.status = "INACTIVE";
+        trainer.deletedAt = new Date();
         await em.flush();
         return (0, gym_management_mapper_1.mapPersonalTrainerEntity)(trainer);
     }
@@ -415,6 +1033,7 @@ let GymManagementService = class GymManagementService {
         const em = this.createEntityManager();
         const member = await this.getRequiredMemberEntity(em, memberId);
         member.status = "INACTIVE";
+        member.deletedAt = new Date();
         await em.flush();
         return (0, gym_management_mapper_1.mapMemberEntity)(member);
     }
@@ -461,6 +1080,7 @@ let GymManagementService = class GymManagementService {
         const em = this.createEntityManager();
         const product = await this.getRequiredProductEntity(em, productId);
         product.status = "INACTIVE";
+        product.deletedAt = new Date();
         await em.flush();
         return (0, gym_management_mapper_1.mapProductEntity)(product);
     }
@@ -501,10 +1121,13 @@ let GymManagementService = class GymManagementService {
         await em.flush();
         return (0, gym_management_mapper_1.mapOperatingExpenseEntity)(operatingExpense);
     }
-    async patchSystemConfig(configKey, patchSystemConfigDto) {
+    async patchSystemConfig(configKey, patchSystemConfigDto, actorUserId) {
         const em = this.createEntityManager();
         const systemConfig = await this.getRequiredSystemConfigEntity(em, configKey);
         systemConfig.value = patchSystemConfigDto.value;
+        if (actorUserId) {
+            systemConfig.updatedByUser = await this.getRequiredUserEntity(em, actorUserId);
+        }
         await em.flush();
         return (0, gym_management_mapper_1.mapSystemConfigEntity)(systemConfig);
     }
@@ -759,13 +1382,7 @@ let GymManagementService = class GymManagementService {
         return (0, gym_management_mapper_1.parseDateOnly)(`${year}-${month}-${day}`);
     }
     async findActivePtContractEntity(em, ptId, attendanceDate) {
-        const dateOnly = attendanceDate.toISOString().slice(0, 10);
-        const contract = await em.findOne(gym_management_entity_1.PtContractEntity, {
-            personalTrainer: ptId,
-            effectiveFrom: { $lte: (0, gym_management_mapper_1.parseDateOnly)(dateOnly) },
-            effectiveTo: { $gte: (0, gym_management_mapper_1.parseDateOnly)(dateOnly) },
-        }, { orderBy: { effectiveFrom: "desc", createdAt: "desc" } });
-        return contract ?? undefined;
+        return this.findPtContractForPeriod(em, ptId, attendanceDate, attendanceDate);
     }
     async findAttendanceLogForCheckOut(em, pt, attendanceLogId) {
         if (attendanceLogId) {
@@ -795,11 +1412,24 @@ let GymManagementService = class GymManagementService {
         }
         return fallbackValue;
     }
-    async issueAuthTokens(payload) {
+    async issueAccessToken(payload) {
         const accessToken = this.generateOpaqueToken("access");
-        const refreshToken = this.generateOpaqueToken("refresh");
         await this.redisService.setJson(this.toAccessTokenKey(accessToken), payload, ACCESS_TOKEN_TTL_SECONDS);
-        await this.redisService.setJson(this.toRefreshTokenKey(refreshToken), payload, REFRESH_TOKEN_TTL_SECONDS);
+        return accessToken;
+    }
+    async issueAuthTokens(payload) {
+        const em = this.createEntityManager();
+        const accessToken = await this.issueAccessToken(payload);
+        const refreshToken = this.generateOpaqueToken("refresh");
+        const refreshTokenEntity = em.create(gym_management_entity_1.RefreshTokenEntity, {
+            user: em.getReference(gym_management_entity_1.UserEntity, payload.userId),
+            tokenHash: (0, auth_crypto_1.hashOpaqueToken)(refreshToken),
+            sessionId: payload.sessionId,
+            expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000),
+            revokedAt: null,
+        });
+        em.persist(refreshTokenEntity);
+        await em.flush();
         return {
             accessToken,
             refreshToken,
@@ -811,23 +1441,20 @@ let GymManagementService = class GymManagementService {
     toAccessTokenKey(accessToken) {
         return `auth:access:${accessToken}`;
     }
-    toRefreshTokenKey(refreshToken) {
-        return `auth:refresh:${refreshToken}`;
-    }
     toRevokedAccessTokenKey(accessToken) {
         return `auth:revoked:access:${accessToken}`;
     }
     async resolvePtIdForUser(em, user) {
         const trainer = await em.findOne(gym_management_entity_1.PersonalTrainerEntity, {
-            email: user.email,
+            $or: [{ user: user.id }, { email: user.email }],
         });
         return trainer?.id;
     }
     async loadDataset() {
         const em = this.createEntityManager();
         const [users, personalTrainers, ptContracts, attendanceLogs, payrollPeriods, payrollEntries, members, membershipPlans, memberMemberships, memberPtAssignments, membershipInvoices, products, inventoryTransactions, salesInvoices, salesInvoiceItems, operatingExpenses, equipmentAssets, maintenanceRecords, systemConfigs,] = await Promise.all([
-            em.findAll(gym_management_entity_1.UserEntity, { orderBy: { createdAt: "asc", id: "asc" } }),
-            em.findAll(gym_management_entity_1.PersonalTrainerEntity, { orderBy: { code: "asc" } }),
+            em.find(gym_management_entity_1.UserEntity, { deletedAt: null }, { orderBy: { createdAt: "asc", id: "asc" } }),
+            em.find(gym_management_entity_1.PersonalTrainerEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
             em.findAll(gym_management_entity_1.PtContractEntity, {
                 orderBy: { effectiveFrom: "asc", id: "asc" },
             }),
@@ -840,18 +1467,16 @@ let GymManagementService = class GymManagementService {
             em.findAll(gym_management_entity_1.PayrollEntryEntity, {
                 orderBy: { createdAt: "asc", id: "asc" },
             }),
-            em.findAll(gym_management_entity_1.MemberEntity, { orderBy: { code: "asc" } }),
+            em.find(gym_management_entity_1.MemberEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
             em.findAll(gym_management_entity_1.MembershipPlanEntity, { orderBy: { code: "asc" } }),
-            em.findAll(gym_management_entity_1.MemberMembershipEntity, {
-                orderBy: { startDate: "asc", id: "asc" },
-            }),
+            em.find(gym_management_entity_1.MemberMembershipEntity, { deletedAt: null }, { orderBy: { startDate: "asc", id: "asc" } }),
             em.findAll(gym_management_entity_1.MemberPtAssignmentEntity, {
                 orderBy: { assignedFrom: "asc", id: "asc" },
             }),
             em.findAll(gym_management_entity_1.MembershipInvoiceEntity, {
                 orderBy: { invoiceDate: "asc", id: "asc" },
             }),
-            em.findAll(gym_management_entity_1.ProductEntity, { orderBy: { code: "asc" } }),
+            em.find(gym_management_entity_1.ProductEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
             em.findAll(gym_management_entity_1.InventoryTransactionEntity, {
                 orderBy: { transactionDate: "asc", id: "asc" },
             }),
@@ -864,7 +1489,7 @@ let GymManagementService = class GymManagementService {
             em.findAll(gym_management_entity_1.OperatingExpenseEntity, {
                 orderBy: { expenseDate: "asc", id: "asc" },
             }),
-            em.findAll(gym_management_entity_1.EquipmentAssetEntity, { orderBy: { code: "asc" } }),
+            em.find(gym_management_entity_1.EquipmentAssetEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
             em.findAll(gym_management_entity_1.MaintenanceRecordEntity, {
                 orderBy: { maintenanceDate: "asc", id: "asc" },
             }),
@@ -1045,17 +1670,28 @@ let GymManagementService = class GymManagementService {
         if (dto.name !== undefined) {
             data.name = dto.name;
         }
+        if (dto.category !== undefined) {
+            data.category = dto.category;
+        }
         if (dto.purchasedAt !== undefined) {
             data.purchasedAt = (0, gym_management_mapper_1.parseDateOnly)(dto.purchasedAt);
         }
         if (dto.purchaseValue !== undefined) {
             data.purchaseValue = (0, gym_management_mapper_1.toDecimalString)(dto.purchaseValue);
         }
+        if (dto.status !== undefined) {
+            data.status = dto.status;
+        }
         if (dto.condition !== undefined) {
             data.condition = dto.condition;
         }
+        if (dto.location !== undefined) {
+            data.location = dto.location;
+        }
         if (dto.nextMaintenanceAt !== undefined) {
-            data.nextMaintenanceAt = (0, gym_management_mapper_1.parseDateOnly)(dto.nextMaintenanceAt);
+            data.nextMaintenanceAt = dto.nextMaintenanceAt
+                ? (0, gym_management_mapper_1.parseDateOnly)(dto.nextMaintenanceAt)
+                : null;
         }
         if (dto.note !== undefined) {
             data.note = dto.note;
@@ -1115,9 +1751,17 @@ let GymManagementService = class GymManagementService {
         }
         return approvedByUser;
     }
+    async getRequiredUserEntity(em, userId) {
+        const user = await em.findOne(gym_management_entity_1.UserEntity, { id: userId, deletedAt: null });
+        if (!user) {
+            throw new common_1.NotFoundException(`User ${userId} not found`);
+        }
+        return user;
+    }
     async getRequiredPersonalTrainerEntity(em, ptId) {
         const personalTrainer = await em.findOne(gym_management_entity_1.PersonalTrainerEntity, {
             id: ptId,
+            deletedAt: null,
         });
         if (!personalTrainer) {
             throw new common_1.NotFoundException(`PT ${ptId} not found`);
@@ -1125,7 +1769,10 @@ let GymManagementService = class GymManagementService {
         return personalTrainer;
     }
     async getRequiredMemberEntity(em, memberId) {
-        const member = await em.findOne(gym_management_entity_1.MemberEntity, { id: memberId });
+        const member = await em.findOne(gym_management_entity_1.MemberEntity, {
+            id: memberId,
+            deletedAt: null,
+        });
         if (!member) {
             throw new common_1.NotFoundException(`Member ${memberId} not found`);
         }
@@ -1144,7 +1791,10 @@ let GymManagementService = class GymManagementService {
         return membershipPlan;
     }
     async getRequiredProductEntity(em, productId) {
-        const product = await em.findOne(gym_management_entity_1.ProductEntity, { id: productId });
+        const product = await em.findOne(gym_management_entity_1.ProductEntity, {
+            id: productId,
+            deletedAt: null,
+        });
         if (!product) {
             throw new common_1.NotFoundException(`Product ${productId} not found`);
         }
@@ -1156,6 +1806,7 @@ let GymManagementService = class GymManagementService {
     async getRequiredEquipmentAssetEntity(em, equipmentAssetId) {
         const equipmentAsset = await em.findOne(gym_management_entity_1.EquipmentAssetEntity, {
             id: equipmentAssetId,
+            deletedAt: null,
         });
         if (!equipmentAsset) {
             throw new common_1.NotFoundException(`Equipment ${equipmentAssetId} not found`);

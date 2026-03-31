@@ -1,6 +1,10 @@
 import process from "node:process";
-import { type JSX } from "react";
+import { type JSX, type ReactNode } from "react";
 import { notFound } from "next/navigation";
+import {
+  type DemoUser,
+  type GymManagementSnapshot,
+} from "@next-nest-turbo-boilerplate/shared";
 import {
   Badge,
   DataTable,
@@ -9,6 +13,24 @@ import {
   SectionCard,
   StatsGrid,
 } from "./gym-ui.tsx";
+import {
+  cancelMembershipAction,
+  checkInAttendanceAction,
+  checkOutAttendanceAction,
+  createAssignmentAction,
+  createMaintenanceAction,
+  createMembershipAction,
+  createPayrollPeriodAction,
+  createPtContractAction,
+  createSalesInvoiceAction,
+  endAssignmentAction,
+  generatePayrollAction,
+  importInventoryAction,
+  loginAction,
+  patchAttendanceAction,
+  renewMembershipAction,
+  updatePtContractAction,
+} from "@/app/[locale]/gym-actions.ts";
 import { Link } from "@/i18n/navigation.ts";
 import {
   formatCurrency,
@@ -43,6 +65,176 @@ function ActionLink({
     >
       {children}
     </Link>
+  );
+}
+
+type SearchParamsRecord = Record<string, string | string[] | undefined>;
+
+type RenderGymRouteOptions = {
+  readonly locale?: string;
+  readonly searchParams?: SearchParamsRecord;
+  readonly currentUser?: DemoUser;
+  readonly ptAttendance?: GymManagementSnapshot["dataset"]["attendanceLogs"];
+  readonly ptPayrollEntries?: GymManagementSnapshot["dataset"]["payrollEntries"];
+};
+
+type FieldValue = string | number | undefined;
+
+function getLocale(options?: RenderGymRouteOptions): string {
+  return options?.locale ?? "en";
+}
+
+function getSearchParam(
+  searchParams: SearchParamsRecord | undefined,
+  key: string,
+): string | undefined {
+  const value = searchParams?.[key];
+
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function canManageGym(options?: RenderGymRouteOptions): boolean {
+  return (
+    options?.currentUser?.role === "ADMIN" ||
+    options?.currentUser?.role === "STAFF"
+  );
+}
+
+function isAdmin(options?: RenderGymRouteOptions): boolean {
+  return options?.currentUser?.role === "ADMIN";
+}
+
+function toDateInputValue(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  return value.slice(0, 10);
+}
+
+function FormGrid({
+  children,
+  columns = 2,
+}: {
+  readonly children: ReactNode;
+  readonly columns?: 1 | 2;
+}): JSX.Element {
+  return (
+    <div className={columns === 1 ? "grid gap-4" : "grid gap-4 md:grid-cols-2"}>
+      {children}
+    </div>
+  );
+}
+
+function FormField({
+  label,
+  name,
+  type = "text",
+  defaultValue,
+  placeholder,
+  required = false,
+  min,
+  step,
+}: {
+  readonly label: string;
+  readonly name: string;
+  readonly type?: string;
+  readonly defaultValue?: FieldValue;
+  readonly placeholder?: string;
+  readonly required?: boolean;
+  readonly min?: string | number;
+  readonly step?: string | number;
+}): JSX.Element {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </span>
+      <input
+        type={type}
+        name={name}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        required={required}
+        min={min}
+        step={step}
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+      />
+    </label>
+  );
+}
+
+function FormSelect({
+  label,
+  name,
+  options,
+  defaultValue,
+  required = false,
+}: {
+  readonly label: string;
+  readonly name: string;
+  readonly options: Array<{ readonly label: string; readonly value: string }>;
+  readonly defaultValue?: string;
+  readonly required?: boolean;
+}): JSX.Element {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </span>
+      <select
+        name={name}
+        defaultValue={defaultValue}
+        required={required}
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+      >
+        {options.map((option) => (
+          <option key={`${name}-${option.value}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function FormTextArea({
+  label,
+  name,
+  defaultValue,
+  placeholder,
+  rows = 4,
+}: {
+  readonly label: string;
+  readonly name: string;
+  readonly defaultValue?: string;
+  readonly placeholder?: string;
+  readonly rows?: number;
+}): JSX.Element {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+        {label}
+      </span>
+      <textarea
+        name={name}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        rows={rows}
+        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+      />
+    </label>
+  );
+}
+
+function SubmitButton({ label }: { readonly label: string }): JSX.Element {
+  return (
+    <button
+      type="submit"
+      className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+    >
+      {label}
+    </button>
   );
 }
 
@@ -441,12 +633,16 @@ function buildPtDetailPage(ptId: string): JSX.Element {
   );
 }
 
-function buildPtContractsPage(ptId: string): JSX.Element {
+function buildPtContractsPage(
+  ptId: string,
+  options?: RenderGymRouteOptions,
+): JSX.Element {
   const snapshot = getGymSnapshot();
   const trainer = snapshot.dataset.personalTrainers.find(
     (item) => item.id === ptId,
   );
   const contract = getContractForTrainer(snapshot, ptId);
+  const locale = getLocale(options);
 
   if (!trainer || !contract) {
     notFound();
@@ -496,17 +692,266 @@ function buildPtContractsPage(ptId: string): JSX.Element {
             { label: "Allowances", value: formatCurrency(contract.allowances) },
             {
               label: "Effective",
-              value: `${formatDate(contract.effectiveFrom)} - ${formatDate(contract.effectiveTo)}`,
+              value: `${formatDate(contract.effectiveFrom)} - ${contract.effectiveTo ? formatDate(contract.effectiveTo) : "Open ended"}`,
             },
           ]}
         />
       </SectionCard>
+
+      {isAdmin(options) ? (
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <SectionCard
+            title="Update active contract"
+            description="Chinh sua directly contract dang ap dung cho PT nay."
+          >
+            <form action={updatePtContractAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="ptId" value={ptId} />
+              <input type="hidden" name="contractId" value={contract.id} />
+              <FormGrid>
+                <FormField
+                  label="Contract code"
+                  name="contractCode"
+                  defaultValue={contract.contractCode}
+                />
+                <FormField
+                  label="Contract type"
+                  name="contractType"
+                  defaultValue={contract.contractType}
+                  required
+                />
+                <FormField
+                  label="Salary type"
+                  name="salaryType"
+                  defaultValue={contract.salaryType}
+                  required
+                />
+                <FormField
+                  label="Base salary"
+                  name="baseSalary"
+                  type="number"
+                  defaultValue={contract.baseSalary}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Min valid shift hours"
+                  name="minValidShiftHours"
+                  type="number"
+                  defaultValue={contract.minValidShiftHours}
+                  step="0.5"
+                  required
+                />
+                <FormField
+                  label="Standard shift hours"
+                  name="standardShiftHours"
+                  type="number"
+                  defaultValue={contract.standardShiftHours}
+                  step="0.5"
+                  required
+                />
+                <FormField
+                  label="Overtime hourly rate"
+                  name="overtimeHourlyRate"
+                  type="number"
+                  defaultValue={contract.overtimeHourlyRate}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Performance threshold"
+                  name="performanceBonusThreshold"
+                  type="number"
+                  defaultValue={contract.performanceBonusThreshold}
+                  required
+                />
+                <FormField
+                  label="Performance bonus"
+                  name="performanceBonusAmount"
+                  type="number"
+                  defaultValue={contract.performanceBonusAmount}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Package commission rate"
+                  name="packageCommissionRate"
+                  type="number"
+                  defaultValue={contract.packageCommissionRate}
+                  step="0.01"
+                  required
+                />
+                <FormField
+                  label="Sales commission rate"
+                  name="salesCommissionRate"
+                  type="number"
+                  defaultValue={contract.salesCommissionRate}
+                  step="0.01"
+                  required
+                />
+                <FormField
+                  label="Allowances"
+                  name="allowances"
+                  type="number"
+                  defaultValue={contract.allowances}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Effective from"
+                  name="effectiveFrom"
+                  type="date"
+                  defaultValue={toDateInputValue(contract.effectiveFrom)}
+                  required
+                />
+                <FormField
+                  label="Effective to"
+                  name="effectiveTo"
+                  type="date"
+                  defaultValue={toDateInputValue(contract.effectiveTo)}
+                />
+              </FormGrid>
+              <FormTextArea
+                label="Penalty rules"
+                name="penaltyRules"
+                defaultValue={contract.penaltyRules.join("\n")}
+                placeholder="One rule per line"
+              />
+              <SubmitButton label="Update contract" />
+            </form>
+          </SectionCard>
+
+          <SectionCard
+            title="Issue next contract"
+            description="Tao contract moi cho dot luong tiep theo cua PT."
+          >
+            <form action={createPtContractAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="ptId" value={ptId} />
+              <FormGrid>
+                <FormField
+                  label="Contract code"
+                  name="contractCode"
+                  placeholder="PTC-2026-APR"
+                />
+                <FormField
+                  label="Contract type"
+                  name="contractType"
+                  defaultValue={contract.contractType}
+                  required
+                />
+                <FormField
+                  label="Salary type"
+                  name="salaryType"
+                  defaultValue={contract.salaryType}
+                  required
+                />
+                <FormField
+                  label="Base salary"
+                  name="baseSalary"
+                  type="number"
+                  defaultValue={contract.baseSalary}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Min valid shift hours"
+                  name="minValidShiftHours"
+                  type="number"
+                  defaultValue={contract.minValidShiftHours}
+                  step="0.5"
+                  required
+                />
+                <FormField
+                  label="Standard shift hours"
+                  name="standardShiftHours"
+                  type="number"
+                  defaultValue={contract.standardShiftHours}
+                  step="0.5"
+                  required
+                />
+                <FormField
+                  label="Overtime hourly rate"
+                  name="overtimeHourlyRate"
+                  type="number"
+                  defaultValue={contract.overtimeHourlyRate}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Performance threshold"
+                  name="performanceBonusThreshold"
+                  type="number"
+                  defaultValue={contract.performanceBonusThreshold}
+                  required
+                />
+                <FormField
+                  label="Performance bonus"
+                  name="performanceBonusAmount"
+                  type="number"
+                  defaultValue={contract.performanceBonusAmount}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Package commission rate"
+                  name="packageCommissionRate"
+                  type="number"
+                  defaultValue={contract.packageCommissionRate}
+                  step="0.01"
+                  required
+                />
+                <FormField
+                  label="Sales commission rate"
+                  name="salesCommissionRate"
+                  type="number"
+                  defaultValue={contract.salesCommissionRate}
+                  step="0.01"
+                  required
+                />
+                <FormField
+                  label="Allowances"
+                  name="allowances"
+                  type="number"
+                  defaultValue={contract.allowances}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Effective from"
+                  name="effectiveFrom"
+                  type="date"
+                  defaultValue={toDateInputValue(contract.effectiveTo)}
+                  required
+                />
+                <FormField
+                  label="Effective to"
+                  name="effectiveTo"
+                  type="date"
+                />
+              </FormGrid>
+              <FormTextArea
+                label="Penalty rules"
+                name="penaltyRules"
+                defaultValue={contract.penaltyRules.join("\n")}
+                placeholder="One rule per line"
+              />
+              <p className="text-sm leading-6 text-slate-500">
+                Neu contract hien tai van open-ended, hay cap nhat `effective to`
+                truoc khi tao contract moi de tranh overlap.
+              </p>
+              <SubmitButton label="Create next contract" />
+            </form>
+          </SectionCard>
+        </div>
+      ) : null}
     </>
   );
 }
 
-function buildAttendancePage(): JSX.Element {
+function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
 
   return (
     <>
@@ -575,12 +1020,168 @@ function buildAttendancePage(): JSX.Element {
           ])}
         />
       </SectionCard>
+
+      {canManageGym(options) ? (
+        <SectionCard
+          title="Manual correction"
+          description="Admin va Staff co the chinh lai moc check-in/check-out cho cac ca da ghi."
+        >
+          <form action={patchAttendanceAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+            <FormGrid>
+              <FormSelect
+                label="Attendance log"
+                name="attendanceLogId"
+                required
+                options={snapshot.dataset.attendanceLogs.map((attendanceLog) => ({
+                  value: attendanceLog.id,
+                  label: `${getTrainerName(snapshot, attendanceLog.ptId)} | ${attendanceLog.attendanceDate} | ${attendanceLog.status}`,
+                }))}
+              />
+              <FormField
+                label="Check in"
+                name="checkInAt"
+                type="datetime-local"
+              />
+              <FormField
+                label="Check out"
+                name="checkOutAt"
+                type="datetime-local"
+              />
+            </FormGrid>
+            <FormTextArea
+              label="Note"
+              name="note"
+              placeholder="Explain why this correction was made"
+              rows={3}
+            />
+            <SubmitButton label="Patch attendance" />
+          </form>
+        </SectionCard>
+      ) : null}
     </>
   );
 }
 
-function buildPayrollPage(): JSX.Element {
+function buildPtSelfAttendancePage(
+  options?: RenderGymRouteOptions,
+): JSX.Element {
+  const attendanceLogs = options?.ptAttendance ?? [];
+  const locale = getLocale(options);
+  const openShift = attendanceLogs.find((attendanceLog) => !attendanceLog.checkOutAt);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="PT attendance"
+        title="My attendance"
+        description="Cham cong duoc scope theo session hien tai. Ban co the check-in, check-out va xem lich su ca lam cua minh."
+        actions={<ActionLink href="/payroll">Open payroll</ActionLink>}
+      />
+
+      <StatsGrid
+        items={[
+          {
+            label: "Open shift",
+            value: openShift ? "1 shift" : "No open shift",
+            note: openShift
+              ? `Started at ${formatDateTime(openShift.checkInAt)}`
+              : "Ban co the bat dau ca moi ngay tai day.",
+          },
+          {
+            label: "Completed shifts",
+            value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.checkOutAt).length}`,
+            note: "Tong so ca da dong trong lich su session nay.",
+          },
+          {
+            label: "Paid hours",
+            value: formatHours(
+              attendanceLogs.reduce(
+                (total, attendanceLog) => total + (attendanceLog.paidHours ?? attendanceLog.workedHours),
+                0,
+              ),
+            ),
+            note: "Tong gio duoc tinh luong sau khi ap quy tac valid/half shift.",
+          },
+          {
+            label: "Overtime",
+            value: formatHours(
+              attendanceLogs.reduce(
+                (total, attendanceLog) => total + attendanceLog.overtimeHours,
+                0,
+              ),
+            ),
+            note: "Tong gio tang ca da duoc ghi nhan.",
+          },
+        ]}
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <SectionCard
+          title="Attendance actions"
+          description="Su dung thao tac nay de dong/mo ca thay vi ghi nhap thu cong."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <form action={checkInAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormField
+                label="Check in time"
+                name="checkInAt"
+                type="datetime-local"
+              />
+              <SubmitButton label="Check in" />
+            </form>
+
+            <form action={checkOutAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+              <input type="hidden" name="locale" value={locale} />
+              {openShift ? (
+                <input type="hidden" name="attendanceLogId" value={openShift.id} />
+              ) : null}
+              <FormField
+                label="Check out time"
+                name="checkOutAt"
+                type="datetime-local"
+              />
+              <SubmitButton label="Check out" />
+            </form>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="My attendance log">
+          <DataTable
+            headers={[
+              "Date",
+              "Check in",
+              "Check out",
+              "Paid",
+              "Overtime",
+              "Status",
+            ]}
+            rows={attendanceLogs.map((attendanceLog) => [
+              attendanceLog.attendanceDate,
+              formatDateTime(attendanceLog.checkInAt),
+              attendanceLog.checkOutAt
+                ? formatDateTime(attendanceLog.checkOutAt)
+                : "Open",
+              formatHours(attendanceLog.paidHours ?? attendanceLog.workedHours),
+              formatHours(attendanceLog.overtimeHours),
+              <Badge
+                key={attendanceLog.id}
+                tone={getStatusTone(attendanceLog.status)}
+              >
+                {humanizeStatus(attendanceLog.status)}
+              </Badge>,
+            ])}
+          />
+        </SectionCard>
+      </div>
+    </>
+  );
+}
+
+function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
 
   return (
     <>
@@ -652,6 +1253,126 @@ function buildPayrollPage(): JSX.Element {
           />
         </SectionCard>
       </div>
+
+      {isAdmin(options) ? (
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <SectionCard
+            title="Create payroll period"
+            description="Tao ky luong moi truoc khi chay generate payroll."
+          >
+            <form action={createPayrollPeriodAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormField
+                  label="Code"
+                  name="code"
+                  placeholder="2026-04-A"
+                />
+                <FormField label="From" name="from" type="date" required />
+                <FormField label="To" name="to" type="date" required />
+              </FormGrid>
+              <SubmitButton label="Create period" />
+            </form>
+          </SectionCard>
+
+          <SectionCard
+            title="Generate payroll"
+            description="Tinh lai payroll entries cho mot ky da tao."
+          >
+            <form action={generatePayrollAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormSelect
+                label="Payroll period"
+                name="payrollPeriodId"
+                required
+                options={snapshot.dataset.payrollPeriods.map((period) => ({
+                  value: period.id,
+                  label: `${period.code} | ${formatDate(period.from)} - ${formatDate(period.to)} | ${humanizeStatus(period.status)}`,
+                }))}
+              />
+              <SubmitButton label="Generate payroll" />
+            </form>
+          </SectionCard>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function buildPtSelfPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
+  const payrollEntries = options?.ptPayrollEntries ?? [];
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="PT payroll"
+        title="My payroll"
+        description="Danh sach payroll entry da scope theo tai khoan PT hien tai."
+        actions={<ActionLink href="/pts/attendance">Open attendance</ActionLink>}
+      />
+
+      <StatsGrid
+        items={[
+          {
+            label: "Entries",
+            value: `${payrollEntries.length}`,
+            note: "Tong so dong payroll da duoc tao cho PT nay.",
+          },
+          {
+            label: "Approved or paid",
+            value: formatCurrency(
+              payrollEntries
+                .filter((entry) => entry.status === "APPROVED" || entry.status === "PAID")
+                .reduce((total, entry) => total + entry.netPay, 0),
+            ),
+            note: "So tien da duoc duyet hoac da thanh toan.",
+          },
+          {
+            label: "Pending",
+            value: formatCurrency(
+              payrollEntries
+                .filter((entry) => entry.status === "PENDING_APPROVAL")
+                .reduce((total, entry) => total + entry.netPay, 0),
+            ),
+            note: "Net pay dang cho review hoac generate lai.",
+          },
+          {
+            label: "Paid hours",
+            value: formatHours(
+              payrollEntries.reduce(
+                (total, entry) => total + (entry.paidHours ?? 0),
+                0,
+              ),
+            ),
+            note: "Tong gio da dua vao bang luong.",
+          },
+        ]}
+      />
+
+      <SectionCard title="My payroll entries">
+        <DataTable
+          headers={[
+            "Period ref",
+            "Paid hours",
+            "Base",
+            "Package commission",
+            "Sales commission",
+            "Net pay",
+            "Status",
+          ]}
+          rows={payrollEntries.map((entry) => [
+            entry.payrollPeriodId,
+            formatHours(entry.paidHours ?? 0),
+            formatCurrency(entry.baseSalaryAmount ?? 0),
+            formatCurrency(entry.packageCommission),
+            formatCurrency(entry.salesCommission),
+            formatCurrency(entry.netPay),
+            <Badge key={entry.id} tone={getStatusTone(entry.status)}>
+              {humanizeStatus(entry.status)}
+            </Badge>,
+          ])}
+        />
+      </SectionCard>
     </>
   );
 }
@@ -920,8 +1641,17 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
   );
 }
 
-function buildMembershipOverviewPage(): JSX.Element {
+function buildMembershipOverviewPage(
+  options?: RenderGymRouteOptions,
+): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
+  const manageableMemberships = snapshot.dataset.memberMemberships.filter(
+    (membership) => membership.status !== "CANCELLED",
+  );
+  const activeAssignments = snapshot.dataset.memberPtAssignments.filter(
+    (assignment) => assignment.status === "ACTIVE",
+  );
 
   return (
     <>
@@ -930,6 +1660,207 @@ function buildMembershipOverviewPage(): JSX.Element {
         title="Sold memberships"
         description="Nguon su that cho goi tap da ban, PT assignments va membership invoice confirmations."
       />
+
+      {canManageGym(options) ? (
+        <>
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <SectionCard
+              title="Sell new membership"
+              description="Ban goi tap moi va tao membership invoice confirm ngay."
+            >
+              <form action={createMembershipAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormGrid>
+                  <FormSelect
+                    label="Member"
+                    name="memberId"
+                    required
+                    options={snapshot.dataset.members.map((member) => ({
+                      value: member.id,
+                      label: `${member.code} | ${member.fullName}`,
+                    }))}
+                  />
+                  <FormSelect
+                    label="Plan"
+                    name="membershipPlanId"
+                    required
+                    options={snapshot.dataset.membershipPlans.map((plan) => ({
+                      value: plan.id,
+                      label: `${plan.name} | ${formatCurrency(plan.price)}`,
+                    }))}
+                  />
+                  <FormField
+                    label="Start date"
+                    name="startDate"
+                    type="date"
+                    required
+                  />
+                  <FormSelect
+                    label="Payment method"
+                    name="paymentMethod"
+                    required
+                    defaultValue="BANK_TRANSFER"
+                    options={[
+                      { value: "CASH", label: "Cash" },
+                      { value: "CARD", label: "Card" },
+                      { value: "BANK_TRANSFER", label: "Bank transfer" },
+                    ]}
+                  />
+                </FormGrid>
+                <SubmitButton label="Sell membership" />
+              </form>
+            </SectionCard>
+
+            <SectionCard
+              title="Renew membership"
+              description="Gia han goi tap dang hoat dong hoac sap het han."
+            >
+              <form action={renewMembershipAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormSelect
+                  label="Existing membership"
+                  name="membershipId"
+                  required
+                  options={manageableMemberships.map((membership) => ({
+                    value: membership.id,
+                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)} | ${humanizeStatus(membership.status)}`,
+                  }))}
+                />
+                <FormGrid>
+                  <FormField
+                    label="New start date"
+                    name="startDate"
+                    type="date"
+                  />
+                  <FormSelect
+                    label="Payment method"
+                    name="paymentMethod"
+                    defaultValue="BANK_TRANSFER"
+                    options={[
+                      { value: "", label: "Keep default" },
+                      { value: "CASH", label: "Cash" },
+                      { value: "CARD", label: "Card" },
+                      { value: "BANK_TRANSFER", label: "Bank transfer" },
+                    ]}
+                  />
+                </FormGrid>
+                <SubmitButton label="Renew membership" />
+              </form>
+            </SectionCard>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
+            <SectionCard
+              title="Cancel membership"
+              description="Dong goi tap som va cap nhat lifecycle."
+            >
+              <form action={cancelMembershipAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormSelect
+                  label="Membership"
+                  name="membershipId"
+                  required
+                  options={manageableMemberships.map((membership) => ({
+                    value: membership.id,
+                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
+                  }))}
+                />
+                <FormField
+                  label="Cancelled at"
+                  name="cancelledAt"
+                  type="date"
+                />
+                <SubmitButton label="Cancel membership" />
+              </form>
+            </SectionCard>
+
+            <SectionCard
+              title="Assign PT"
+              description="Gan member vao PT theo membership dang con hieu luc."
+            >
+              <form action={createAssignmentAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormSelect
+                  label="Member"
+                  name="memberId"
+                  required
+                  options={snapshot.dataset.members.map((member) => ({
+                    value: member.id,
+                    label: `${member.code} | ${member.fullName}`,
+                  }))}
+                />
+                <FormSelect
+                  label="PT"
+                  name="ptId"
+                  required
+                  options={snapshot.dataset.personalTrainers.map((trainer) => ({
+                    value: trainer.id,
+                    label: `${trainer.code} | ${trainer.fullName}`,
+                  }))}
+                />
+                <FormSelect
+                  label="Membership"
+                  name="memberMembershipId"
+                  required
+                  options={manageableMemberships.map((membership) => ({
+                    value: membership.id,
+                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
+                  }))}
+                />
+                <FormGrid>
+                  <FormField
+                    label="Assigned from"
+                    name="assignedFrom"
+                    type="date"
+                    required
+                  />
+                  <FormSelect
+                    label="Commission type"
+                    name="commissionType"
+                    defaultValue="PERCENTAGE"
+                    options={[
+                      { value: "PERCENTAGE", label: "Percentage" },
+                      { value: "FIXED", label: "Fixed" },
+                    ]}
+                  />
+                  <FormField
+                    label="Commission value"
+                    name="commissionValue"
+                    type="number"
+                    defaultValue={10}
+                    step="0.5"
+                  />
+                </FormGrid>
+                <SubmitButton label="Create assignment" />
+              </form>
+            </SectionCard>
+
+            <SectionCard
+              title="End PT assignment"
+              description="Ket thuc assignment active khi member chuyen PT hoac dung dich vu."
+            >
+              <form action={endAssignmentAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormSelect
+                  label="Active assignment"
+                  name="assignmentId"
+                  required
+                  options={activeAssignments.map((assignment) => ({
+                    value: assignment.id,
+                    label: `${getMemberName(snapshot, assignment.memberId)} -> ${getTrainerName(snapshot, assignment.ptId)}`,
+                  }))}
+                />
+                <FormField
+                  label="Assigned to"
+                  name="assignedTo"
+                  type="date"
+                />
+                <SubmitButton label="End assignment" />
+              </form>
+            </SectionCard>
+          </div>
+        </>
+      ) : null}
 
       <SectionCard title="Member memberships">
         <DataTable
@@ -1077,8 +2008,9 @@ function buildProductsPage(): JSX.Element {
   );
 }
 
-function buildInventoryPage(): JSX.Element {
+function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
 
   return (
     <>
@@ -1114,6 +2046,50 @@ function buildInventoryPage(): JSX.Element {
           },
         ]}
       />
+
+      {canManageGym(options) ? (
+        <SectionCard
+          title="Create import"
+          description="Nhap kho nhanh cho mot SKU dang duoc track trong he thong."
+        >
+          <form action={importInventoryAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+            <FormGrid>
+              <FormSelect
+                label="Product"
+                name="productId"
+                required
+                options={snapshot.dataset.products.map((product) => ({
+                  value: product.id,
+                  label: `${product.code} | ${product.name}`,
+                }))}
+              />
+              <FormField
+                label="Quantity"
+                name="quantity"
+                type="number"
+                min={1}
+                defaultValue={10}
+                required
+              />
+              <FormField
+                label="Unit cost"
+                name="unitCost"
+                type="number"
+                min={0}
+                step="1000"
+                required
+              />
+              <FormField
+                label="Reference code"
+                name="referenceCode"
+                placeholder="PO-2026-04-01"
+              />
+            </FormGrid>
+            <SubmitButton label="Create import" />
+          </form>
+        </SectionCard>
+      ) : null}
 
       <SectionCard title="Inventory ledger">
         <DataTable
@@ -1182,8 +2158,9 @@ function buildInventoryImportPage(): JSX.Element {
   );
 }
 
-function buildInvoicesPage(): JSX.Element {
+function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
 
   return (
     <>
@@ -1192,6 +2169,75 @@ function buildInvoicesPage(): JSX.Element {
         title="Service invoices"
         description="Hoa don ban san pham dich vu cho member hoac khach le."
       />
+
+      {canManageGym(options) ? (
+        <SectionCard
+          title="Create sales invoice"
+          description="Lap hoa don draft moi cho retail invoice, dong thoi tru ton kho cho item da chon."
+        >
+          <form action={createSalesInvoiceAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+            <FormGrid>
+              <FormSelect
+                label="Customer type"
+                name="memberId"
+                defaultValue=""
+                options={[
+                  { value: "", label: "Walk-in customer" },
+                  ...snapshot.dataset.members.map((member) => ({
+                    value: member.id,
+                    label: `${member.code} | ${member.fullName}`,
+                  })),
+                ]}
+              />
+              <FormField
+                label="Customer name"
+                name="customerName"
+                placeholder="Tran Van A"
+                required
+              />
+              <FormSelect
+                label="Product"
+                name="productId"
+                required
+                options={snapshot.dataset.products.map((product) => ({
+                  value: product.id,
+                  label: `${product.code} | ${product.name} | ${formatCurrency(product.salePrice)}`,
+                }))}
+              />
+              <FormField
+                label="Quantity"
+                name="quantity"
+                type="number"
+                min={1}
+                defaultValue={1}
+                required
+              />
+              <FormSelect
+                label="Payment method"
+                name="paymentMethod"
+                defaultValue="CASH"
+                required
+                options={[
+                  { value: "CASH", label: "Cash" },
+                  { value: "CARD", label: "Card" },
+                  { value: "BANK_TRANSFER", label: "Bank transfer" },
+                ]}
+              />
+              <FormField
+                label="Discount amount"
+                name="discountAmount"
+                type="number"
+                min={0}
+                step="1000"
+                defaultValue={0}
+              />
+            </FormGrid>
+            <SubmitButton label="Create invoice" />
+          </form>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Sales invoices">
         <DataTable
           headers={[
@@ -1544,8 +2590,9 @@ function buildEquipmentDetailPage(equipmentId: string): JSX.Element {
   );
 }
 
-function buildMaintenancePage(): JSX.Element {
+function buildMaintenancePage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
 
   return (
     <>
@@ -1554,14 +2601,97 @@ function buildMaintenancePage(): JSX.Element {
         title="Maintenance history"
         description="Tat ca event bao tri, repair va recommendation replacement cho thiet bi."
       />
+
+      {canManageGym(options) ? (
+        <SectionCard
+          title="Log maintenance"
+          description="Ghi nhan mot lan bao tri moi va cap nhat ngay bao tri tiep theo neu can."
+        >
+          <form action={createMaintenanceAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+            <FormGrid>
+              <FormSelect
+                label="Equipment"
+                name="equipmentAssetId"
+                required
+                options={snapshot.dataset.equipmentAssets.map((equipmentAsset) => ({
+                  value: equipmentAsset.id,
+                  label: `${equipmentAsset.code} | ${equipmentAsset.name}`,
+                }))}
+              />
+              <FormSelect
+                label="Maintenance type"
+                name="maintenanceType"
+                defaultValue="PREVENTIVE"
+                options={[
+                  { value: "PREVENTIVE", label: "Preventive" },
+                  { value: "CORRECTIVE", label: "Corrective" },
+                  { value: "INSPECTION", label: "Inspection" },
+                ]}
+              />
+              <FormField
+                label="Maintenance date"
+                name="maintenanceDate"
+                type="date"
+                required
+              />
+              <FormField
+                label="Vendor name"
+                name="vendorName"
+                placeholder="Fit Service Co."
+                required
+              />
+              <FormField
+                label="Amount"
+                name="amount"
+                type="number"
+                min={0}
+                step="1000"
+                required
+              />
+              <FormSelect
+                label="Result status"
+                name="resultStatus"
+                defaultValue="COMPLETED"
+                options={[
+                  { value: "COMPLETED", label: "Completed" },
+                  { value: "FOLLOW_UP_REQUIRED", label: "Follow-up required" },
+                  { value: "REPLACEMENT_RECOMMENDED", label: "Replacement recommended" },
+                ]}
+              />
+              <FormField
+                label="Next maintenance"
+                name="nextMaintenanceAt"
+                type="date"
+              />
+            </FormGrid>
+            <FormTextArea
+              label="Description"
+              name="description"
+              placeholder="Mo ta cong viec da thuc hien"
+              rows={3}
+            />
+            <SubmitButton label="Create maintenance record" />
+          </form>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Maintenance records">
         <DataTable
-          headers={["Date", "Equipment", "Vendor", "Description", "Amount"]}
+          headers={[
+            "Date",
+            "Equipment",
+            "Type",
+            "Vendor",
+            "Result",
+            "Amount",
+          ]}
           rows={snapshot.dataset.maintenanceRecords.map((record) => [
             formatDate(record.maintenanceDate),
             getEquipmentName(snapshot, record.equipmentAssetId ?? undefined),
+            humanizeStatus(record.maintenanceType ?? "PREVENTIVE"),
             record.vendorName,
-            record.description,
+            humanizeStatus(record.resultStatus ?? "COMPLETED"),
             formatCurrency(record.amount),
           ])}
         />
@@ -1891,17 +3021,20 @@ function buildSettingsPage(): JSX.Element {
   );
 }
 
-function buildLoginPage(): JSX.Element {
+function buildLoginPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
   const backendUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:4000";
+  const hasInvalidCredentials =
+    getSearchParam(options?.searchParams, "error") === "invalid";
 
   return (
     <>
       <PageHeader
-        eyebrow="Demo access"
-        title="Login reference"
-        description="Frontend hien doc snapshot tu backend bang demo account o phia server. UI van chua co session auth rieng cho tung nguoi dung."
+        eyebrow="Secure access"
+        title="Sign in"
+        description="Frontend hien dang dung session that voi access token short-lived va refresh token cookie de goi backend Gym Manager."
         actions={
           <a
             href={`${backendUrl}/api/docs`}
@@ -1914,42 +3047,89 @@ function buildLoginPage(): JSX.Element {
         }
       />
 
-      <SectionCard title="Demo accounts">
-        <DataTable
-          headers={["Role", "Name", "Email", "Password"]}
-          rows={snapshot.dataset.users.map((user) => [
-            user.role,
-            user.fullName,
-            user.email,
-            user.passwordHint,
-          ])}
-        />
-      </SectionCard>
+      <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+        <SectionCard
+          title="Login form"
+          description="Dang nhap vao admin/staff portal hoac PT self-service view."
+        >
+          {hasInvalidCredentials ? (
+            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              Email hoac mat khau khong dung. Thu lai bang mot tai khoan demo ben canh.
+            </div>
+          ) : null}
 
-      <SectionCard title="Quick test">
-        <pre className="overflow-x-auto rounded-[1.25rem] bg-slate-950 p-4 text-sm leading-7 text-slate-100">
-          {`POST ${backendUrl}/api/auth/login
+          <form action={loginAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+            <FormField
+              label="Email"
+              name="email"
+              type="email"
+              defaultValue="admin@gymmanager.local"
+              required
+            />
+            <FormField
+              label="Password"
+              name="password"
+              type="password"
+              defaultValue="demo123"
+              required
+            />
+            <SubmitButton label="Sign in" />
+          </form>
+        </SectionCard>
+
+        <div className="space-y-6">
+          <SectionCard title="Demo accounts">
+            <DataTable
+              headers={["Role", "Name", "Email", "Password"]}
+              rows={snapshot.dataset.users.map((user) => [
+                user.role,
+                user.fullName,
+                user.email,
+                "demo123",
+              ])}
+            />
+          </SectionCard>
+
+          <SectionCard title="Quick API test">
+            <pre className="overflow-x-auto rounded-[1.25rem] bg-slate-950 p-4 text-sm leading-7 text-slate-100">
+              {`POST ${backendUrl}/api/auth/login
 {
   "email": "admin@gymmanager.local",
   "password": "demo123"
 }`}
-        </pre>
-      </SectionCard>
+            </pre>
+          </SectionCard>
+        </div>
+      </div>
     </>
   );
 }
 
-export function renderGymRoute(slug: string[]): JSX.Element {
+export function renderGymRoute(
+  slug: string[],
+  options?: RenderGymRouteOptions,
+): JSX.Element {
   const section = slug[0];
   const entityId = slug[1];
   const nestedSection = slug[2];
+
+  if (options?.currentUser?.role === "PT") {
+    if (section === "pts" && entityId === "attendance") {
+      return buildPtSelfAttendancePage(options);
+    }
+
+    if (section === "payroll" && slug.length === 1) {
+      return buildPtSelfPayrollPage(options);
+    }
+  }
 
   if (slug.length === 0 || section === "dashboard") {
     return buildDashboardPage();
   }
 
   if (section === "login") {
-    return buildLoginPage();
+    return buildLoginPage(options);
   }
 
   if (section === "pts" && slug.length === 1) {
@@ -1957,7 +3137,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (section === "pts" && entityId === "attendance") {
-    return buildAttendancePage();
+    return buildAttendancePage(options);
   }
 
   if (section === "pts" && slug.length === 2 && entityId) {
@@ -1970,11 +3150,11 @@ export function renderGymRoute(slug: string[]): JSX.Element {
     entityId &&
     nestedSection === "contracts"
   ) {
-    return buildPtContractsPage(entityId);
+    return buildPtContractsPage(entityId, options);
   }
 
   if (section === "payroll" && slug.length === 1) {
-    return buildPayrollPage();
+    return buildPayrollPage(options);
   }
 
   if (section === "payroll" && slug.length === 2 && entityId) {
@@ -1986,7 +3166,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (section === "members" && entityId === "memberships") {
-    return buildMembershipOverviewPage();
+    return buildMembershipOverviewPage(options);
   }
 
   if (section === "members" && slug.length === 2 && entityId) {
@@ -2006,7 +3186,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (section === "inventory" && slug.length === 1) {
-    return buildInventoryPage();
+    return buildInventoryPage(options);
   }
 
   if (section === "inventory" && entityId === "import") {
@@ -2014,7 +3194,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (section === "invoices" && slug.length === 1) {
-    return buildInvoicesPage();
+    return buildInvoicesPage(options);
   }
 
   if (section === "invoices" && slug.length === 2 && entityId) {
@@ -2038,7 +3218,7 @@ export function renderGymRoute(slug: string[]): JSX.Element {
   }
 
   if (section === "maintenance") {
-    return buildMaintenancePage();
+    return buildMaintenancePage(options);
   }
 
   if (section === "reports" && entityId === "revenue") {

@@ -22,20 +22,33 @@ import { AuditLogInterceptor } from "./audit/audit-log.interceptor";
 import {
   AttendanceCheckInDto,
   AttendanceCheckOutDto,
+  CancelMemberMembershipDto,
   CancelSalesInvoiceDto,
+  CreateMaintenanceDto,
   CreateEquipmentDto,
   CreateMemberDto,
+  CreateMemberAssignmentDto,
+  CreateMemberMembershipDto,
   CreateMembershipPlanDto,
   CreateOperatingExpenseDto,
+  CreatePayrollPeriodDto,
   CreatePersonalTrainerDto,
   CreateProductDto,
+  CreatePtContractDto,
+  CreateSalesInvoiceDto,
+  EndMemberAssignmentDto,
+  GeneratePayrollDto,
+  InventoryImportDto,
   PatchSystemConfigDto,
+  PatchAttendanceDto,
   RejectExpenseDto,
+  RenewMemberMembershipDto,
   UpdateEquipmentDto,
   UpdateMemberDto,
   UpdateMembershipPlanDto,
   UpdateOperatingExpenseDto,
   UpdatePersonalTrainerDto,
+  UpdatePtContractDto,
   UpdateProductDto,
 } from "./dto/gym-management.dto";
 import type { AuthenticatedUser } from "./auth/authenticated-user.type";
@@ -105,6 +118,29 @@ type SystemConfigRecord = Awaited<
 >;
 type AttendanceRecord = Awaited<
   ReturnType<GymManagementService["checkInAttendance"]>
+>;
+type PtContractRecord = Awaited<
+  ReturnType<GymManagementService["createPtContract"]>
+>;
+type MembershipSaleRecord = Awaited<
+  ReturnType<GymManagementService["createMemberMembership"]>
+>;
+type MemberMembershipRecord = MembershipSaleRecord["membership"];
+type MemberAssignmentRecord = Awaited<
+  ReturnType<GymManagementService["createMemberAssignment"]>
+>;
+type PayrollPeriodRecord = Awaited<
+  ReturnType<GymManagementService["createPayrollPeriod"]>
+>;
+type PayrollMeRecord = Awaited<ReturnType<GymManagementService["getPayrollMe"]>>;
+type SalesInvoiceRecord = Awaited<
+  ReturnType<GymManagementService["createSalesInvoice"]>
+>;
+type InventoryImportRecord = Awaited<
+  ReturnType<GymManagementService["importInventory"]>
+>;
+type MaintenanceRecordResponse = Awaited<
+  ReturnType<GymManagementService["createMaintenance"]>
 >;
 
 function createResponse<ResponsePayload>(
@@ -212,6 +248,38 @@ export class GymManagementController {
     return createResponse(ptDetail.contract);
   }
 
+  @Post("pts/:id/contracts")
+  @Roles("ADMIN")
+  @AuditAction("PT_CONTRACT_CREATE", "pt_contracts")
+  async createPtContract(
+    @Param("id") ptId: string,
+    @Body() createPtContractDto: CreatePtContractDto,
+  ): Promise<ApiResponse<PtContractRecord>> {
+    return createResponse(
+      await this.gymManagementService.createPtContract(
+        ptId,
+        createPtContractDto,
+      ),
+    );
+  }
+
+  @Patch("pts/:id/contracts/:contractId")
+  @Roles("ADMIN")
+  @AuditAction("PT_CONTRACT_UPDATE", "pt_contracts")
+  async updatePtContract(
+    @Param("id") ptId: string,
+    @Param("contractId") contractId: string,
+    @Body() updatePtContractDto: UpdatePtContractDto,
+  ): Promise<ApiResponse<PtContractRecord>> {
+    return createResponse(
+      await this.gymManagementService.updatePtContract(
+        ptId,
+        contractId,
+        updatePtContractDto,
+      ),
+    );
+  }
+
   @Patch("pts/:id")
   async updatePt(
     @Param("id") ptId: string,
@@ -277,6 +345,21 @@ export class GymManagementController {
     );
   }
 
+  @Patch("attendance/:id")
+  @Roles("ADMIN", "STAFF")
+  @AuditAction("ATTENDANCE_PATCH", "attendance_logs")
+  async patchAttendance(
+    @Param("id") attendanceLogId: string,
+    @Body() patchAttendanceDto: PatchAttendanceDto,
+  ): Promise<ApiResponse<AttendanceRecord>> {
+    return createResponse(
+      await this.gymManagementService.patchAttendance(
+        attendanceLogId,
+        patchAttendanceDto,
+      ),
+    );
+  }
+
   @Get("attendance/me")
   @Roles("ADMIN", "STAFF", "PT")
   async getMyAttendance(
@@ -307,12 +390,46 @@ export class GymManagementController {
     return createResponse(snapshot.dataset.payrollPeriods);
   }
 
+  @Post("payroll/periods")
+  @Roles("ADMIN")
+  @AuditAction("PAYROLL_PERIOD_CREATE", "payroll_periods")
+  async createPayrollPeriod(
+    @Body() createPayrollPeriodDto: CreatePayrollPeriodDto,
+  ): Promise<ApiResponse<PayrollPeriodRecord>> {
+    return createResponse(
+      await this.gymManagementService.createPayrollPeriod(
+        createPayrollPeriodDto,
+      ),
+    );
+  }
+
   @Get("payroll/periods/:id")
   async getPayrollPeriod(
     @Param("id") payrollPeriodId: string,
   ): Promise<ApiResponse<PayrollPeriodDetail>> {
     return createResponse(
       await this.gymManagementService.getPayrollPeriodDetail(payrollPeriodId),
+    );
+  }
+
+  @Post("payroll/generate")
+  @Roles("ADMIN")
+  @AuditAction("PAYROLL_GENERATE", "payroll_entries")
+  async generatePayroll(
+    @Body() generatePayrollDto: GeneratePayrollDto,
+  ): Promise<ApiResponse<PayrollPeriodDetail>> {
+    return createResponse(
+      await this.gymManagementService.generatePayroll(generatePayrollDto),
+    );
+  }
+
+  @Get("payroll/me")
+  @Roles("ADMIN", "STAFF", "PT")
+  async getPayrollMe(
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<PayrollMeRecord>> {
+    return createResponse(
+      await this.gymManagementService.getPayrollMe(currentUser.user.id),
     );
   }
 
@@ -466,6 +583,46 @@ export class GymManagementController {
     return createResponse(snapshot.dataset.memberMemberships);
   }
 
+  @Post("member-memberships")
+  @AuditAction("MEMBERSHIP_CREATE", "member_memberships")
+  async createMemberMembership(
+    @Body() createMemberMembershipDto: CreateMemberMembershipDto,
+  ): Promise<ApiResponse<MembershipSaleRecord>> {
+    return createResponse(
+      await this.gymManagementService.createMemberMembership(
+        createMemberMembershipDto,
+      ),
+    );
+  }
+
+  @Post("member-memberships/:id/renew")
+  @AuditAction("MEMBERSHIP_RENEW", "member_memberships")
+  async renewMemberMembership(
+    @Param("id") membershipId: string,
+    @Body() renewMemberMembershipDto: RenewMemberMembershipDto,
+  ): Promise<ApiResponse<MembershipSaleRecord>> {
+    return createResponse(
+      await this.gymManagementService.renewMemberMembership(
+        membershipId,
+        renewMemberMembershipDto,
+      ),
+    );
+  }
+
+  @Post("member-memberships/:id/cancel")
+  @AuditAction("MEMBERSHIP_CANCEL", "member_memberships")
+  async cancelMemberMembership(
+    @Param("id") membershipId: string,
+    @Body() cancelMemberMembershipDto: CancelMemberMembershipDto,
+  ): Promise<ApiResponse<MemberMembershipRecord>> {
+    return createResponse(
+      await this.gymManagementService.cancelMemberMembership(
+        membershipId,
+        cancelMemberMembershipDto.cancelledAt,
+      ),
+    );
+  }
+
   @Get("member-assignments")
   async getMemberAssignmentsList(): Promise<
     ApiResponse<Snapshot["dataset"]["memberPtAssignments"]>
@@ -473,6 +630,32 @@ export class GymManagementController {
     const snapshot = await this.gymManagementService.getSnapshot();
 
     return createResponse(snapshot.dataset.memberPtAssignments);
+  }
+
+  @Post("member-assignments")
+  @AuditAction("MEMBER_ASSIGNMENT_CREATE", "member_pt_assignments")
+  async createMemberAssignment(
+    @Body() createMemberAssignmentDto: CreateMemberAssignmentDto,
+  ): Promise<ApiResponse<MemberAssignmentRecord>> {
+    return createResponse(
+      await this.gymManagementService.createMemberAssignment(
+        createMemberAssignmentDto,
+      ),
+    );
+  }
+
+  @Post("member-assignments/:id/end")
+  @AuditAction("MEMBER_ASSIGNMENT_END", "member_pt_assignments")
+  async endMemberAssignment(
+    @Param("id") assignmentId: string,
+    @Body() endMemberAssignmentDto: EndMemberAssignmentDto,
+  ): Promise<ApiResponse<MemberAssignmentRecord>> {
+    return createResponse(
+      await this.gymManagementService.endMemberAssignment(
+        assignmentId,
+        endMemberAssignmentDto,
+      ),
+    );
   }
 
   @Get("membership-invoices")
@@ -531,6 +714,16 @@ export class GymManagementController {
     return createResponse(snapshot.dataset.inventoryTransactions);
   }
 
+  @Post("inventory/import")
+  @AuditAction("INVENTORY_IMPORT", "inventory_transactions")
+  async importInventory(
+    @Body() inventoryImportDto: InventoryImportDto,
+  ): Promise<ApiResponse<InventoryImportRecord>> {
+    return createResponse(
+      await this.gymManagementService.importInventory(inventoryImportDto),
+    );
+  }
+
   @Get("sales/invoices")
   async getSalesInvoices(): Promise<
     ApiResponse<Snapshot["dataset"]["salesInvoices"]>
@@ -538,6 +731,21 @@ export class GymManagementController {
     const snapshot = await this.gymManagementService.getSnapshot();
 
     return createResponse(snapshot.dataset.salesInvoices);
+  }
+
+  @Post("sales/invoices")
+  @Roles("ADMIN", "STAFF", "PT")
+  @AuditAction("SALES_INVOICE_CREATE", "sales_invoices")
+  async createSalesInvoice(
+    @Body() createSalesInvoiceDto: CreateSalesInvoiceDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<SalesInvoiceRecord>> {
+    return createResponse(
+      await this.gymManagementService.createSalesInvoice(
+        createSalesInvoiceDto,
+        currentUser.user.id,
+      ),
+    );
   }
 
   @Get("sales/invoices/:id")
@@ -718,6 +926,20 @@ export class GymManagementController {
     return createResponse(snapshot.dataset.maintenanceRecords);
   }
 
+  @Post("maintenance")
+  @AuditAction("MAINTENANCE_CREATE", "maintenance_records")
+  async createMaintenance(
+    @Body() createMaintenanceDto: CreateMaintenanceDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<MaintenanceRecordResponse>> {
+    return createResponse(
+      await this.gymManagementService.createMaintenance(
+        createMaintenanceDto,
+        currentUser.user.id,
+      ),
+    );
+  }
+
   @Get("reports/revenue")
   async getRevenueReport(): Promise<ApiResponse<Snapshot["revenueReport"]>> {
     const snapshot = await this.gymManagementService.getSnapshot();
@@ -790,11 +1012,13 @@ export class GymManagementController {
   async patchSettings(
     @Param("key") configKey: string,
     @Body() patchSystemConfigDto: PatchSystemConfigDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ApiResponse<SystemConfigRecord>> {
     return createResponse(
       await this.gymManagementService.patchSystemConfig(
         configKey,
         patchSystemConfigDto,
+        currentUser.user.id,
       ),
     );
   }

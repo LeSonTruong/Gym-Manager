@@ -19,10 +19,6 @@ import {
 
 export type BadgeTone = "slate" | "emerald" | "amber" | "rose" | "sky";
 
-type LoginPayload = {
-  accessToken: string;
-};
-
 const gymSnapshotStorage = new AsyncLocalStorage<GymManagementSnapshot>();
 
 const currencyFormatter = new Intl.NumberFormat("vi-VN", {
@@ -58,65 +54,43 @@ function getBackendUrl(): string {
   ).replace(/\/$/, "");
 }
 
-function getDemoCredentials(): { email: string; password: string } {
-  return {
-    email: process.env.GYM_FRONTEND_DEMO_EMAIL ?? "admin@gymmanager.local",
-    password: process.env.GYM_FRONTEND_DEMO_PASSWORD ?? "demo123",
-  };
-}
+async function fetchBackendData<ResponsePayload>(
+  endpoint: string,
+  accessToken: string,
+): Promise<ResponsePayload> {
+  const headers = new Headers();
 
-async function loginToBackend(): Promise<string> {
-  const backendUrl = getBackendUrl();
-  const credentials = getDemoCredentials();
-  const response = await fetch(`${backendUrl}/api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  const response = await fetch(`${getBackendUrl()}${endpoint}`, {
+    headers,
     cache: "no-store",
-    body: JSON.stringify(credentials),
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Unable to authenticate frontend snapshot request (${response.status})`,
-    );
+    throw new Error(`Unable to load backend data from ${endpoint} (${response.status})`);
   }
 
-  const payload = (await response.json()) as ApiResponse<LoginPayload>;
+  const payload = (await response.json()) as ApiResponse<ResponsePayload>;
 
-  if (!payload.data.accessToken) {
-    throw new Error(
-      "Gym frontend snapshot login did not return an access token",
-    );
-  }
-
-  return payload.data.accessToken;
+  return payload.data;
 }
 
-export async function loadGymSnapshot(): Promise<GymManagementSnapshot> {
-  try {
-    const backendUrl = getBackendUrl();
-    const accessToken = await loginToBackend();
-    const headers = new Headers();
+export async function loadGymSnapshot(
+  accessToken: string,
+): Promise<GymManagementSnapshot> {
+  return fetchBackendData("/api/snapshot", accessToken);
+}
 
-    headers.set("Authorization", `Bearer ${accessToken}`);
-    const response = await fetch(`${backendUrl}/api/snapshot`, {
-      headers,
-      cache: "no-store",
-    });
+export async function loadMyAttendance(
+  accessToken: string,
+): Promise<GymManagementSnapshot["dataset"]["attendanceLogs"]> {
+  return fetchBackendData("/api/attendance/me", accessToken);
+}
 
-    if (!response.ok) {
-      throw new Error(`Unable to load backend snapshot (${response.status})`);
-    }
-
-    const payload =
-      (await response.json()) as ApiResponse<GymManagementSnapshot>;
-
-    return payload.data;
-  } catch {
-    return createFallbackSnapshot();
-  }
+export async function loadMyPayroll(
+  accessToken: string,
+): Promise<GymManagementSnapshot["dataset"]["payrollEntries"]> {
+  return fetchBackendData("/api/payroll/me", accessToken);
 }
 
 export function runWithGymSnapshot<Result>(
@@ -134,11 +108,19 @@ export function formatCurrency(value: number): string {
   return currencyFormatter.format(value);
 }
 
-export function formatDate(value: string): string {
+export function formatDate(value?: string | null): string {
+  if (!value) {
+    return "N/A";
+  }
+
   return dateFormatter.format(new Date(value));
 }
 
-export function formatDateTime(value: string): string {
+export function formatDateTime(value?: string | null): string {
+  if (!value) {
+    return "N/A";
+  }
+
   return dateTimeFormatter.format(new Date(value));
 }
 
@@ -295,6 +277,8 @@ export function sortEquipmentByMaintenance(
   equipmentAssets: EquipmentAsset[],
 ): EquipmentAsset[] {
   return [...equipmentAssets].sort((firstAsset, secondAsset) =>
-    firstAsset.nextMaintenanceAt.localeCompare(secondAsset.nextMaintenanceAt),
+    (firstAsset.nextMaintenanceAt ?? "").localeCompare(
+      secondAsset.nextMaintenanceAt ?? "",
+    ),
   );
 }

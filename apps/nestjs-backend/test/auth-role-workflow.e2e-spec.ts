@@ -6,6 +6,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import * as request from "supertest";
 import { AuditLogInterceptor } from "../src/gym-management/audit/audit-log.interceptor";
 import { AuditLogService } from "../src/gym-management/audit/audit-log.service";
+import { hashPassword } from "../src/gym-management/auth/auth-crypto";
 import { GymManagementController } from "../src/gym-management/gym-management.controller";
 import { GymAuthGuard } from "../src/gym-management/auth/gym-auth.guard";
 import { GymRolesGuard } from "../src/gym-management/auth/gym-roles.guard";
@@ -26,6 +27,7 @@ import {
   PersonalTrainerEntity,
   ProductEntity,
   PtContractEntity,
+  RefreshTokenEntity,
   SalesInvoiceEntity,
   SalesInvoiceItemEntity,
   SystemConfigEntity,
@@ -76,6 +78,10 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   let expenseRejectFlowId: string;
   let salesInvoiceId: string;
   let ptId: string;
+  let memberId: string;
+  let membershipPlanId: string;
+  let productId: string;
+  let equipmentId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -88,6 +94,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
             AttendanceLogEntity,
             PayrollPeriodEntity,
             PayrollEntryEntity,
+            RefreshTokenEntity,
             MemberEntity,
             MembershipPlanEntity,
             MemberMembershipEntity,
@@ -114,6 +121,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
           AttendanceLogEntity,
           PayrollPeriodEntity,
           PayrollEntryEntity,
+          RefreshTokenEntity,
           MemberEntity,
           MembershipPlanEntity,
           MemberMembershipEntity,
@@ -193,8 +201,24 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       code: "SI-001",
     });
     const trainer = await em.findOne(PersonalTrainerEntity, { code: "PT-001" });
+    const member = await em.findOne(MemberEntity, { code: "MB-001" });
+    const membershipPlan = await em.findOne(MembershipPlanEntity, {
+      code: "PLAN-001",
+    });
+    const product = await em.findOne(ProductEntity, { code: "PR-001" });
+    const equipment = await em.findOne(EquipmentAssetEntity, { code: "EQ-001" });
 
-    if (!payrollPeriod || !expenseA || !expenseB || !salesInvoice || !trainer) {
+    if (
+      !payrollPeriod ||
+      !expenseA ||
+      !expenseB ||
+      !salesInvoice ||
+      !trainer ||
+      !member ||
+      !membershipPlan ||
+      !product ||
+      !equipment
+    ) {
       throw new Error("Seed records were not created for e2e tests");
     }
 
@@ -203,6 +227,10 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
     expenseRejectFlowId = expenseB.id;
     salesInvoiceId = salesInvoice.id;
     ptId = trainer.id;
+    memberId = member.id;
+    membershipPlanId = membershipPlan.id;
+    productId = product.id;
+    equipmentId = equipment.id;
   });
 
   afterAll(async () => {
@@ -504,6 +532,146 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
     });
     expect(expenseAuditLogs.length).toBeGreaterThan(0);
   });
+
+  it("supports the new core business APIs", async () => {
+    const relogin = await request(app.getHttpServer())
+      .post("/auth/login")
+      .send({ email: "admin@gym.local", password: "password" })
+      .expect(201);
+    const activeAdminToken = relogin.body.data.accessToken as string;
+
+    const membershipResponse = await request(app.getHttpServer())
+      .post("/member-memberships")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        memberId,
+        membershipPlanId,
+        startDate: "2026-04-01",
+        paymentMethod: "CASH",
+      })
+      .expect(201);
+
+    const membershipId = membershipResponse.body.data.membership.id as string;
+    expect(membershipResponse.body.data.invoice.totalAmount).toBe(1_500_000);
+
+    const assignmentResponse = await request(app.getHttpServer())
+      .post("/member-assignments")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        memberId,
+        ptId,
+        memberMembershipId: membershipId,
+        assignedFrom: "2026-04-01",
+        commissionType: "PERCENT",
+        commissionValue: 10,
+      })
+      .expect(201);
+
+    expect(assignmentResponse.body.data.commissionAmount).toBe(150_000);
+
+    const salesResponse = await request(app.getHttpServer())
+      .post("/sales/invoices")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        customerName: "Gym member",
+        memberId,
+        paymentMethod: "CASH",
+        discountAmount: 10,
+        items: [{ productId, quantity: 2 }],
+      })
+      .expect(201);
+
+    expect(salesResponse.body.data.status).toBe("DRAFT");
+    expect(salesResponse.body.data.totalAmount).toBe(50);
+
+    const importResponse = await request(app.getHttpServer())
+      .post("/inventory/import")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        productId,
+        quantity: 5,
+        unitCost: 18,
+      })
+      .expect(201);
+
+    expect(importResponse.body.data.type).toBe("IMPORT");
+
+    const maintenanceResponse = await request(app.getHttpServer())
+      .post("/maintenance")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        equipmentAssetId: equipmentId,
+        maintenanceType: "PREVENTIVE",
+        maintenanceDate: "2026-04-02",
+        description: "Quarterly check",
+        vendorName: "Service Co",
+        amount: 250,
+        resultStatus: "RESOLVED",
+        nextMaintenanceAt: "2026-07-02",
+      })
+      .expect(201);
+
+    expect(maintenanceResponse.body.data.resultStatus).toBe("RESOLVED");
+
+    const payrollPeriodResponse = await request(app.getHttpServer())
+      .post("/payroll/periods")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        code: "PP-2026-04",
+        from: "2026-04-01",
+        to: "2026-04-30",
+      })
+      .expect(201);
+
+    const generatedResponse = await request(app.getHttpServer())
+      .post("/payroll/generate")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        payrollPeriodId: payrollPeriodResponse.body.data.id,
+      })
+      .expect(201);
+
+    expect(generatedResponse.body.data.entries.length).toBeGreaterThan(0);
+
+    const em = orm.em.fork();
+    const openAttendanceLog = await em.findOne(AttendanceLogEntity, {
+      personalTrainer: ptId,
+      checkOutAt: null,
+    });
+
+    expect(openAttendanceLog).toBeDefined();
+
+    if (!openAttendanceLog) {
+      throw new Error("Expected an open attendance log for patching");
+    }
+
+    const patchedAttendanceResponse = await request(app.getHttpServer())
+      .patch(`/attendance/${openAttendanceLog.id}`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        checkInAt: "2026-03-25T01:00:00.000Z",
+        checkOutAt: "2026-03-25T10:00:00.000Z",
+        note: "Adjusted by admin",
+      })
+      .expect(200);
+
+    expect(patchedAttendanceResponse.body.data.status).toBe("VALID");
+
+    const ptPayrollLogin = await request(app.getHttpServer())
+      .post("/auth/login")
+      .send({ email: "pt@gym.local", password: "password" })
+      .expect(201);
+
+    const payrollMeResponse = await request(app.getHttpServer())
+      .get("/payroll/me")
+      .set(
+        "Authorization",
+        `Bearer ${ptPayrollLogin.body.data.accessToken as string}`,
+      )
+      .expect(200);
+
+    expect(payrollMeResponse.body.data.length).toBeGreaterThan(0);
+  });
 });
 
 async function seedData(orm: MikroORM): Promise<void> {
@@ -514,25 +682,26 @@ async function seedData(orm: MikroORM): Promise<void> {
     email: "admin@gym.local",
     role: "ADMIN",
     status: "ACTIVE",
-    passwordHint: "password",
+    passwordHash: hashPassword("password"),
   });
   const staff = em.create(UserEntity, {
     fullName: "Staff",
     email: "staff@gym.local",
     role: "STAFF",
     status: "ACTIVE",
-    passwordHint: "password",
+    passwordHash: hashPassword("password"),
   });
   const ptUser = em.create(UserEntity, {
     fullName: "PT User",
     email: "pt@gym.local",
     role: "PT",
     status: "ACTIVE",
-    passwordHint: "password",
+    passwordHash: hashPassword("password"),
   });
 
   const pt = em.create(PersonalTrainerEntity, {
     code: "PT-001",
+    user: ptUser,
     fullName: "PT Demo",
     gender: "MALE",
     birthDate: new Date("1990-01-01T00:00:00.000Z"),
@@ -545,6 +714,63 @@ async function seedData(orm: MikroORM): Promise<void> {
     avatarUrl: "/avatar.png",
     startDate: new Date("2025-01-01T00:00:00.000Z"),
   });
+  const ptContract = em.create(PtContractEntity, {
+    personalTrainer: pt,
+    contractCode: "PTC-001",
+    contractType: "Full time",
+    salaryType: "MONTHLY",
+    baseSalary: "400",
+    minValidShiftHours: "5",
+    standardShiftHours: "8",
+    overtimeHourlyRate: "10",
+    performanceBonusThreshold: 1,
+    performanceBonusAmount: "50",
+    packageCommissionRate: "0.1",
+    salesCommissionRate: "0.05",
+    allowances: "80",
+    penaltyRules: [],
+    effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+    effectiveTo: new Date("2026-12-31T00:00:00.000Z"),
+  });
+  const member = em.create(MemberEntity, {
+    code: "MB-001",
+    fullName: "Member Demo",
+    gender: "MALE",
+    birthDate: new Date("1995-06-01T00:00:00.000Z"),
+    phone: "0911000000",
+    email: "member@gym.local",
+    address: "HCM",
+    heightCm: 175,
+    weightKg: 72,
+    goal: "Muscle gain",
+    healthNotes: "None",
+    registeredAt: new Date("2026-03-01T00:00:00.000Z"),
+    status: "ACTIVE",
+  });
+  const membershipPlan = em.create(MembershipPlanEntity, {
+    code: "PLAN-001",
+    name: "Monthly PT",
+    type: "MONTH",
+    price: "1500000",
+    durationDays: 30,
+    usageLimit: null,
+    includesPt: true,
+    includedPtSessions: 12,
+    perks: ["PT sessions"],
+    status: "ON_SALE",
+  });
+  const equipment = em.create(EquipmentAssetEntity, {
+    code: "EQ-001",
+    name: "Row Machine",
+    category: "Cardio",
+    purchasedAt: new Date("2025-01-10T00:00:00.000Z"),
+    purchaseValue: "1000",
+    status: "IN_USE",
+    condition: "GOOD",
+    location: "Zone A",
+    nextMaintenanceAt: new Date("2026-04-15T00:00:00.000Z"),
+    note: "Seeded equipment",
+  });
 
   const payrollPeriod = em.create(PayrollPeriodEntity, {
     code: "PP-2026-03",
@@ -556,11 +782,18 @@ async function seedData(orm: MikroORM): Promise<void> {
   const payrollEntry = em.create(PayrollEntryEntity, {
     payrollPeriod,
     personalTrainer: pt,
+    contract: ptContract,
     validShiftCredits: "10",
+    paidHours: "80",
     overtimeHours: "2",
+    baseSalaryAmount: "400",
+    attendanceBonusAmount: "0",
+    overtimeAmount: "20",
     packageCommission: "0",
     salesCommission: "0",
     performanceBonus: "0",
+    allowanceAmount: "80",
+    deductionAmount: "0",
     penalties: "0",
     grossPay: "500",
     netPay: "500",
@@ -629,8 +862,12 @@ async function seedData(orm: MikroORM): Promise<void> {
     expenseA,
     expenseB,
     product,
+    member,
     salesInvoice,
     salesInvoiceItem,
+    ptContract,
+    membershipPlan,
+    equipment,
   ]);
   await em.flush();
 }

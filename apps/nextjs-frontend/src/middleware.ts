@@ -1,8 +1,31 @@
 import createMiddleware from 'next-intl/middleware';
-import {type MiddlewareConfig} from 'next/server';
+import {NextResponse, type MiddlewareConfig, type NextRequest} from 'next/server';
 import {routing} from './i18n/routing.ts';
 
-export default createMiddleware(routing);
+const handleI18nRouting = createMiddleware(routing);
+const refreshTokenCookieName = 'gym_refresh_token';
+
+export default function middleware(request: NextRequest): Response {
+  const response = handleI18nRouting(request);
+
+  if (response.headers.get('location')) {
+    return response;
+  }
+
+  const localeSegment = request.nextUrl.pathname.split('/').find(Boolean);
+  const locale = routing.locales.find((candidateLocale) => candidateLocale === localeSegment)
+    ?? routing.defaultLocale;
+  const isLoginPath = request.nextUrl.pathname === `/${locale}/login`;
+  const hasSessionCookie = Boolean(
+    request.cookies.get(refreshTokenCookieName)?.value,
+  );
+
+  if (!hasSessionCookie && !isLoginPath) {
+    return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
+  }
+
+  return response;
+}
 
 export const config: MiddlewareConfig = {
   matcher: [

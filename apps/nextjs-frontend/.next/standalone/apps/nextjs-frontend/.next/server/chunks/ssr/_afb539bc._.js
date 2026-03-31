@@ -1,0 +1,3 @@
+module.exports=[43619,a=>{a.n(a.i(79962))},13718,a=>{a.n(a.i(85523))},18198,a=>{a.n(a.i(45518))},62212,a=>{a.n(a.i(66114))},20880,a=>{a.n(a.i(84655))},65242,a=>{a.n(a.i(42571))},70337,a=>{a.n(a.i(28905))},88334,a=>{"use strict";a.i(70396);var b=a.i(73727),c=a.i(79956),d=a.i(6114),e=a.i(86551);async function f({params:a}){let{locale:f}=await a,g=await (0,e.requireGymSession)(f);"PT"===g.user.role&&(0,b.redirect)(`/${f}/pts/attendance`);let h=await (0,d.loadGymSnapshot)(g.accessToken);return(0,e.runWithGymSession)(g,()=>(0,d.runWithGymSnapshot)(h,()=>(0,c.renderGymRoute)([],{locale:f,currentUser:g.user})))}a.s(["default",()=>f,"dynamic",0,"force-dynamic"])}];
+
+//# sourceMappingURL=_afb539bc._.js.map

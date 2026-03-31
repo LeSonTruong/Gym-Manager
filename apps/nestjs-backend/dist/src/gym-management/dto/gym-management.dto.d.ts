@@ -1,5 +1,6 @@
 export declare class CreatePersonalTrainerDto {
     code: string;
+    userId?: string;
     fullName: string;
     gender: string;
     birthDate: string;
@@ -64,10 +65,13 @@ export declare class UpdateProductDto extends UpdateProductDto_base {
 export declare class CreateEquipmentDto {
     code: string;
     name: string;
+    category?: string;
     purchasedAt: string;
     purchaseValue: number;
+    status?: string;
     condition: string;
-    nextMaintenanceAt: string;
+    location?: string;
+    nextMaintenanceAt?: string;
     note: string;
 }
 declare const UpdateEquipmentDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateEquipmentDto>>;
@@ -103,5 +107,100 @@ export declare class AttendanceCheckOutDto {
     ptId?: string;
     attendanceLogId?: string;
     checkOutAt?: string;
+}
+export declare class PatchAttendanceDto {
+    checkInAt?: string;
+    checkOutAt?: string;
+    note?: string;
+}
+export declare class CreatePtContractDto {
+    contractCode?: string;
+    contractType: string;
+    salaryType: string;
+    baseSalary: number;
+    minValidShiftHours: number;
+    standardShiftHours: number;
+    overtimeHourlyRate: number;
+    performanceBonusThreshold: number;
+    performanceBonusAmount: number;
+    packageCommissionRate: number;
+    salesCommissionRate: number;
+    allowances: number;
+    penaltyRules: string[];
+    effectiveFrom: string;
+    effectiveTo?: string;
+}
+declare const UpdatePtContractDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreatePtContractDto>>;
+export declare class UpdatePtContractDto extends UpdatePtContractDto_base {
+}
+export declare class CreateMemberMembershipDto {
+    memberId: string;
+    membershipPlanId: string;
+    startDate: string;
+    paymentMethod: string;
+    totalAmount?: number;
+}
+export declare class RenewMemberMembershipDto {
+    startDate?: string;
+    paymentMethod?: string;
+}
+export declare class CancelMemberMembershipDto {
+    cancelledAt?: string;
+}
+export declare class CreateMemberAssignmentDto {
+    memberId: string;
+    ptId: string;
+    memberMembershipId: string;
+    assignedFrom: string;
+    commissionType?: string;
+    commissionValue?: number;
+    commissionAmount?: number;
+    note?: string;
+}
+export declare class EndMemberAssignmentDto {
+    assignedTo?: string;
+}
+export declare class CreatePayrollPeriodDto {
+    code?: string;
+    from: string;
+    to: string;
+}
+export declare class GeneratePayrollDto {
+    payrollPeriodId: string;
+}
+export declare class CreateSalesInvoiceItemDto {
+    productId: string;
+    quantity: number;
+}
+export declare class CreateSalesInvoiceDto {
+    code?: string;
+    invoiceDate?: string;
+    memberId?: string;
+    customerName: string;
+    paymentMethod: string;
+    discountAmount?: number;
+    note?: string;
+    items: CreateSalesInvoiceItemDto[];
+}
+export declare class InventoryImportDto {
+    productId: string;
+    quantity: number;
+    unitCost: number;
+    transactionDate?: string;
+    referenceCode?: string;
+    note?: string;
+}
+export declare class CreateMaintenanceDto {
+    equipmentAssetId: string;
+    maintenanceType?: string;
+    maintenanceDate: string;
+    description: string;
+    vendorName: string;
+    amount: number;
+    resultStatus?: string;
+    note?: string;
+    equipmentStatus?: string;
+    equipmentCondition?: string;
+    nextMaintenanceAt?: string;
 }
 export {};

@@ -11,10 +11,39 @@ export type PayrollEntryStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
 export type SalaryType = 'MONTHLY' | 'DAILY' | 'HOURLY';
 export type HalfShiftPolicy = 'NO_COUNT' | 'HALF_COUNT';
 export type PtAssignmentStatus = 'ACTIVE' | 'ENDED';
-export type InventoryTransactionType = 'IMPORT' | 'SALE' | 'DAMAGE' | 'INTERNAL_USE' | 'ADJUSTMENT';
-export type ExpenseStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PAID';
-export type OperatingExpenseCategory = 'CLEANING' | 'MAINTENANCE' | 'REPAIR' | 'REPLACEMENT' | 'UTILITY';
-export type EquipmentCondition = 'GOOD' | 'MAINTENANCE_DUE' | 'NEEDS_REPLACEMENT';
+export type InventoryTransactionType =
+  | 'IMPORT'
+  | 'SALE'
+  | 'DAMAGE'
+  | 'INTERNAL_USE'
+  | 'ADJUSTMENT';
+export type ExpenseStatus =
+  | 'DRAFT'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PAID';
+export type OperatingExpenseCategory =
+  | 'CLEANING'
+  | 'MAINTENANCE'
+  | 'REPAIR'
+  | 'REPLACEMENT'
+  | 'UTILITY'
+  | 'OTHER';
+export type EquipmentStatus =
+  | 'IN_USE'
+  | 'UNDER_MAINTENANCE'
+  | 'REPLACED'
+  | 'DISPOSED';
+export type EquipmentCondition =
+  | 'GOOD'
+  | 'FAIR'
+  | 'POOR'
+  | 'MAINTENANCE_DUE'
+  | 'NEEDS_REPLACEMENT';
+export type MaintenanceType = 'PREVENTIVE' | 'CORRECTIVE' | 'REPLACEMENT';
+export type MaintenanceResultStatus = 'RESOLVED' | 'UNRESOLVED' | 'REPLACED';
+export type CommissionType = 'PERCENT' | 'FIXED';
 
 export type DemoUser = {
   id: string;
@@ -22,12 +51,14 @@ export type DemoUser = {
   email: string;
   role: UserRole;
   status: UserStatus;
-  passwordHint: string;
+  passwordHint?: string | null;
+  deletedAt?: string | null;
 };
 
 export type PersonalTrainer = {
   id: string;
   code: string;
+  userId?: string | null;
   fullName: string;
   gender: Gender;
   birthDate: string;
@@ -39,11 +70,13 @@ export type PersonalTrainer = {
   experienceYears: number;
   avatarUrl: string;
   startDate: string;
+  deletedAt?: string | null;
 };
 
 export type PtContract = {
   id: string;
   ptId: string;
+  contractCode?: string;
   contractType: string;
   salaryType: SalaryType;
   baseSalary: number;
@@ -57,7 +90,7 @@ export type PtContract = {
   allowances: number;
   penaltyRules: string[];
   effectiveFrom: string;
-  effectiveTo: string;
+  effectiveTo?: string | null;
 };
 
 export type AttendanceLog = {
@@ -65,11 +98,13 @@ export type AttendanceLog = {
   ptId: string;
   attendanceDate: string;
   checkInAt: string;
-  checkOutAt?: string;
+  checkOutAt?: string | null;
   workedHours: number;
+  paidHours?: number;
   overtimeHours: number;
   status: AttendanceLogStatus;
   workCredit: number;
+  note?: string | null;
 };
 
 export type PayrollPeriod = {
@@ -78,17 +113,28 @@ export type PayrollPeriod = {
   from: string;
   to: string;
   status: PayrollPeriodStatus;
+  submittedAt?: string | null;
+  approvedByUserId?: string | null;
+  approvedAt?: string | null;
+  paidAt?: string | null;
 };
 
 export type PayrollEntry = {
   id: string;
   payrollPeriodId: string;
   ptId: string;
+  contractId?: string | null;
   validShiftCredits: number;
+  paidHours?: number;
   overtimeHours: number;
+  baseSalaryAmount?: number;
+  attendanceBonusAmount?: number;
+  overtimeAmount?: number;
   packageCommission: number;
   salesCommission: number;
   performanceBonus: number;
+  allowanceAmount?: number;
+  deductionAmount?: number;
   penalties: number;
   grossPay: number;
   netPay: number;
@@ -110,6 +156,7 @@ export type Member = {
   healthNotes: string;
   registeredAt: string;
   status: UserStatus;
+  deletedAt?: string | null;
 };
 
 export type MembershipPlan = {
@@ -119,7 +166,7 @@ export type MembershipPlan = {
   type: MembershipPlanType;
   price: number;
   durationDays: number;
-  usageLimit?: number;
+  usageLimit?: number | null;
   includesPt: boolean;
   includedPtSessions: number;
   perks: string[];
@@ -132,8 +179,9 @@ export type MemberMembership = {
   membershipPlanId: string;
   startDate: string;
   endDate: string;
-  remainingSessions?: number;
+  remainingSessions?: number | null;
   status: MembershipStatus;
+  deletedAt?: string | null;
 };
 
 export type MemberPtAssignment = {
@@ -142,9 +190,12 @@ export type MemberPtAssignment = {
   ptId: string;
   memberMembershipId: string;
   assignedFrom: string;
-  assignedTo?: string;
+  assignedTo?: string | null;
+  commissionType?: CommissionType | null;
+  commissionValue?: number | null;
   commissionAmount: number;
   status: PtAssignmentStatus;
+  note?: string | null;
 };
 
 export type MembershipInvoice = {
@@ -168,6 +219,7 @@ export type Product = {
   stockOnHand: number;
   minimumStockLevel: number;
   status: 'ACTIVE' | 'INACTIVE';
+  deletedAt?: string | null;
 };
 
 export type InventoryTransaction = {
@@ -194,7 +246,7 @@ export type SalesInvoice = {
   code: string;
   invoiceDate: string;
   createdByUserId: string;
-  memberId?: string;
+  memberId?: string | null;
   customerName: string;
   status: SalesInvoiceStatus;
   paymentMethod: PaymentMethod;
@@ -202,6 +254,9 @@ export type SalesInvoice = {
   totalAmount: number;
   note: string;
   items: SalesInvoiceItem[];
+  confirmedAt?: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
 };
 
 export type OperatingExpense = {
@@ -209,33 +264,46 @@ export type OperatingExpense = {
   code: string;
   expenseDate: string;
   category: OperatingExpenseCategory;
-  equipmentAssetId?: string;
+  equipmentAssetId?: string | null;
   vendorName: string;
   amount: number;
   description: string;
-  approvedByUserId?: string;
-  attachmentUrl?: string;
+  approvedByUserId?: string | null;
+  attachmentUrl?: string | null;
   status: ExpenseStatus;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  paidAt?: string | null;
 };
 
 export type EquipmentAsset = {
   id: string;
   code: string;
   name: string;
+  category?: string | null;
   purchasedAt: string;
   purchaseValue: number;
+  status?: EquipmentStatus | null;
   condition: EquipmentCondition;
-  nextMaintenanceAt: string;
+  location?: string | null;
+  nextMaintenanceAt?: string | null;
   note: string;
+  deletedAt?: string | null;
 };
 
 export type MaintenanceRecord = {
   id: string;
   equipmentAssetId: string;
   maintenanceDate: string;
+  maintenanceType?: MaintenanceType | null;
   description: string;
   vendorName: string;
   amount: number;
+  resultStatus?: MaintenanceResultStatus | null;
+  note?: string | null;
+  createdByUserId?: string | null;
 };
 
 export type SystemConfig = {
@@ -243,6 +311,8 @@ export type SystemConfig = {
   label: string;
   value: string;
   description: string;
+  updatedByUserId?: string | null;
+  updatedAt?: string | null;
 };
 
 export type GymManagementDataset = {

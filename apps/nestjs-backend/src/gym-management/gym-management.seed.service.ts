@@ -1,6 +1,6 @@
-import {MikroORM} from '@mikro-orm/core';
-import {createGymManagementMockData} from '@next-nest-turbo-boilerplate/shared';
-import {Injectable, Logger, OnModuleInit} from '@nestjs/common';
+import { MikroORM } from '@mikro-orm/core';
+import { createGymManagementMockData } from '@next-nest-turbo-boilerplate/shared';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   AttendanceLogEntity,
   EquipmentAssetEntity,
@@ -22,6 +22,7 @@ import {
   SystemConfigEntity,
   UserEntity,
 } from './entities/gym-management.entity';
+import { hashPassword } from './auth/auth-crypto';
 
 function toDateOnly(value: string): Date {
   return new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
@@ -29,6 +30,14 @@ function toDateOnly(value: string): Date {
 
 function toDateTime(value: string): Date {
   return new Date(value);
+}
+
+function toOptionalDateOnly(value?: string | null): Date | null {
+  return value ? toDateOnly(value) : null;
+}
+
+function toOptionalDateTime(value?: string | null): Date | null {
+  return value ? toDateTime(value) : null;
 }
 
 function toDecimal(value: number): string {
@@ -64,27 +73,8 @@ export class GymManagementSeedService implements OnModuleInit {
           email: user.email,
           role: user.role,
           status: user.status,
-          passwordHint: user.passwordHint,
-        }),
-      ),
-    );
-
-    em.persist(
-      dataset.personalTrainers.map((trainer) =>
-        em.create(PersonalTrainerEntity, {
-          id: trainer.id,
-          code: trainer.code,
-          fullName: trainer.fullName,
-          gender: trainer.gender,
-          birthDate: toDateOnly(trainer.birthDate),
-          phone: trainer.phone,
-          email: trainer.email,
-          address: trainer.address,
-          status: trainer.status,
-          specialties: trainer.specialties,
-          experienceYears: trainer.experienceYears,
-          avatarUrl: trainer.avatarUrl,
-          startDate: toDateOnly(trainer.startDate),
+          passwordHash: hashPassword(user.passwordHint ?? 'demo123'),
+          deletedAt: toOptionalDateTime(user.deletedAt),
         }),
       ),
     );
@@ -106,6 +96,7 @@ export class GymManagementSeedService implements OnModuleInit {
           healthNotes: member.healthNotes,
           registeredAt: toDateOnly(member.registeredAt),
           status: member.status,
+          deletedAt: toOptionalDateTime(member.deletedAt),
         }),
       ),
     );
@@ -140,6 +131,7 @@ export class GymManagementSeedService implements OnModuleInit {
           stockOnHand: product.stockOnHand,
           minimumStockLevel: product.minimumStockLevel,
           status: product.status,
+          deletedAt: toOptionalDateTime(product.deletedAt),
         }),
       ),
     );
@@ -150,11 +142,15 @@ export class GymManagementSeedService implements OnModuleInit {
           id: equipmentAsset.id,
           code: equipmentAsset.code,
           name: equipmentAsset.name,
+          category: equipmentAsset.category ?? 'Strength',
           purchasedAt: toDateOnly(equipmentAsset.purchasedAt),
           purchaseValue: toDecimal(equipmentAsset.purchaseValue),
+          status: equipmentAsset.status ?? 'IN_USE',
           condition: equipmentAsset.condition,
-          nextMaintenanceAt: toDateOnly(equipmentAsset.nextMaintenanceAt),
+          location: equipmentAsset.location ?? 'Main floor',
+          nextMaintenanceAt: toOptionalDateOnly(equipmentAsset.nextMaintenanceAt),
           note: equipmentAsset.note,
+          deletedAt: toOptionalDateTime(equipmentAsset.deletedAt),
         }),
       ),
     );
@@ -166,6 +162,40 @@ export class GymManagementSeedService implements OnModuleInit {
           label: config.label,
           value: config.value,
           description: config.description,
+          updatedByUser: config.updatedByUserId
+            ? em.getReference(UserEntity, config.updatedByUserId)
+            : null,
+          updatedAt: toOptionalDateTime(config.updatedAt) ?? new Date(),
+        }),
+      ),
+    );
+
+    await em.flush();
+
+    const usersByEmail = new Map(
+      (await em.findAll(UserEntity)).map((user) => [user.email, user]),
+    );
+
+    em.persist(
+      dataset.personalTrainers.map((trainer) =>
+        em.create(PersonalTrainerEntity, {
+          id: trainer.id,
+          code: trainer.code,
+          user: trainer.userId
+            ? em.getReference(UserEntity, trainer.userId)
+            : usersByEmail.get(trainer.email) ?? null,
+          fullName: trainer.fullName,
+          gender: trainer.gender,
+          birthDate: toDateOnly(trainer.birthDate),
+          phone: trainer.phone,
+          email: trainer.email,
+          address: trainer.address,
+          status: trainer.status,
+          specialties: trainer.specialties,
+          experienceYears: trainer.experienceYears,
+          avatarUrl: trainer.avatarUrl,
+          startDate: toDateOnly(trainer.startDate),
+          deletedAt: toOptionalDateTime(trainer.deletedAt),
         }),
       ),
     );
@@ -177,6 +207,9 @@ export class GymManagementSeedService implements OnModuleInit {
         em.create(PtContractEntity, {
           id: contract.id,
           personalTrainer: em.getReference(PersonalTrainerEntity, contract.ptId),
+          contractCode:
+            contract.contractCode ??
+            `PTC-${contract.ptId.toUpperCase()}-${contract.id.slice(-3)}`,
           contractType: contract.contractType,
           salaryType: contract.salaryType,
           baseSalary: toDecimal(contract.baseSalary),
@@ -190,7 +223,7 @@ export class GymManagementSeedService implements OnModuleInit {
           allowances: toDecimal(contract.allowances),
           penaltyRules: contract.penaltyRules,
           effectiveFrom: toDateOnly(contract.effectiveFrom),
-          effectiveTo: toDateOnly(contract.effectiveTo),
+          effectiveTo: toOptionalDateOnly(contract.effectiveTo),
         }),
       ),
     );
@@ -204,9 +237,11 @@ export class GymManagementSeedService implements OnModuleInit {
           checkInAt: toDateTime(attendanceLog.checkInAt),
           checkOutAt: attendanceLog.checkOutAt ? toDateTime(attendanceLog.checkOutAt) : null,
           workedHours: toDecimal(attendanceLog.workedHours),
+          paidHours: toDecimal(attendanceLog.paidHours ?? attendanceLog.workedHours),
           overtimeHours: toDecimal(attendanceLog.overtimeHours),
           status: attendanceLog.status,
           workCredit: toDecimal(attendanceLog.workCredit),
+          note: attendanceLog.note ?? null,
         }),
       ),
     );
@@ -219,6 +254,12 @@ export class GymManagementSeedService implements OnModuleInit {
           fromDate: toDateOnly(period.from),
           toDate: toDateOnly(period.to),
           status: period.status,
+          submittedAt: toOptionalDateTime(period.submittedAt),
+          approvedByUser: period.approvedByUserId
+            ? em.getReference(UserEntity, period.approvedByUserId)
+            : null,
+          approvedAt: toOptionalDateTime(period.approvedAt),
+          paidAt: toOptionalDateTime(period.paidAt),
         }),
       ),
     );
@@ -233,6 +274,7 @@ export class GymManagementSeedService implements OnModuleInit {
           endDate: toDateOnly(membership.endDate),
           remainingSessions: membership.remainingSessions,
           status: membership.status,
+          deletedAt: toOptionalDateTime(membership.deletedAt),
         }),
       ),
     );
@@ -242,33 +284,82 @@ export class GymManagementSeedService implements OnModuleInit {
         em.create(MaintenanceRecordEntity, {
           id: maintenanceRecord.id,
           equipmentAsset: em.getReference(EquipmentAssetEntity, maintenanceRecord.equipmentAssetId),
+          maintenanceType: maintenanceRecord.maintenanceType ?? 'PREVENTIVE',
           maintenanceDate: toDateOnly(maintenanceRecord.maintenanceDate),
           description: maintenanceRecord.description,
           vendorName: maintenanceRecord.vendorName,
           amount: toDecimal(maintenanceRecord.amount),
+          resultStatus: maintenanceRecord.resultStatus ?? 'RESOLVED',
+          note: maintenanceRecord.note ?? null,
+          createdByUser: maintenanceRecord.createdByUserId
+            ? em.getReference(UserEntity, maintenanceRecord.createdByUserId)
+            : null,
         }),
       ),
     );
 
     await em.flush();
 
+    const periodLookup = new Map(dataset.payrollPeriods.map((period) => [period.id, period]));
+    const contractLookup = new Map(dataset.ptContracts.map((contract) => [contract.ptId, contract]));
+    const attendanceByPtId = new Map<string, typeof dataset.attendanceLogs>();
+
+    for (const attendanceLog of dataset.attendanceLogs) {
+      const current = attendanceByPtId.get(attendanceLog.ptId) ?? [];
+      current.push(attendanceLog);
+      attendanceByPtId.set(attendanceLog.ptId, current);
+    }
+
     em.persist(
-      dataset.payrollEntries.map((entry) =>
-        em.create(PayrollEntryEntity, {
+      dataset.payrollEntries.map((entry) => {
+        const period = periodLookup.get(entry.payrollPeriodId);
+        const contract = contractLookup.get(entry.ptId);
+        const paidHours = (attendanceByPtId.get(entry.ptId) ?? [])
+          .filter((attendanceLog) => {
+            if (!period) {
+              return false;
+            }
+
+            return (
+              attendanceLog.attendanceDate >= period.from &&
+              attendanceLog.attendanceDate <= period.to
+            );
+          })
+          .reduce(
+            (total, attendanceLog) =>
+              total + (attendanceLog.paidHours ?? attendanceLog.workedHours),
+            0,
+          );
+
+        return em.create(PayrollEntryEntity, {
           id: entry.id,
           payrollPeriod: em.getReference(PayrollPeriodEntity, entry.payrollPeriodId),
           personalTrainer: em.getReference(PersonalTrainerEntity, entry.ptId),
+          contract: contract ? em.getReference(PtContractEntity, contract.id) : null,
           validShiftCredits: toDecimal(entry.validShiftCredits),
+          paidHours: toDecimal(entry.paidHours ?? paidHours),
           overtimeHours: toDecimal(entry.overtimeHours),
+          baseSalaryAmount: toDecimal(entry.baseSalaryAmount ?? contract?.baseSalary ?? 0),
+          attendanceBonusAmount: toDecimal(entry.attendanceBonusAmount ?? 0),
+          overtimeAmount: toDecimal(
+            entry.overtimeAmount ??
+            Number(
+              (
+                entry.overtimeHours * (contract?.overtimeHourlyRate ?? 0)
+              ).toFixed(2),
+            ),
+          ),
           packageCommission: toDecimal(entry.packageCommission),
           salesCommission: toDecimal(entry.salesCommission),
           performanceBonus: toDecimal(entry.performanceBonus),
+          allowanceAmount: toDecimal(entry.allowanceAmount ?? contract?.allowances ?? 0),
+          deductionAmount: toDecimal(entry.deductionAmount ?? 0),
           penalties: toDecimal(entry.penalties),
           grossPay: toDecimal(entry.grossPay),
           netPay: toDecimal(entry.netPay),
           status: entry.status,
-        }),
-      ),
+        });
+      }),
     );
 
     em.persist(
@@ -280,8 +371,14 @@ export class GymManagementSeedService implements OnModuleInit {
           memberMembership: em.getReference(MemberMembershipEntity, assignment.memberMembershipId),
           assignedFrom: toDateOnly(assignment.assignedFrom),
           assignedTo: assignment.assignedTo ? toDateOnly(assignment.assignedTo) : null,
+          commissionType: assignment.commissionType ?? 'FIXED',
+          commissionValue:
+            assignment.commissionValue === undefined || assignment.commissionValue === null
+              ? null
+              : toDecimal(assignment.commissionValue),
           commissionAmount: toDecimal(assignment.commissionAmount),
           status: assignment.status,
+          note: assignment.note ?? null,
         }),
       ),
     );
@@ -315,6 +412,9 @@ export class GymManagementSeedService implements OnModuleInit {
           discountAmount: toDecimal(invoice.discountAmount),
           totalAmount: toDecimal(invoice.totalAmount),
           note: invoice.note,
+          confirmedAt: toOptionalDateTime(invoice.confirmedAt),
+          cancelledAt: toOptionalDateTime(invoice.cancelledAt),
+          cancellationReason: invoice.cancellationReason ?? null,
         }),
       ),
     );
@@ -335,6 +435,11 @@ export class GymManagementSeedService implements OnModuleInit {
           approvedByUser: expense.approvedByUserId
             ? em.getReference(UserEntity, expense.approvedByUserId)
             : null,
+          submittedAt: toOptionalDateTime(expense.submittedAt),
+          approvedAt: toOptionalDateTime(expense.approvedAt),
+          rejectedAt: toOptionalDateTime(expense.rejectedAt),
+          rejectionReason: expense.rejectionReason ?? null,
+          paidAt: toOptionalDateTime(expense.paidAt),
           attachmentUrl: expense.attachmentUrl,
           status: expense.status,
         }),

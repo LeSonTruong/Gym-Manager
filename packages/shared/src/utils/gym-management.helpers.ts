@@ -138,6 +138,10 @@ function buildDashboardSummary(dataset: GymManagementDataset): DashboardSummary 
       return true;
     }
 
+    if (!equipmentAsset.nextMaintenanceAt) {
+      return false;
+    }
+
     const daysUntilMaintenance = Math.floor(
       (toTimeValue(equipmentAsset.nextMaintenanceAt) - toTimeValue(referenceDate)) / dayInMilliseconds,
     );

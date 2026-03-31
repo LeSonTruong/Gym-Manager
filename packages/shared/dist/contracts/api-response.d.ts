@@ -8,9 +8,9 @@ export type PaginationMeta = {
     page: number;
     limit: number;
 };
-export type ApiResponse<TData, TMeta = Record<string, never>> = {
-    data: TData;
-    meta?: TMeta;
-    error?: ApiError | null;
+export type ApiResponse<Data, Meta = Record<string, never>> = {
+    data: Data;
+    meta?: Meta;
+    error?: ApiError;
 };
-export type PaginatedResponse<TData> = ApiResponse<TData[], PaginationMeta>;
+export type PaginatedResponse<Data> = ApiResponse<Data[], PaginationMeta>;

@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SystemConfigEntity = exports.AuditLogEntity = exports.MaintenanceRecordEntity = exports.OperatingExpenseEntity = exports.EquipmentAssetEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.InventoryTransactionEntity = exports.ProductEntity = exports.MembershipInvoiceEntity = exports.MemberPtAssignmentEntity = exports.MemberMembershipEntity = exports.MembershipPlanEntity = exports.MemberEntity = exports.PayrollEntryEntity = exports.PayrollPeriodEntity = exports.AttendanceLogEntity = exports.PtContractEntity = exports.PersonalTrainerEntity = exports.UserEntity = void 0;
+exports.SystemConfigEntity = exports.AuditLogEntity = exports.MaintenanceRecordEntity = exports.OperatingExpenseEntity = exports.EquipmentAssetEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.InventoryTransactionEntity = exports.ProductEntity = exports.MembershipInvoiceEntity = exports.MemberPtAssignmentEntity = exports.MemberMembershipEntity = exports.MembershipPlanEntity = exports.MemberEntity = exports.PayrollEntryEntity = exports.PayrollPeriodEntity = exports.AttendanceLogEntity = exports.PtContractEntity = exports.PersonalTrainerEntity = exports.RefreshTokenEntity = exports.UserEntity = void 0;
 const core_1 = require("@mikro-orm/core");
 const base_entity_1 = require("../../common/entities/base.entity");
 let UserEntity = class UserEntity extends base_entity_1.BaseEntity {
@@ -17,7 +17,8 @@ let UserEntity = class UserEntity extends base_entity_1.BaseEntity {
     email;
     role;
     status;
-    passwordHint;
+    passwordHash;
+    deletedAt;
 };
 exports.UserEntity = UserEntity;
 __decorate([
@@ -37,14 +38,60 @@ __decorate([
     __metadata("design:type", String)
 ], UserEntity.prototype, "status", void 0);
 __decorate([
-    (0, core_1.Property)({ length: 200 }),
+    (0, core_1.Property)({ length: 255 }),
     __metadata("design:type", String)
-], UserEntity.prototype, "passwordHint", void 0);
+], UserEntity.prototype, "passwordHash", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        nullable: true,
+        fieldName: 'deleted_at',
+    }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "deletedAt", void 0);
 exports.UserEntity = UserEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'users' })
 ], UserEntity);
+let RefreshTokenEntity = class RefreshTokenEntity extends base_entity_1.BaseEntity {
+    user;
+    tokenHash;
+    sessionId;
+    expiresAt;
+    revokedAt;
+};
+exports.RefreshTokenEntity = RefreshTokenEntity;
+__decorate([
+    (0, core_1.ManyToOne)(() => UserEntity, { fieldName: 'user_id' }),
+    __metadata("design:type", UserEntity)
+], RefreshTokenEntity.prototype, "user", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 255, unique: true, fieldName: 'token_hash' }),
+    __metadata("design:type", String)
+], RefreshTokenEntity.prototype, "tokenHash", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 120, fieldName: 'session_id' }),
+    __metadata("design:type", String)
+], RefreshTokenEntity.prototype, "sessionId", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.datetime, columnType: 'timestamp', fieldName: 'expires_at' }),
+    __metadata("design:type", Date)
+], RefreshTokenEntity.prototype, "expiresAt", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        nullable: true,
+        fieldName: 'revoked_at',
+    }),
+    __metadata("design:type", Object)
+], RefreshTokenEntity.prototype, "revokedAt", void 0);
+exports.RefreshTokenEntity = RefreshTokenEntity = __decorate([
+    (0, core_1.Entity)({ tableName: 'refresh_tokens' })
+], RefreshTokenEntity);
 let PersonalTrainerEntity = class PersonalTrainerEntity extends base_entity_1.BaseEntity {
     code;
+    user;
     fullName;
     gender;
     birthDate;
@@ -56,12 +103,17 @@ let PersonalTrainerEntity = class PersonalTrainerEntity extends base_entity_1.Ba
     experienceYears;
     avatarUrl;
     startDate;
+    deletedAt;
 };
 exports.PersonalTrainerEntity = PersonalTrainerEntity;
 __decorate([
     (0, core_1.Property)({ length: 30, unique: true }),
     __metadata("design:type", String)
 ], PersonalTrainerEntity.prototype, "code", void 0);
+__decorate([
+    (0, core_1.ManyToOne)(() => UserEntity, { fieldName: 'user_id', nullable: true, unique: true }),
+    __metadata("design:type", Object)
+], PersonalTrainerEntity.prototype, "user", void 0);
 __decorate([
     (0, core_1.Property)({ length: 160 }),
     __metadata("design:type", String)
@@ -106,11 +158,21 @@ __decorate([
     (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
     __metadata("design:type", Date)
 ], PersonalTrainerEntity.prototype, "startDate", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        nullable: true,
+        fieldName: 'deleted_at',
+    }),
+    __metadata("design:type", Object)
+], PersonalTrainerEntity.prototype, "deletedAt", void 0);
 exports.PersonalTrainerEntity = PersonalTrainerEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'personal_trainers' })
 ], PersonalTrainerEntity);
 let PtContractEntity = class PtContractEntity extends base_entity_1.BaseEntity {
     personalTrainer;
+    contractCode;
     contractType;
     salaryType;
     baseSalary;
@@ -131,6 +193,10 @@ __decorate([
     (0, core_1.ManyToOne)(() => PersonalTrainerEntity, { fieldName: 'pt_id' }),
     __metadata("design:type", PersonalTrainerEntity)
 ], PtContractEntity.prototype, "personalTrainer", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 60, unique: true, fieldName: 'contract_code' }),
+    __metadata("design:type", String)
+], PtContractEntity.prototype, "contractCode", void 0);
 __decorate([
     (0, core_1.Property)({ length: 160 }),
     __metadata("design:type", String)
@@ -184,8 +250,8 @@ __decorate([
     __metadata("design:type", Date)
 ], PtContractEntity.prototype, "effectiveFrom", void 0);
 __decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
+    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', nullable: true }),
+    __metadata("design:type", Object)
 ], PtContractEntity.prototype, "effectiveTo", void 0);
 exports.PtContractEntity = PtContractEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'pt_contracts' })
@@ -196,9 +262,11 @@ let AttendanceLogEntity = class AttendanceLogEntity extends base_entity_1.BaseEn
     checkInAt;
     checkOutAt;
     workedHours;
+    paidHours;
     overtimeHours;
     status;
     workCredit;
+    note;
 };
 exports.AttendanceLogEntity = AttendanceLogEntity;
 __decorate([
@@ -222,6 +290,10 @@ __decorate([
     __metadata("design:type", String)
 ], AttendanceLogEntity.prototype, "workedHours", void 0);
 __decorate([
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 6, scale: 2, fieldName: 'paid_hours' }),
+    __metadata("design:type", String)
+], AttendanceLogEntity.prototype, "paidHours", void 0);
+__decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 6, scale: 2 }),
     __metadata("design:type", String)
 ], AttendanceLogEntity.prototype, "overtimeHours", void 0);
@@ -233,6 +305,10 @@ __decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 6, scale: 2 }),
     __metadata("design:type", String)
 ], AttendanceLogEntity.prototype, "workCredit", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.text, nullable: true }),
+    __metadata("design:type", Object)
+], AttendanceLogEntity.prototype, "note", void 0);
 exports.AttendanceLogEntity = AttendanceLogEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'attendance_logs' })
 ], AttendanceLogEntity);
@@ -285,11 +361,18 @@ exports.PayrollPeriodEntity = PayrollPeriodEntity = __decorate([
 let PayrollEntryEntity = class PayrollEntryEntity extends base_entity_1.BaseEntity {
     payrollPeriod;
     personalTrainer;
+    contract;
     validShiftCredits;
+    paidHours;
     overtimeHours;
+    baseSalaryAmount;
+    attendanceBonusAmount;
+    overtimeAmount;
     packageCommission;
     salesCommission;
     performanceBonus;
+    allowanceAmount;
+    deductionAmount;
     penalties;
     grossPay;
     netPay;
@@ -305,13 +388,33 @@ __decorate([
     __metadata("design:type", PersonalTrainerEntity)
 ], PayrollEntryEntity.prototype, "personalTrainer", void 0);
 __decorate([
+    (0, core_1.ManyToOne)(() => PtContractEntity, { fieldName: 'contract_id', nullable: true }),
+    __metadata("design:type", Object)
+], PayrollEntryEntity.prototype, "contract", void 0);
+__decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 8, scale: 2 }),
     __metadata("design:type", String)
 ], PayrollEntryEntity.prototype, "validShiftCredits", void 0);
 __decorate([
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 8, scale: 2, fieldName: 'paid_hours_total' }),
+    __metadata("design:type", String)
+], PayrollEntryEntity.prototype, "paidHours", void 0);
+__decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 8, scale: 2 }),
     __metadata("design:type", String)
 ], PayrollEntryEntity.prototype, "overtimeHours", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2, fieldName: 'base_salary_amount' }),
+    __metadata("design:type", String)
+], PayrollEntryEntity.prototype, "baseSalaryAmount", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2, fieldName: 'attendance_bonus_amount' }),
+    __metadata("design:type", String)
+], PayrollEntryEntity.prototype, "attendanceBonusAmount", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2, fieldName: 'overtime_amount' }),
+    __metadata("design:type", String)
+], PayrollEntryEntity.prototype, "overtimeAmount", void 0);
 __decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
     __metadata("design:type", String)
@@ -325,7 +428,15 @@ __decorate([
     __metadata("design:type", String)
 ], PayrollEntryEntity.prototype, "performanceBonus", void 0);
 __decorate([
-    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2, fieldName: 'allowance_amount' }),
+    __metadata("design:type", String)
+], PayrollEntryEntity.prototype, "allowanceAmount", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2, fieldName: 'deduction_amount' }),
+    __metadata("design:type", String)
+], PayrollEntryEntity.prototype, "deductionAmount", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2, fieldName: 'penalty_amount' }),
     __metadata("design:type", String)
 ], PayrollEntryEntity.prototype, "penalties", void 0);
 __decorate([
@@ -333,7 +444,7 @@ __decorate([
     __metadata("design:type", String)
 ], PayrollEntryEntity.prototype, "grossPay", void 0);
 __decorate([
-    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
+    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2, fieldName: 'total_amount' }),
     __metadata("design:type", String)
 ], PayrollEntryEntity.prototype, "netPay", void 0);
 __decorate([
@@ -357,6 +468,7 @@ let MemberEntity = class MemberEntity extends base_entity_1.BaseEntity {
     healthNotes;
     registeredAt;
     status;
+    deletedAt;
 };
 exports.MemberEntity = MemberEntity;
 __decorate([
@@ -411,6 +523,15 @@ __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
 ], MemberEntity.prototype, "status", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        nullable: true,
+        fieldName: 'deleted_at',
+    }),
+    __metadata("design:type", Object)
+], MemberEntity.prototype, "deletedAt", void 0);
 exports.MemberEntity = MemberEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'members' })
 ], MemberEntity);
@@ -477,6 +598,7 @@ let MemberMembershipEntity = class MemberMembershipEntity extends base_entity_1.
     endDate;
     remainingSessions;
     status;
+    deletedAt;
 };
 exports.MemberMembershipEntity = MemberMembershipEntity;
 __decorate([
@@ -503,6 +625,15 @@ __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
 ], MemberMembershipEntity.prototype, "status", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        nullable: true,
+        fieldName: 'deleted_at',
+    }),
+    __metadata("design:type", Object)
+], MemberMembershipEntity.prototype, "deletedAt", void 0);
 exports.MemberMembershipEntity = MemberMembershipEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'member_memberships' })
 ], MemberMembershipEntity);
@@ -512,8 +643,11 @@ let MemberPtAssignmentEntity = class MemberPtAssignmentEntity extends base_entit
     memberMembership;
     assignedFrom;
     assignedTo;
+    commissionType;
+    commissionValue;
     commissionAmount;
     status;
+    note;
 };
 exports.MemberPtAssignmentEntity = MemberPtAssignmentEntity;
 __decorate([
@@ -537,6 +671,20 @@ __decorate([
     __metadata("design:type", Object)
 ], MemberPtAssignmentEntity.prototype, "assignedTo", void 0);
 __decorate([
+    (0, core_1.Property)({ length: 20, fieldName: 'commission_type', nullable: true }),
+    __metadata("design:type", Object)
+], MemberPtAssignmentEntity.prototype, "commissionType", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.decimal,
+        precision: 15,
+        scale: 2,
+        nullable: true,
+        fieldName: 'commission_value',
+    }),
+    __metadata("design:type", Object)
+], MemberPtAssignmentEntity.prototype, "commissionValue", void 0);
+__decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
     __metadata("design:type", String)
 ], MemberPtAssignmentEntity.prototype, "commissionAmount", void 0);
@@ -544,6 +692,10 @@ __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
 ], MemberPtAssignmentEntity.prototype, "status", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.text, nullable: true }),
+    __metadata("design:type", Object)
+], MemberPtAssignmentEntity.prototype, "note", void 0);
 exports.MemberPtAssignmentEntity = MemberPtAssignmentEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'member_pt_assignments' })
 ], MemberPtAssignmentEntity);
@@ -597,6 +749,7 @@ let ProductEntity = class ProductEntity extends base_entity_1.BaseEntity {
     stockOnHand;
     minimumStockLevel;
     status;
+    deletedAt;
 };
 exports.ProductEntity = ProductEntity;
 __decorate([
@@ -631,6 +784,15 @@ __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
 ], ProductEntity.prototype, "status", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        nullable: true,
+        fieldName: 'deleted_at',
+    }),
+    __metadata("design:type", Object)
+], ProductEntity.prototype, "deletedAt", void 0);
 exports.ProductEntity = ProductEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'products' })
 ], ProductEntity);
@@ -785,11 +947,15 @@ exports.SalesInvoiceItemEntity = SalesInvoiceItemEntity = __decorate([
 let EquipmentAssetEntity = class EquipmentAssetEntity extends base_entity_1.BaseEntity {
     code;
     name;
+    category;
     purchasedAt;
     purchaseValue;
+    status;
     condition;
+    location;
     nextMaintenanceAt;
     note;
+    deletedAt;
 };
 exports.EquipmentAssetEntity = EquipmentAssetEntity;
 __decorate([
@@ -801,6 +967,10 @@ __decorate([
     __metadata("design:type", String)
 ], EquipmentAssetEntity.prototype, "name", void 0);
 __decorate([
+    (0, core_1.Property)({ length: 120, nullable: true }),
+    __metadata("design:type", Object)
+], EquipmentAssetEntity.prototype, "category", void 0);
+__decorate([
     (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
     __metadata("design:type", Date)
 ], EquipmentAssetEntity.prototype, "purchasedAt", void 0);
@@ -809,17 +979,34 @@ __decorate([
     __metadata("design:type", String)
 ], EquipmentAssetEntity.prototype, "purchaseValue", void 0);
 __decorate([
-    (0, core_1.Property)({ length: 40 }),
+    (0, core_1.Property)({ length: 30, fieldName: 'status', nullable: true }),
+    __metadata("design:type", Object)
+], EquipmentAssetEntity.prototype, "status", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 40, fieldName: 'condition_status' }),
     __metadata("design:type", String)
 ], EquipmentAssetEntity.prototype, "condition", void 0);
 __decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
+    (0, core_1.Property)({ length: 160, nullable: true }),
+    __metadata("design:type", Object)
+], EquipmentAssetEntity.prototype, "location", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', nullable: true }),
+    __metadata("design:type", Object)
 ], EquipmentAssetEntity.prototype, "nextMaintenanceAt", void 0);
 __decorate([
     (0, core_1.Property)({ type: core_1.types.text }),
     __metadata("design:type", String)
 ], EquipmentAssetEntity.prototype, "note", void 0);
+__decorate([
+    (0, core_1.Property)({
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        nullable: true,
+        fieldName: 'deleted_at',
+    }),
+    __metadata("design:type", Object)
+], EquipmentAssetEntity.prototype, "deletedAt", void 0);
 exports.EquipmentAssetEntity = EquipmentAssetEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'equipment_assets' })
 ], EquipmentAssetEntity);
@@ -906,16 +1093,24 @@ exports.OperatingExpenseEntity = OperatingExpenseEntity = __decorate([
 ], OperatingExpenseEntity);
 let MaintenanceRecordEntity = class MaintenanceRecordEntity extends base_entity_1.BaseEntity {
     equipmentAsset;
+    maintenanceType;
     maintenanceDate;
     description;
     vendorName;
     amount;
+    resultStatus;
+    note;
+    createdByUser;
 };
 exports.MaintenanceRecordEntity = MaintenanceRecordEntity;
 __decorate([
     (0, core_1.ManyToOne)(() => EquipmentAssetEntity, { fieldName: 'equipment_asset_id' }),
     __metadata("design:type", EquipmentAssetEntity)
 ], MaintenanceRecordEntity.prototype, "equipmentAsset", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 30, fieldName: 'maintenance_type', nullable: true }),
+    __metadata("design:type", Object)
+], MaintenanceRecordEntity.prototype, "maintenanceType", void 0);
 __decorate([
     (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
     __metadata("design:type", Date)
@@ -932,6 +1127,18 @@ __decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
     __metadata("design:type", String)
 ], MaintenanceRecordEntity.prototype, "amount", void 0);
+__decorate([
+    (0, core_1.Property)({ length: 30, fieldName: 'result_status', nullable: true }),
+    __metadata("design:type", Object)
+], MaintenanceRecordEntity.prototype, "resultStatus", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.text, nullable: true }),
+    __metadata("design:type", Object)
+], MaintenanceRecordEntity.prototype, "note", void 0);
+__decorate([
+    (0, core_1.ManyToOne)(() => UserEntity, { fieldName: 'created_by_user_id', nullable: true }),
+    __metadata("design:type", Object)
+], MaintenanceRecordEntity.prototype, "createdByUser", void 0);
 exports.MaintenanceRecordEntity = MaintenanceRecordEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'maintenance_records' })
 ], MaintenanceRecordEntity);
@@ -991,6 +1198,10 @@ let SystemConfigEntity = class SystemConfigEntity {
     label;
     value;
     description;
+    updatedByUser;
+    createdAt = new Date();
+    updatedAt = new Date();
+    [core_1.OptionalProps];
 };
 exports.SystemConfigEntity = SystemConfigEntity;
 __decorate([
@@ -1009,6 +1220,32 @@ __decorate([
     (0, core_1.Property)({ type: core_1.types.text }),
     __metadata("design:type", String)
 ], SystemConfigEntity.prototype, "description", void 0);
+__decorate([
+    (0, core_1.ManyToOne)(() => UserEntity, {
+        fieldName: 'updated_by_user_id',
+        nullable: true,
+    }),
+    __metadata("design:type", Object)
+], SystemConfigEntity.prototype, "updatedByUser", void 0);
+__decorate([
+    (0, core_1.Property)({
+        onCreate: () => new Date(),
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        fieldName: 'created_at',
+    }),
+    __metadata("design:type", Object)
+], SystemConfigEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, core_1.Property)({
+        onCreate: () => new Date(),
+        onUpdate: () => new Date(),
+        type: core_1.types.datetime,
+        columnType: 'timestamp',
+        fieldName: 'updated_at',
+    }),
+    __metadata("design:type", Object)
+], SystemConfigEntity.prototype, "updatedAt", void 0);
 exports.SystemConfigEntity = SystemConfigEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'system_configs' })
 ], SystemConfigEntity);

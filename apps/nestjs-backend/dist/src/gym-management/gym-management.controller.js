@@ -94,6 +94,12 @@ let GymManagementController = class GymManagementController {
         const ptDetail = await this.gymManagementService.getPtDetail(ptId);
         return createResponse(ptDetail.contract);
     }
+    async createPtContract(ptId, createPtContractDto) {
+        return createResponse(await this.gymManagementService.createPtContract(ptId, createPtContractDto));
+    }
+    async updatePtContract(ptId, contractId, updatePtContractDto) {
+        return createResponse(await this.gymManagementService.updatePtContract(ptId, contractId, updatePtContractDto));
+    }
     async updatePt(ptId, updatePersonalTrainerDto) {
         return createResponse(await this.gymManagementService.updatePersonalTrainer(ptId, updatePersonalTrainerDto));
     }
@@ -112,6 +118,9 @@ let GymManagementController = class GymManagementController {
         attendanceCheckOutDto.ptId = this.resolveScopedPtId(currentUser, attendanceCheckOutDto.ptId);
         return createResponse(await this.gymManagementService.checkOutAttendance(attendanceCheckOutDto));
     }
+    async patchAttendance(attendanceLogId, patchAttendanceDto) {
+        return createResponse(await this.gymManagementService.patchAttendance(attendanceLogId, patchAttendanceDto));
+    }
     async getMyAttendance(ptId, currentUser) {
         const scopedPtId = this.resolveScopedPtId(currentUser, ptId);
         const ptDetail = await this.gymManagementService.getPtDetail(scopedPtId);
@@ -125,8 +134,17 @@ let GymManagementController = class GymManagementController {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.dataset.payrollPeriods);
     }
+    async createPayrollPeriod(createPayrollPeriodDto) {
+        return createResponse(await this.gymManagementService.createPayrollPeriod(createPayrollPeriodDto));
+    }
     async getPayrollPeriod(payrollPeriodId) {
         return createResponse(await this.gymManagementService.getPayrollPeriodDetail(payrollPeriodId));
+    }
+    async generatePayroll(generatePayrollDto) {
+        return createResponse(await this.gymManagementService.generatePayroll(generatePayrollDto));
+    }
+    async getPayrollMe(currentUser) {
+        return createResponse(await this.gymManagementService.getPayrollMe(currentUser.user.id));
     }
     async submitPayrollPeriod(payrollPeriodId, currentUser) {
         return createResponse(await this.gymManagementService.submitPayrollPeriod(payrollPeriodId, currentUser.user.id));
@@ -174,9 +192,24 @@ let GymManagementController = class GymManagementController {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.dataset.memberMemberships);
     }
+    async createMemberMembership(createMemberMembershipDto) {
+        return createResponse(await this.gymManagementService.createMemberMembership(createMemberMembershipDto));
+    }
+    async renewMemberMembership(membershipId, renewMemberMembershipDto) {
+        return createResponse(await this.gymManagementService.renewMemberMembership(membershipId, renewMemberMembershipDto));
+    }
+    async cancelMemberMembership(membershipId, cancelMemberMembershipDto) {
+        return createResponse(await this.gymManagementService.cancelMemberMembership(membershipId, cancelMemberMembershipDto.cancelledAt));
+    }
     async getMemberAssignmentsList() {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.dataset.memberPtAssignments);
+    }
+    async createMemberAssignment(createMemberAssignmentDto) {
+        return createResponse(await this.gymManagementService.createMemberAssignment(createMemberAssignmentDto));
+    }
+    async endMemberAssignment(assignmentId, endMemberAssignmentDto) {
+        return createResponse(await this.gymManagementService.endMemberAssignment(assignmentId, endMemberAssignmentDto));
     }
     async getMembershipInvoices() {
         const snapshot = await this.gymManagementService.getSnapshot();
@@ -199,9 +232,15 @@ let GymManagementController = class GymManagementController {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.dataset.inventoryTransactions);
     }
+    async importInventory(inventoryImportDto) {
+        return createResponse(await this.gymManagementService.importInventory(inventoryImportDto));
+    }
     async getSalesInvoices() {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.dataset.salesInvoices);
+    }
+    async createSalesInvoice(createSalesInvoiceDto, currentUser) {
+        return createResponse(await this.gymManagementService.createSalesInvoice(createSalesInvoiceDto, currentUser.user.id));
     }
     async getSalesInvoice(salesInvoiceId) {
         return createResponse(await this.gymManagementService.getSalesInvoiceDetail(salesInvoiceId));
@@ -254,6 +293,9 @@ let GymManagementController = class GymManagementController {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.dataset.maintenanceRecords);
     }
+    async createMaintenance(createMaintenanceDto, currentUser) {
+        return createResponse(await this.gymManagementService.createMaintenance(createMaintenanceDto, currentUser.user.id));
+    }
     async getRevenueReport() {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.revenueReport);
@@ -284,8 +326,8 @@ let GymManagementController = class GymManagementController {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.dataset.systemConfigs);
     }
-    async patchSettings(configKey, patchSystemConfigDto) {
-        return createResponse(await this.gymManagementService.patchSystemConfig(configKey, patchSystemConfigDto));
+    async patchSettings(configKey, patchSystemConfigDto, currentUser) {
+        return createResponse(await this.gymManagementService.patchSystemConfig(configKey, patchSystemConfigDto, currentUser.user.id));
     }
     resolveScopedPtId(currentUser, requestedPtId) {
         if (currentUser.role !== "PT") {
@@ -380,6 +422,27 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getPtContract", null);
 __decorate([
+    (0, common_1.Post)("pts/:id/contracts"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, audit_action_decorator_1.AuditAction)("PT_CONTRACT_CREATE", "pt_contracts"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, gym_management_dto_1.CreatePtContractDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "createPtContract", null);
+__decorate([
+    (0, common_1.Patch)("pts/:id/contracts/:contractId"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, audit_action_decorator_1.AuditAction)("PT_CONTRACT_UPDATE", "pt_contracts"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Param)("contractId")),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, gym_management_dto_1.UpdatePtContractDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "updatePtContract", null);
+__decorate([
     (0, common_1.Patch)("pts/:id"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
@@ -421,6 +484,16 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "checkOutAttendance", null);
 __decorate([
+    (0, common_1.Patch)("attendance/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
+    (0, audit_action_decorator_1.AuditAction)("ATTENDANCE_PATCH", "attendance_logs"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, gym_management_dto_1.PatchAttendanceDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "patchAttendance", null);
+__decorate([
     (0, common_1.Get)("attendance/me"),
     (0, roles_decorator_1.Roles)("ADMIN", "STAFF", "PT"),
     __param(0, (0, common_1.Query)("ptId")),
@@ -443,12 +516,38 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getPayrollPeriods", null);
 __decorate([
+    (0, common_1.Post)("payroll/periods"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, audit_action_decorator_1.AuditAction)("PAYROLL_PERIOD_CREATE", "payroll_periods"),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [gym_management_dto_1.CreatePayrollPeriodDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "createPayrollPeriod", null);
+__decorate([
     (0, common_1.Get)("payroll/periods/:id"),
     __param(0, (0, common_1.Param)("id")),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getPayrollPeriod", null);
+__decorate([
+    (0, common_1.Post)("payroll/generate"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, audit_action_decorator_1.AuditAction)("PAYROLL_GENERATE", "payroll_entries"),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [gym_management_dto_1.GeneratePayrollDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "generatePayroll", null);
+__decorate([
+    (0, common_1.Get)("payroll/me"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF", "PT"),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "getPayrollMe", null);
 __decorate([
     (0, common_1.Post)("payroll/periods/:id/submit"),
     (0, roles_decorator_1.Roles)("ADMIN"),
@@ -556,11 +655,54 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getMemberMemberships", null);
 __decorate([
+    (0, common_1.Post)("member-memberships"),
+    (0, audit_action_decorator_1.AuditAction)("MEMBERSHIP_CREATE", "member_memberships"),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [gym_management_dto_1.CreateMemberMembershipDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "createMemberMembership", null);
+__decorate([
+    (0, common_1.Post)("member-memberships/:id/renew"),
+    (0, audit_action_decorator_1.AuditAction)("MEMBERSHIP_RENEW", "member_memberships"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, gym_management_dto_1.RenewMemberMembershipDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "renewMemberMembership", null);
+__decorate([
+    (0, common_1.Post)("member-memberships/:id/cancel"),
+    (0, audit_action_decorator_1.AuditAction)("MEMBERSHIP_CANCEL", "member_memberships"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, gym_management_dto_1.CancelMemberMembershipDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "cancelMemberMembership", null);
+__decorate([
     (0, common_1.Get)("member-assignments"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getMemberAssignmentsList", null);
+__decorate([
+    (0, common_1.Post)("member-assignments"),
+    (0, audit_action_decorator_1.AuditAction)("MEMBER_ASSIGNMENT_CREATE", "member_pt_assignments"),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [gym_management_dto_1.CreateMemberAssignmentDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "createMemberAssignment", null);
+__decorate([
+    (0, common_1.Post)("member-assignments/:id/end"),
+    (0, audit_action_decorator_1.AuditAction)("MEMBER_ASSIGNMENT_END", "member_pt_assignments"),
+    __param(0, (0, common_1.Param)("id")),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, gym_management_dto_1.EndMemberAssignmentDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "endMemberAssignment", null);
 __decorate([
     (0, common_1.Get)("membership-invoices"),
     __metadata("design:type", Function),
@@ -602,11 +744,29 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getInventoryTransactions", null);
 __decorate([
+    (0, common_1.Post)("inventory/import"),
+    (0, audit_action_decorator_1.AuditAction)("INVENTORY_IMPORT", "inventory_transactions"),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [gym_management_dto_1.InventoryImportDto]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "importInventory", null);
+__decorate([
     (0, common_1.Get)("sales/invoices"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getSalesInvoices", null);
+__decorate([
+    (0, common_1.Post)("sales/invoices"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF", "PT"),
+    (0, audit_action_decorator_1.AuditAction)("SALES_INVOICE_CREATE", "sales_invoices"),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [gym_management_dto_1.CreateSalesInvoiceDto, Object]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "createSalesInvoice", null);
 __decorate([
     (0, common_1.Get)("sales/invoices/:id"),
     __param(0, (0, common_1.Param)("id")),
@@ -734,6 +894,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getMaintenance", null);
 __decorate([
+    (0, common_1.Post)("maintenance"),
+    (0, audit_action_decorator_1.AuditAction)("MAINTENANCE_CREATE", "maintenance_records"),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [gym_management_dto_1.CreateMaintenanceDto, Object]),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "createMaintenance", null);
+__decorate([
     (0, common_1.Get)("reports/revenue"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -783,8 +952,9 @@ __decorate([
     (0, common_1.Patch)("settings/:key"),
     __param(0, (0, common_1.Param)("key")),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, gym_management_dto_1.PatchSystemConfigDto]),
+    __metadata("design:paramtypes", [String, gym_management_dto_1.PatchSystemConfigDto, Object]),
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "patchSettings", null);
 exports.GymManagementController = GymManagementController = __decorate([

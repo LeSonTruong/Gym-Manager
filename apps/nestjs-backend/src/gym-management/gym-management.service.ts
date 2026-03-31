@@ -34,18 +34,30 @@ import { RedisService } from "../redis/redis.service";
 import {
   AttendanceCheckInDto,
   AttendanceCheckOutDto,
+  CreateMaintenanceDto,
   CreateEquipmentDto,
   CreateMemberDto,
+  CreateMemberAssignmentDto,
+  CreateMemberMembershipDto,
   CreateMembershipPlanDto,
   CreateOperatingExpenseDto,
+  CreatePayrollPeriodDto,
   CreatePersonalTrainerDto,
   CreateProductDto,
+  CreatePtContractDto,
+  CreateSalesInvoiceDto,
+  EndMemberAssignmentDto,
+  GeneratePayrollDto,
+  InventoryImportDto,
   PatchSystemConfigDto,
+  PatchAttendanceDto,
+  RenewMemberMembershipDto,
   UpdateEquipmentDto,
   UpdateMemberDto,
   UpdateMembershipPlanDto,
   UpdateOperatingExpenseDto,
   UpdatePersonalTrainerDto,
+  UpdatePtContractDto,
   UpdateProductDto,
 } from "./dto/gym-management.dto";
 import {
@@ -64,19 +76,28 @@ import {
   PersonalTrainerEntity,
   ProductEntity,
   PtContractEntity,
+  RefreshTokenEntity,
   SalesInvoiceEntity,
   SalesInvoiceItemEntity,
   SystemConfigEntity,
   UserEntity,
 } from "./entities/gym-management.entity";
+import { hashOpaqueToken, hashPassword, verifyPassword } from "./auth/auth-crypto";
 import {
   mapAttendanceLogEntity,
   mapDatasetFromEntities,
   mapEquipmentAssetEntity,
+  mapInventoryTransactionEntity,
+  mapMaintenanceRecordEntity,
   mapMemberEntity,
+  mapMemberMembershipEntity,
+  mapMemberPtAssignmentEntity,
+  mapMembershipInvoiceEntity,
   mapMembershipPlanEntity,
   mapOperatingExpenseEntity,
+  mapPayrollPeriodEntity,
   mapPersonalTrainerEntity,
+  mapPtContractEntity,
   mapProductEntity,
   mapSystemConfigEntity,
   mapUserEntity,
@@ -184,12 +205,17 @@ export class GymManagementService {
     const em = this.createEntityManager();
     const userEntity = await em.findOne(UserEntity, { email });
 
-    if (!userEntity || password !== userEntity.passwordHint) {
+    if (!userEntity || !verifyPassword(password, userEntity.passwordHash)) {
       throw new UnauthorizedException("Invalid demo credentials");
     }
 
-    if (userEntity.status !== "ACTIVE") {
+    if (userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
       throw new UnauthorizedException("User account is inactive");
+    }
+
+    if (!userEntity.passwordHash.startsWith("scrypt$")) {
+      userEntity.passwordHash = hashPassword(password);
+      await em.flush();
     }
 
     const user = mapUserEntity(userEntity);
@@ -214,29 +240,38 @@ export class GymManagementService {
   }
 
   async refreshAccessToken(refreshToken: string): Promise<LoginResult> {
-    const payload = await this.redisService.getJson<AuthTokenPayload>(
-      this.toRefreshTokenKey(refreshToken),
+    const em = this.createEntityManager();
+    const refreshTokenEntity = await em.findOne(
+      RefreshTokenEntity,
+      {
+        tokenHash: hashOpaqueToken(refreshToken),
+        revokedAt: null,
+      },
+      {
+        populate: ["user"],
+      },
     );
 
-    if (!payload) {
+    if (
+      !refreshTokenEntity ||
+      refreshTokenEntity.expiresAt.getTime() <= Date.now()
+    ) {
       throw new UnauthorizedException("Refresh token is invalid or expired");
     }
 
-    const em = this.createEntityManager();
-    const userEntity = await em.findOne(UserEntity, { id: payload.userId });
+    const userEntity = refreshTokenEntity.user;
 
-    if (!userEntity || userEntity.status !== "ACTIVE") {
+    if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
       throw new UnauthorizedException("User account is inactive");
     }
 
-    await this.redisService.deleteKey(this.toRefreshTokenKey(refreshToken));
     const user = mapUserEntity(userEntity);
     const ptId =
       user.role === "PT"
         ? await this.resolvePtIdForUser(em, userEntity)
         : undefined;
-    const issuedTokens = await this.issueAuthTokens({
-      sessionId: payload.sessionId,
+    const accessToken = await this.issueAccessToken({
+      sessionId: refreshTokenEntity.sessionId,
       userId: user.id,
       role: user.role,
       ptId,
@@ -244,15 +279,24 @@ export class GymManagementService {
 
     return {
       user,
-      accessToken: issuedTokens.accessToken,
-      refreshToken: issuedTokens.refreshToken,
+      accessToken,
+      refreshToken,
       accessTokenExpiresIn: ACCESS_TOKEN_TTL_SECONDS,
       refreshTokenExpiresIn: REFRESH_TOKEN_TTL_SECONDS,
     };
   }
 
   async logout(refreshToken: string, accessToken?: string): Promise<void> {
-    await this.redisService.deleteKey(this.toRefreshTokenKey(refreshToken));
+    const em = this.createEntityManager();
+    const refreshTokenEntity = await em.findOne(RefreshTokenEntity, {
+      tokenHash: hashOpaqueToken(refreshToken),
+      revokedAt: null,
+    });
+
+    if (refreshTokenEntity) {
+      refreshTokenEntity.revokedAt = new Date();
+      await em.flush();
+    }
 
     if (accessToken) {
       await this.redisService.deleteKey(this.toAccessTokenKey(accessToken));
@@ -284,7 +328,7 @@ export class GymManagementService {
     const em = this.createEntityManager();
     const userEntity = await em.findOne(UserEntity, { id: payload.userId });
 
-    if (!userEntity || userEntity.status !== "ACTIVE") {
+    if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
       throw new UnauthorizedException("User account is inactive");
     }
 
@@ -307,7 +351,7 @@ export class GymManagementService {
     const em = this.createEntityManager();
     const currentUser = await em.findOne(UserEntity, { id: userId });
 
-    if (!currentUser || currentUser.status !== "ACTIVE") {
+    if (!currentUser || currentUser.status !== "ACTIVE" || currentUser.deletedAt) {
       throw new UnauthorizedException("No demo users configured");
     }
 
@@ -372,9 +416,11 @@ export class GymManagementService {
       checkInAt,
       checkOutAt: null,
       workedHours: "0",
+      paidHours: "0",
       overtimeHours: "0",
       status: "OPEN",
       workCredit: "0",
+      note: null,
     } as RequiredEntityData<AttendanceLogEntity>);
 
     em.persist(attendanceLog);
@@ -473,6 +519,7 @@ export class GymManagementService {
 
     attendanceLog.checkOutAt = checkOutAt;
     attendanceLog.workedHours = workedHours.toString();
+    attendanceLog.paidHours = workedHours.toString();
     attendanceLog.overtimeHours = overtimeHours.toString();
     attendanceLog.status = status;
     attendanceLog.workCredit = workCredit.toString();
@@ -600,6 +647,1010 @@ export class GymManagementService {
     return equipmentAsset;
   }
 
+  async createPtContract(
+    ptId: string,
+    createPtContractDto: CreatePtContractDto,
+  ): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]> {
+    const em = this.createEntityManager();
+    const trainer = await this.getRequiredPersonalTrainerEntity(em, ptId);
+    const effectiveFrom = parseDateOnly(createPtContractDto.effectiveFrom);
+    const effectiveTo = createPtContractDto.effectiveTo
+      ? parseDateOnly(createPtContractDto.effectiveTo)
+      : null;
+
+    this.ensureValidDateRange(effectiveFrom, effectiveTo, "PT contract");
+    await this.ensurePtContractDateRangeAvailable(
+      em,
+      ptId,
+      effectiveFrom,
+      effectiveTo,
+    );
+
+    const contract = em.create(PtContractEntity, {
+      personalTrainer: trainer,
+      contractCode:
+        createPtContractDto.contractCode ??
+        this.generateReferenceCode(`PTC-${trainer.code}`),
+      contractType: createPtContractDto.contractType,
+      salaryType: createPtContractDto.salaryType,
+      baseSalary: toDecimalString(createPtContractDto.baseSalary),
+      minValidShiftHours: toDecimalString(createPtContractDto.minValidShiftHours),
+      standardShiftHours: toDecimalString(createPtContractDto.standardShiftHours),
+      overtimeHourlyRate: toDecimalString(createPtContractDto.overtimeHourlyRate),
+      performanceBonusThreshold: createPtContractDto.performanceBonusThreshold,
+      performanceBonusAmount: toDecimalString(
+        createPtContractDto.performanceBonusAmount,
+      ),
+      packageCommissionRate: toDecimalString(
+        createPtContractDto.packageCommissionRate,
+      ),
+      salesCommissionRate: toDecimalString(
+        createPtContractDto.salesCommissionRate,
+      ),
+      allowances: toDecimalString(createPtContractDto.allowances),
+      penaltyRules: createPtContractDto.penaltyRules,
+      effectiveFrom,
+      effectiveTo,
+    } as RequiredEntityData<PtContractEntity>);
+
+    em.persist(contract);
+    await em.flush();
+
+    return mapPtContractEntity(contract);
+  }
+
+  async updatePtContract(
+    ptId: string,
+    contractId: string,
+    updatePtContractDto: UpdatePtContractDto,
+  ): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]> {
+    const em = this.createEntityManager();
+    await this.getRequiredPersonalTrainerEntity(em, ptId);
+    const contract = await em.findOne(
+      PtContractEntity,
+      { id: contractId, personalTrainer: ptId },
+      { populate: ["personalTrainer"] },
+    );
+
+    if (!contract) {
+      throw new NotFoundException(`PT contract ${contractId} not found`);
+    }
+
+    const effectiveFrom = updatePtContractDto.effectiveFrom
+      ? parseDateOnly(updatePtContractDto.effectiveFrom)
+      : contract.effectiveFrom;
+    const effectiveTo: Date | null =
+      updatePtContractDto.effectiveTo !== undefined
+        ? parseDateOnly(updatePtContractDto.effectiveTo)
+        : (contract.effectiveTo ?? null);
+
+    this.ensureValidDateRange(effectiveFrom, effectiveTo, "PT contract");
+    await this.ensurePtContractDateRangeAvailable(
+      em,
+      ptId,
+      effectiveFrom,
+      effectiveTo,
+      contract.id,
+    );
+
+    wrap(contract).assign(
+      {
+        contractCode: updatePtContractDto.contractCode,
+        contractType: updatePtContractDto.contractType,
+        salaryType: updatePtContractDto.salaryType,
+        baseSalary:
+          updatePtContractDto.baseSalary === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.baseSalary),
+        minValidShiftHours:
+          updatePtContractDto.minValidShiftHours === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.minValidShiftHours),
+        standardShiftHours:
+          updatePtContractDto.standardShiftHours === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.standardShiftHours),
+        overtimeHourlyRate:
+          updatePtContractDto.overtimeHourlyRate === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.overtimeHourlyRate),
+        performanceBonusThreshold:
+          updatePtContractDto.performanceBonusThreshold,
+        performanceBonusAmount:
+          updatePtContractDto.performanceBonusAmount === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.performanceBonusAmount),
+        packageCommissionRate:
+          updatePtContractDto.packageCommissionRate === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.packageCommissionRate),
+        salesCommissionRate:
+          updatePtContractDto.salesCommissionRate === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.salesCommissionRate),
+        allowances:
+          updatePtContractDto.allowances === undefined
+            ? undefined
+            : toDecimalString(updatePtContractDto.allowances),
+        penaltyRules: updatePtContractDto.penaltyRules,
+        effectiveFrom,
+        effectiveTo,
+      },
+      { ignoreUndefined: true },
+    );
+
+    await em.flush();
+
+    return mapPtContractEntity(contract);
+  }
+
+  async createMemberMembership(
+    createMemberMembershipDto: CreateMemberMembershipDto,
+  ): Promise<{
+      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }> {
+    const em = this.createEntityManager();
+    const member = await this.getRequiredMemberEntity(
+      em,
+      createMemberMembershipDto.memberId,
+    );
+    const membershipPlan = await this.getRequiredMembershipPlanEntity(
+      em,
+      createMemberMembershipDto.membershipPlanId,
+    );
+    const activeMembership = await em.findOne(MemberMembershipEntity, {
+      member,
+      status: "ACTIVE",
+      deletedAt: null,
+    });
+
+    if (activeMembership) {
+      throw new ConflictException(
+        `Member ${member.id} already has an active membership`,
+      );
+    }
+
+    const startDate = parseDateOnly(createMemberMembershipDto.startDate);
+
+    return this.createMembershipSale(
+      em,
+      member,
+      membershipPlan,
+      startDate,
+      createMemberMembershipDto.paymentMethod,
+      createMemberMembershipDto.totalAmount,
+    );
+  }
+
+  async renewMemberMembership(
+    membershipId: string,
+    renewMemberMembershipDto: RenewMemberMembershipDto,
+  ): Promise<{
+      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }> {
+    const em = this.createEntityManager();
+    const membership = await em.findOne(
+      MemberMembershipEntity,
+      { id: membershipId, deletedAt: null },
+      { populate: ["member", "membershipPlan"] },
+    );
+
+    if (!membership) {
+      throw new NotFoundException(`Membership ${membershipId} not found`);
+    }
+
+    const startDate = renewMemberMembershipDto.startDate
+      ? parseDateOnly(renewMemberMembershipDto.startDate)
+      : this.addDays(membership.endDate, 1);
+
+    return this.createMembershipSale(
+      em,
+      membership.member,
+      membership.membershipPlan,
+      startDate,
+      renewMemberMembershipDto.paymentMethod ?? "CASH",
+    );
+  }
+
+  async cancelMemberMembership(
+    membershipId: string,
+    cancelledAt?: string,
+  ): Promise<GymManagementSnapshot["dataset"]["memberMemberships"][number]> {
+    const em = this.createEntityManager();
+    const membership = await em.findOne(MemberMembershipEntity, {
+      id: membershipId,
+      deletedAt: null,
+    });
+
+    if (!membership) {
+      throw new NotFoundException(`Membership ${membershipId} not found`);
+    }
+
+    const cancelledDate = cancelledAt ? parseDateOnly(cancelledAt) : new Date();
+
+    if (cancelledDate < membership.startDate) {
+      throw new BadRequestException(
+        "cancelledAt must be on or after membership startDate",
+      );
+    }
+
+    membership.status = "CANCELLED";
+    membership.endDate = cancelledDate;
+    await em.flush();
+
+    return mapMemberMembershipEntity(membership);
+  }
+
+  async createMemberAssignment(
+    createMemberAssignmentDto: CreateMemberAssignmentDto,
+  ): Promise<GymManagementSnapshot["dataset"]["memberPtAssignments"][number]> {
+    const em = this.createEntityManager();
+    const member = await this.getRequiredMemberEntity(
+      em,
+      createMemberAssignmentDto.memberId,
+    );
+    const trainer = await this.getRequiredPersonalTrainerEntity(
+      em,
+      createMemberAssignmentDto.ptId,
+    );
+    const membership = await em.findOne(
+      MemberMembershipEntity,
+      {
+        id: createMemberAssignmentDto.memberMembershipId,
+        member,
+        deletedAt: null,
+      },
+      { populate: ["membershipPlan"] },
+    );
+
+    if (!membership) {
+      throw new NotFoundException(
+        `Membership ${createMemberAssignmentDto.memberMembershipId} not found for member ${member.id}`,
+      );
+    }
+
+    const assignedFrom = parseDateOnly(createMemberAssignmentDto.assignedFrom);
+    const activeAssignments = await em.find(MemberPtAssignmentEntity, {
+      member,
+      status: "ACTIVE",
+    });
+
+    for (const activeAssignment of activeAssignments) {
+      activeAssignment.status = "ENDED";
+      activeAssignment.assignedTo = assignedFrom;
+    }
+
+    const commissionAmount = this.calculateAssignmentCommissionAmount(
+      Number(membership.membershipPlan.price),
+      createMemberAssignmentDto.commissionType,
+      createMemberAssignmentDto.commissionValue,
+      createMemberAssignmentDto.commissionAmount,
+    );
+
+    const assignment = em.create(MemberPtAssignmentEntity, {
+      member,
+      personalTrainer: trainer,
+      memberMembership: membership,
+      assignedFrom,
+      assignedTo: null,
+      commissionType: createMemberAssignmentDto.commissionType ?? "FIXED",
+      commissionValue:
+        createMemberAssignmentDto.commissionValue === undefined
+          ? null
+          : toDecimalString(createMemberAssignmentDto.commissionValue),
+      commissionAmount: toDecimalString(commissionAmount),
+      status: "ACTIVE",
+      note: createMemberAssignmentDto.note ?? null,
+    } as RequiredEntityData<MemberPtAssignmentEntity>);
+
+    em.persist(assignment);
+    await em.flush();
+
+    return mapMemberPtAssignmentEntity(assignment);
+  }
+
+  async endMemberAssignment(
+    assignmentId: string,
+    endMemberAssignmentDto: EndMemberAssignmentDto,
+  ): Promise<GymManagementSnapshot["dataset"]["memberPtAssignments"][number]> {
+    const em = this.createEntityManager();
+    const assignment = await em.findOne(MemberPtAssignmentEntity, {
+      id: assignmentId,
+    });
+
+    if (!assignment) {
+      throw new NotFoundException(`Assignment ${assignmentId} not found`);
+    }
+
+    assignment.assignedTo = endMemberAssignmentDto.assignedTo
+      ? parseDateOnly(endMemberAssignmentDto.assignedTo)
+      : new Date();
+    assignment.status = "ENDED";
+    await em.flush();
+
+    return mapMemberPtAssignmentEntity(assignment);
+  }
+
+  async createPayrollPeriod(
+    createPayrollPeriodDto: CreatePayrollPeriodDto,
+  ): Promise<GymManagementSnapshot["dataset"]["payrollPeriods"][number]> {
+    const em = this.createEntityManager();
+    const fromDate = parseDateOnly(createPayrollPeriodDto.from);
+    const toDate = parseDateOnly(createPayrollPeriodDto.to);
+
+    this.ensureValidDateRange(fromDate, toDate, "Payroll period");
+
+    const payrollPeriod = em.create(PayrollPeriodEntity, {
+      code:
+        createPayrollPeriodDto.code ??
+        `${createPayrollPeriodDto.from.slice(0, 7)}`,
+      fromDate,
+      toDate,
+      status: "OPEN",
+      submittedAt: null,
+      approvedByUser: null,
+      approvedAt: null,
+      paidAt: null,
+    } as RequiredEntityData<PayrollPeriodEntity>);
+
+    em.persist(payrollPeriod);
+    await em.flush();
+
+    return mapPayrollPeriodEntity(payrollPeriod);
+  }
+
+  async generatePayroll(
+    generatePayrollDto: GeneratePayrollDto,
+  ): Promise<PayrollPeriodTransitionResult> {
+    const em = this.createEntityManager();
+    const payrollPeriod = await em.findOne(PayrollPeriodEntity, {
+      id: generatePayrollDto.payrollPeriodId,
+    });
+
+    if (!payrollPeriod) {
+      throw new NotFoundException(
+        `Payroll period ${generatePayrollDto.payrollPeriodId} not found`,
+      );
+    }
+
+    if (payrollPeriod.status !== "OPEN") {
+      throw new BadRequestException(
+        "Payroll can only be generated while the period is OPEN",
+      );
+    }
+
+    const existingEntries = await em.find(PayrollEntryEntity, {
+      payrollPeriod,
+    });
+
+    if (existingEntries.length > 0) {
+      em.remove(existingEntries);
+      await em.flush();
+    }
+
+    const trainers = await em.find(
+      PersonalTrainerEntity,
+      { deletedAt: null, status: "ACTIVE" },
+      { populate: ["user"] },
+    );
+    const assignments = await em.find(
+      MemberPtAssignmentEntity,
+      {},
+      { populate: ["memberMembership", "personalTrainer"] },
+    );
+    const membershipInvoices = await em.find(
+      MembershipInvoiceEntity,
+      {},
+      { populate: ["memberMembership", "member"] },
+    );
+    const salesInvoices = await em.find(
+      SalesInvoiceEntity,
+      { status: "CONFIRMED" },
+      { populate: ["createdByUser", "member"] },
+    );
+
+    for (const trainer of trainers) {
+      const contract = await this.findPtContractForPeriod(
+        em,
+        trainer.id,
+        payrollPeriod.fromDate,
+        payrollPeriod.toDate,
+      );
+
+      if (!contract) {
+        continue;
+      }
+
+      const attendanceLogs = await em.find(AttendanceLogEntity, {
+        personalTrainer: trainer,
+        attendanceDate: {
+          $gte: payrollPeriod.fromDate,
+          $lte: payrollPeriod.toDate,
+        },
+      });
+      const validShiftCredits = this.sumNumbers(
+        attendanceLogs.map((attendanceLog) => Number(attendanceLog.workCredit)),
+      );
+      const paidHours = this.sumNumbers(
+        attendanceLogs.map((attendanceLog) => Number(attendanceLog.paidHours)),
+      );
+      const overtimeHours = this.sumNumbers(
+        attendanceLogs.map((attendanceLog) => Number(attendanceLog.overtimeHours)),
+      );
+      const assignmentInvoices = membershipInvoices.filter((invoice) =>
+        this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod),
+      );
+      const packageCommission = this.sumNumbers(
+        assignmentInvoices.map((invoice) => {
+          const assignment = assignments.find(
+            (candidate) =>
+              candidate.personalTrainer.id === trainer.id &&
+              candidate.memberMembership.id === invoice.memberMembership.id &&
+              this.isAssignmentActiveOnDate(candidate, invoice.invoiceDate),
+          );
+
+          if (!assignment) {
+            return 0;
+          }
+
+          return this.calculateAssignmentCommissionAmount(
+            Number(invoice.totalAmount),
+            assignment.commissionType,
+            assignment.commissionValue ? Number(assignment.commissionValue) : null,
+            Number(assignment.commissionAmount),
+            Number(contract.packageCommissionRate),
+          );
+        }),
+      );
+      const packageCount = assignmentInvoices.filter((invoice) =>
+        assignments.some(
+          (assignment) =>
+            assignment.personalTrainer.id === trainer.id &&
+            assignment.memberMembership.id === invoice.memberMembership.id &&
+            this.isAssignmentActiveOnDate(assignment, invoice.invoiceDate),
+        ),
+      ).length;
+      const salesCommission = this.sumNumbers(
+        salesInvoices
+          .filter(
+            (invoice) =>
+              this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod) &&
+              invoice.createdByUser.id === trainer.user?.id,
+          )
+          .map((invoice) => Number(invoice.totalAmount) * Number(contract.salesCommissionRate)),
+      );
+      const performanceBonus =
+        packageCount >= contract.performanceBonusThreshold
+          ? Number(contract.performanceBonusAmount)
+          : 0;
+      const overtimeAmount =
+        overtimeHours * Number(contract.overtimeHourlyRate);
+      const baseSalaryAmount = Number(contract.baseSalary);
+      const attendanceBonusAmount = 0;
+      const allowanceAmount = Number(contract.allowances);
+      const deductionAmount = 0;
+      const penalties = 0;
+      const grossPay = this.sumNumbers([
+        baseSalaryAmount,
+        attendanceBonusAmount,
+        overtimeAmount,
+        packageCommission,
+        salesCommission,
+        performanceBonus,
+        allowanceAmount,
+      ]);
+      const netPay = grossPay - deductionAmount - penalties;
+
+      const payrollEntry = em.create(PayrollEntryEntity, {
+        payrollPeriod,
+        personalTrainer: trainer,
+        contract,
+        validShiftCredits: toDecimalString(validShiftCredits),
+        paidHours: toDecimalString(paidHours),
+        overtimeHours: toDecimalString(overtimeHours),
+        baseSalaryAmount: toDecimalString(baseSalaryAmount),
+        attendanceBonusAmount: toDecimalString(attendanceBonusAmount),
+        overtimeAmount: toDecimalString(overtimeAmount),
+        packageCommission: toDecimalString(packageCommission),
+        salesCommission: toDecimalString(salesCommission),
+        performanceBonus: toDecimalString(performanceBonus),
+        allowanceAmount: toDecimalString(allowanceAmount),
+        deductionAmount: toDecimalString(deductionAmount),
+        penalties: toDecimalString(penalties),
+        grossPay: toDecimalString(grossPay),
+        netPay: toDecimalString(netPay),
+        status: "PENDING_APPROVAL",
+      } as RequiredEntityData<PayrollEntryEntity>);
+
+      em.persist(payrollEntry);
+    }
+
+    await em.flush();
+
+    return this.getPayrollPeriodDetail(payrollPeriod.id);
+  }
+
+  async getPayrollMe(
+    userId: string,
+  ): Promise<GymManagementSnapshot["dataset"]["payrollEntries"]> {
+    const em = this.createEntityManager();
+    const user = await this.getRequiredUserEntity(em, userId);
+    const ptId = await this.resolvePtIdForUser(em, user);
+
+    if (!ptId) {
+      throw new NotFoundException(`No PT profile linked to user ${userId}`);
+    }
+
+    const dataset = await this.loadDataset();
+
+    return dataset.payrollEntries.filter((entry) => entry.ptId === ptId);
+  }
+
+  async createSalesInvoice(
+    createSalesInvoiceDto: CreateSalesInvoiceDto,
+    createdByUserId: string,
+  ): Promise<GymManagementSnapshot["dataset"]["salesInvoices"][number]> {
+    const em = this.createEntityManager();
+    const createdByUser = await this.getRequiredUserEntity(em, createdByUserId);
+    const member = createSalesInvoiceDto.memberId
+      ? await this.getRequiredMemberEntity(em, createSalesInvoiceDto.memberId)
+      : null;
+
+    if (createSalesInvoiceDto.items.length === 0) {
+      throw new BadRequestException("Sales invoice must include at least one item");
+    }
+
+    const resolvedItems = await Promise.all(
+      createSalesInvoiceDto.items.map(async (item) => ({
+        dto: item,
+        product: await this.getRequiredProductEntity(em, item.productId),
+      })),
+    );
+    const lineTotal = this.sumNumbers(
+      resolvedItems.map(({ dto, product }) => dto.quantity * Number(product.salePrice)),
+    );
+    const discountAmount = createSalesInvoiceDto.discountAmount ?? 0;
+    const totalAmount = Math.max(0, lineTotal - discountAmount);
+    const salesInvoice = em.create(SalesInvoiceEntity, {
+      code:
+        createSalesInvoiceDto.code ??
+        this.generateReferenceCode("SI"),
+      invoiceDate: createSalesInvoiceDto.invoiceDate
+        ? new Date(createSalesInvoiceDto.invoiceDate)
+        : new Date(),
+      createdByUser,
+      member,
+      customerName: createSalesInvoiceDto.customerName,
+      status: "DRAFT",
+      paymentMethod: createSalesInvoiceDto.paymentMethod,
+      discountAmount: toDecimalString(discountAmount),
+      totalAmount: toDecimalString(totalAmount),
+      note: createSalesInvoiceDto.note ?? "",
+      confirmedAt: null,
+      cancelledAt: null,
+      cancellationReason: null,
+    } as RequiredEntityData<SalesInvoiceEntity>);
+
+    em.persist(salesInvoice);
+    await em.flush();
+
+    for (const resolvedItem of resolvedItems) {
+      em.persist(
+        em.create(SalesInvoiceItemEntity, {
+          salesInvoice,
+          product: resolvedItem.product,
+          quantity: resolvedItem.dto.quantity,
+          unitPrice: toDecimalString(Number(resolvedItem.product.salePrice)),
+          unitCost: toDecimalString(Number(resolvedItem.product.unitCost)),
+          lineTotal: toDecimalString(
+            resolvedItem.dto.quantity * Number(resolvedItem.product.salePrice),
+          ),
+        } as RequiredEntityData<SalesInvoiceItemEntity>),
+      );
+    }
+
+    await em.flush();
+
+    return this.getSalesInvoiceDetail(salesInvoice.id);
+  }
+
+  async importInventory(
+    inventoryImportDto: InventoryImportDto,
+  ): Promise<GymManagementSnapshot["dataset"]["inventoryTransactions"][number]> {
+    const em = this.createEntityManager();
+    const product = await this.getRequiredProductEntity(
+      em,
+      inventoryImportDto.productId,
+    );
+    const transaction = em.create(InventoryTransactionEntity, {
+      product,
+      type: "IMPORT",
+      quantity: inventoryImportDto.quantity,
+      unitCost: toDecimalString(inventoryImportDto.unitCost),
+      transactionDate: inventoryImportDto.transactionDate
+        ? new Date(inventoryImportDto.transactionDate)
+        : new Date(),
+      referenceCode:
+        inventoryImportDto.referenceCode ??
+        this.generateReferenceCode(`IMP-${product.code}`),
+      note: inventoryImportDto.note ?? "Inventory import",
+    } as RequiredEntityData<InventoryTransactionEntity>);
+
+    product.stockOnHand += inventoryImportDto.quantity;
+    em.persist(transaction);
+    await em.flush();
+
+    return mapInventoryTransactionEntity(transaction);
+  }
+
+  async createMaintenance(
+    createMaintenanceDto: CreateMaintenanceDto,
+    createdByUserId: string,
+  ): Promise<GymManagementSnapshot["dataset"]["maintenanceRecords"][number]> {
+    const em = this.createEntityManager();
+    const equipmentAsset = await this.getRequiredEquipmentAssetEntity(
+      em,
+      createMaintenanceDto.equipmentAssetId,
+    );
+    const createdByUser = await this.getRequiredUserEntity(em, createdByUserId);
+    const maintenanceRecord = em.create(MaintenanceRecordEntity, {
+      equipmentAsset,
+      maintenanceType: createMaintenanceDto.maintenanceType ?? "PREVENTIVE",
+      maintenanceDate: parseDateOnly(createMaintenanceDto.maintenanceDate),
+      description: createMaintenanceDto.description,
+      vendorName: createMaintenanceDto.vendorName,
+      amount: toDecimalString(createMaintenanceDto.amount),
+      resultStatus: createMaintenanceDto.resultStatus ?? "RESOLVED",
+      note: createMaintenanceDto.note ?? null,
+      createdByUser,
+    } as RequiredEntityData<MaintenanceRecordEntity>);
+
+    if (createMaintenanceDto.equipmentStatus !== undefined) {
+      equipmentAsset.status = createMaintenanceDto.equipmentStatus;
+    }
+
+    if (createMaintenanceDto.equipmentCondition !== undefined) {
+      equipmentAsset.condition = createMaintenanceDto.equipmentCondition;
+    }
+
+    if (createMaintenanceDto.nextMaintenanceAt !== undefined) {
+      equipmentAsset.nextMaintenanceAt = parseDateOnly(
+        createMaintenanceDto.nextMaintenanceAt,
+      );
+    }
+
+    em.persist(maintenanceRecord);
+    await em.flush();
+
+    return mapMaintenanceRecordEntity(maintenanceRecord);
+  }
+
+  async patchAttendance(
+    attendanceLogId: string,
+    patchAttendanceDto: PatchAttendanceDto,
+  ): Promise<AttendanceRecord> {
+    const em = this.createEntityManager();
+    const attendanceLog = await em.findOne(
+      AttendanceLogEntity,
+      { id: attendanceLogId },
+      { populate: ["personalTrainer"] },
+    );
+
+    if (!attendanceLog) {
+      throw new NotFoundException(`Attendance log ${attendanceLogId} not found`);
+    }
+
+    if (patchAttendanceDto.checkInAt !== undefined) {
+      const checkInAt = new Date(patchAttendanceDto.checkInAt);
+
+      if (Number.isNaN(checkInAt.getTime())) {
+        throw new BadRequestException("Invalid check in time");
+      }
+
+      attendanceLog.checkInAt = checkInAt;
+      attendanceLog.attendanceDate = this.toVietnamDate(checkInAt);
+    }
+
+    if (patchAttendanceDto.checkOutAt !== undefined) {
+      const checkOutAt = new Date(patchAttendanceDto.checkOutAt);
+
+      if (Number.isNaN(checkOutAt.getTime())) {
+        throw new BadRequestException("Invalid check out time");
+      }
+
+      attendanceLog.checkOutAt = checkOutAt;
+    }
+
+    if (patchAttendanceDto.note !== undefined) {
+      attendanceLog.note = patchAttendanceDto.note;
+    }
+
+    await this.recalculateAttendanceLog(em, attendanceLog);
+    await em.flush();
+
+    return mapAttendanceLogEntity(attendanceLog);
+  }
+
+  private async createMembershipSale(
+    em: EntityManager,
+    member: MemberEntity,
+    membershipPlan: MembershipPlanEntity,
+    startDate: Date,
+    paymentMethod: string,
+    totalAmount?: number,
+  ): Promise<{
+      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }> {
+    const endDate = this.addDays(startDate, membershipPlan.durationDays - 1);
+    const remainingSessions =
+      membershipPlan.usageLimit ??
+      (membershipPlan.includedPtSessions > 0
+        ? membershipPlan.includedPtSessions
+        : null);
+    const membership = em.create(MemberMembershipEntity, {
+      member,
+      membershipPlan,
+      startDate,
+      endDate,
+      remainingSessions,
+      status: "ACTIVE",
+      deletedAt: null,
+    } as RequiredEntityData<MemberMembershipEntity>);
+
+    em.persist(membership);
+    await em.flush();
+
+    const invoice = em.create(MembershipInvoiceEntity, {
+      code: this.generateReferenceCode("MI"),
+      member,
+      memberMembership: membership,
+      invoiceDate: new Date(),
+      totalAmount: toDecimalString(totalAmount ?? Number(membershipPlan.price)),
+      paymentMethod,
+      status: "CONFIRMED",
+    } as RequiredEntityData<MembershipInvoiceEntity>);
+
+    em.persist(invoice);
+    await em.flush();
+
+    return {
+      membership: mapMemberMembershipEntity(membership),
+      invoice: mapMembershipInvoiceEntity(invoice),
+    };
+  }
+
+  private ensureValidDateRange(
+    fromDate: Date,
+    toDate: Date | null,
+    context: string,
+  ): void {
+    if (toDate && toDate < fromDate) {
+      throw new BadRequestException(
+        `${context} end date must be on or after the start date`,
+      );
+    }
+  }
+
+  private async ensurePtContractDateRangeAvailable(
+    em: EntityManager,
+    ptId: string,
+    effectiveFrom: Date,
+    effectiveTo: Date | null,
+    excludeContractId?: string,
+  ): Promise<void> {
+    const existingContracts = await em.find(PtContractEntity, {
+      personalTrainer: ptId,
+    });
+
+    for (const existingContract of existingContracts) {
+      if (existingContract.id === excludeContractId) {
+        continue;
+      }
+
+      if (
+        this.doDateRangesOverlap(
+          existingContract.effectiveFrom,
+          existingContract.effectiveTo,
+          effectiveFrom,
+          effectiveTo,
+        )
+      ) {
+        throw new ConflictException(
+          `PT ${ptId} already has a contract overlapping this effective period`,
+        );
+      }
+    }
+  }
+
+  private doDateRangesOverlap(
+    leftFrom: Date,
+    leftTo: Date | string | null | undefined,
+    rightFrom: Date,
+    rightTo: Date | string | null | undefined,
+  ): boolean {
+    const leftToValue =
+      leftTo === null || leftTo === undefined
+        ? Number.POSITIVE_INFINITY
+        : new Date(leftTo).getTime();
+    const rightToValue =
+      rightTo === null || rightTo === undefined
+        ? Number.POSITIVE_INFINITY
+        : new Date(rightTo).getTime();
+
+    return leftFrom.getTime() <= rightToValue && rightFrom.getTime() <= leftToValue;
+  }
+
+  private addDays(date: Date, days: number): Date {
+    const clone = new Date(date);
+
+    clone.setUTCDate(clone.getUTCDate() + days);
+
+    return clone;
+  }
+
+  private sumNumbers(values: number[]): number {
+    return Number(
+      values.reduce((total, value) => total + value, 0).toFixed(2),
+    );
+  }
+
+  private calculateAssignmentCommissionAmount(
+    baseAmount: number,
+    commissionType?: string | null,
+    commissionValue?: number | null,
+    commissionAmount?: number | null,
+    fallbackRate?: number,
+  ): number {
+    if (commissionAmount !== undefined && commissionAmount !== null) {
+      return Number(commissionAmount.toFixed(2));
+    }
+
+    if (commissionType === "PERCENT" && commissionValue !== undefined && commissionValue !== null) {
+      const normalizedRate =
+        commissionValue > 1 ? commissionValue / 100 : commissionValue;
+
+      return Number((baseAmount * normalizedRate).toFixed(2));
+    }
+
+    if (commissionValue !== undefined && commissionValue !== null) {
+      return Number(commissionValue.toFixed(2));
+    }
+
+    if (fallbackRate !== undefined) {
+      return Number((baseAmount * fallbackRate).toFixed(2));
+    }
+
+    return 0;
+  }
+
+  private isDateWithinPeriod(
+    value: Date,
+    payrollPeriod: PayrollPeriodEntity,
+  ): boolean {
+    const timestamp = value.getTime();
+
+    return (
+      timestamp >= payrollPeriod.fromDate.getTime() &&
+      timestamp <= this.addDays(payrollPeriod.toDate, 1).getTime()
+    );
+  }
+
+  private isAssignmentActiveOnDate(
+    assignment: MemberPtAssignmentEntity,
+    value: Date,
+  ): boolean {
+    const timestamp = value.getTime();
+    const assignedFrom = assignment.assignedFrom.getTime();
+    const assignedTo = assignment.assignedTo?.getTime() ?? Number.POSITIVE_INFINITY;
+
+    return (
+      assignment.status === "ACTIVE" ||
+      (timestamp >= assignedFrom && timestamp <= assignedTo)
+    );
+  }
+
+  private async findPtContractForPeriod(
+    em: EntityManager,
+    ptId: string,
+    fromDate: Date,
+    toDate: Date,
+  ): Promise<PtContractEntity | undefined> {
+    const contracts = await em.find(
+      PtContractEntity,
+      {
+        personalTrainer: ptId,
+      },
+      {
+        orderBy: { effectiveFrom: "desc", createdAt: "desc" },
+      },
+    );
+
+    return contracts.find((contract) =>
+      this.doDateRangesOverlap(
+        contract.effectiveFrom,
+        contract.effectiveTo,
+        fromDate,
+        toDate,
+      ),
+    );
+  }
+
+  private async recalculateAttendanceLog(
+    em: EntityManager,
+    attendanceLog: AttendanceLogEntity,
+  ): Promise<void> {
+    if (!attendanceLog.checkOutAt) {
+      attendanceLog.workedHours = "0";
+      attendanceLog.paidHours = "0";
+      attendanceLog.overtimeHours = "0";
+      attendanceLog.status = "OPEN";
+      attendanceLog.workCredit = "0";
+
+      return;
+    }
+
+    if (attendanceLog.checkOutAt <= attendanceLog.checkInAt) {
+      throw new BadRequestException(
+        "Check out time must be after check in time",
+      );
+    }
+
+    const workedHours = Number(
+      (
+        (attendanceLog.checkOutAt.getTime() - attendanceLog.checkInAt.getTime()) /
+        36e5
+      ).toFixed(2),
+    );
+    const ptContract = await this.findActivePtContractEntity(
+      em,
+      attendanceLog.personalTrainer.id,
+      attendanceLog.attendanceDate,
+    );
+    const minValidShiftHours = ptContract
+      ? Number(ptContract.minValidShiftHours)
+      : await this.getNumberSystemConfig(em, "min_valid_shift_hours", 5);
+    const standardShiftHours = ptContract
+      ? Number(ptContract.standardShiftHours)
+      : 8;
+    const halfShiftPolicy = await this.getStringSystemConfig(
+      em,
+      "half_shift_policy",
+      "NO_COUNT",
+    );
+
+    let status: AttendanceLogEntity["status"];
+    let workCredit: number;
+
+    if (workedHours >= minValidShiftHours) {
+      status = "VALID";
+      workCredit = 1;
+    } else if (halfShiftPolicy === "HALF_COUNT") {
+      status = "HALF";
+      workCredit = 0.5;
+    } else {
+      status = "INVALID";
+      workCredit = 0;
+    }
+
+    const overtimeHours =
+      workedHours > standardShiftHours
+        ? Number((workedHours - standardShiftHours).toFixed(2))
+        : 0;
+
+    attendanceLog.workedHours = toDecimalString(workedHours);
+    attendanceLog.paidHours = toDecimalString(workedHours);
+    attendanceLog.overtimeHours = toDecimalString(overtimeHours);
+    attendanceLog.status = status;
+    attendanceLog.workCredit = toDecimalString(workCredit);
+  }
+
+  private generateReferenceCode(prefix: string): string {
+    return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomUUID().slice(0, 8).toUpperCase()}`;
+  }
+
   async submitPayrollPeriod(
     payrollPeriodId: string,
     submittedByUserId: string,
@@ -713,6 +1764,14 @@ export class GymManagementService {
     const trainerData = this.toPersonalTrainerEntityData(
       createPersonalTrainerDto,
     ) as unknown as RequiredEntityData<PersonalTrainerEntity>;
+
+    if (createPersonalTrainerDto.userId) {
+      trainerData.user = await this.getRequiredUserEntity(
+        em,
+        createPersonalTrainerDto.userId,
+      );
+    }
+
     const trainer = em.create(PersonalTrainerEntity, trainerData);
 
     em.persist(trainer);
@@ -727,11 +1786,15 @@ export class GymManagementService {
   ): Promise<TrainerRecord> {
     const em = this.createEntityManager();
     const trainer = await this.getRequiredPersonalTrainerEntity(em, ptId);
+    const trainerData = this.toPersonalTrainerEntityData(updatePersonalTrainerDto);
 
-    wrap(trainer).assign(
-      this.toPersonalTrainerEntityData(updatePersonalTrainerDto),
-      { ignoreUndefined: true },
-    );
+    if (updatePersonalTrainerDto.userId !== undefined) {
+      trainerData.user = updatePersonalTrainerDto.userId
+        ? await this.getRequiredUserEntity(em, updatePersonalTrainerDto.userId)
+        : null;
+    }
+
+    wrap(trainer).assign(trainerData, { ignoreUndefined: true });
     await em.flush();
 
     return mapPersonalTrainerEntity(trainer);
@@ -742,6 +1805,7 @@ export class GymManagementService {
     const trainer = await this.getRequiredPersonalTrainerEntity(em, ptId);
 
     trainer.status = "INACTIVE";
+    trainer.deletedAt = new Date();
     await em.flush();
 
     return mapPersonalTrainerEntity(trainer);
@@ -780,6 +1844,7 @@ export class GymManagementService {
     const member = await this.getRequiredMemberEntity(em, memberId);
 
     member.status = "INACTIVE";
+    member.deletedAt = new Date();
     await em.flush();
 
     return mapMemberEntity(member);
@@ -869,6 +1934,7 @@ export class GymManagementService {
     const product = await this.getRequiredProductEntity(em, productId);
 
     product.status = "INACTIVE";
+    product.deletedAt = new Date();
     await em.flush();
 
     return mapProductEntity(product);
@@ -959,6 +2025,7 @@ export class GymManagementService {
   async patchSystemConfig(
     configKey: string,
     patchSystemConfigDto: PatchSystemConfigDto,
+    actorUserId?: string,
   ): Promise<SystemConfigRecord> {
     const em = this.createEntityManager();
     const systemConfig = await this.getRequiredSystemConfigEntity(
@@ -967,6 +2034,14 @@ export class GymManagementService {
     );
 
     systemConfig.value = patchSystemConfigDto.value;
+
+    if (actorUserId) {
+      systemConfig.updatedByUser = await this.getRequiredUserEntity(
+        em,
+        actorUserId,
+      );
+    }
+
     await em.flush();
 
     return mapSystemConfigEntity(systemConfig);
@@ -1412,18 +2487,12 @@ export class GymManagementService {
     ptId: string,
     attendanceDate: Date,
   ): Promise<PtContractEntity | undefined> {
-    const dateOnly = attendanceDate.toISOString().slice(0, 10);
-    const contract = await em.findOne(
-      PtContractEntity,
-      {
-        personalTrainer: ptId,
-        effectiveFrom: { $lte: parseDateOnly(dateOnly) },
-        effectiveTo: { $gte: parseDateOnly(dateOnly) },
-      },
-      { orderBy: { effectiveFrom: "desc", createdAt: "desc" } },
+    return this.findPtContractForPeriod(
+      em,
+      ptId,
+      attendanceDate,
+      attendanceDate,
     );
-
-    return contract ?? undefined;
   }
 
   private async findAttendanceLogForCheckOut(
@@ -1494,22 +2563,34 @@ export class GymManagementService {
     return fallbackValue;
   }
 
-  private async issueAuthTokens(
-    payload: AuthTokenPayload,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  private async issueAccessToken(payload: AuthTokenPayload): Promise<string> {
     const accessToken = this.generateOpaqueToken("access");
-    const refreshToken = this.generateOpaqueToken("refresh");
 
     await this.redisService.setJson(
       this.toAccessTokenKey(accessToken),
       payload,
       ACCESS_TOKEN_TTL_SECONDS,
     );
-    await this.redisService.setJson(
-      this.toRefreshTokenKey(refreshToken),
-      payload,
-      REFRESH_TOKEN_TTL_SECONDS,
-    );
+
+    return accessToken;
+  }
+
+  private async issueAuthTokens(
+    payload: AuthTokenPayload,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const em = this.createEntityManager();
+    const accessToken = await this.issueAccessToken(payload);
+    const refreshToken = this.generateOpaqueToken("refresh");
+    const refreshTokenEntity = em.create(RefreshTokenEntity, {
+      user: em.getReference(UserEntity, payload.userId),
+      tokenHash: hashOpaqueToken(refreshToken),
+      sessionId: payload.sessionId,
+      expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000),
+      revokedAt: null,
+    } as RequiredEntityData<RefreshTokenEntity>);
+
+    em.persist(refreshTokenEntity);
+    await em.flush();
 
     return {
       accessToken,
@@ -1525,10 +2606,6 @@ export class GymManagementService {
     return `auth:access:${accessToken}`;
   }
 
-  private toRefreshTokenKey(refreshToken: string): string {
-    return `auth:refresh:${refreshToken}`;
-  }
-
   private toRevokedAccessTokenKey(accessToken: string): string {
     return `auth:revoked:access:${accessToken}`;
   }
@@ -1538,7 +2615,7 @@ export class GymManagementService {
     user: Pick<UserEntity, "email" | "id">,
   ): Promise<string | undefined> {
     const trainer = await em.findOne(PersonalTrainerEntity, {
-      email: user.email,
+      $or: [{ user: user.id }, { email: user.email }],
     });
 
     return trainer?.id;
@@ -1568,8 +2645,12 @@ export class GymManagementService {
       maintenanceRecords,
       systemConfigs,
     ] = await Promise.all([
-      em.findAll(UserEntity, { orderBy: { createdAt: "asc", id: "asc" } }),
-      em.findAll(PersonalTrainerEntity, { orderBy: { code: "asc" } }),
+      em.find(UserEntity, { deletedAt: null }, { orderBy: { createdAt: "asc", id: "asc" } }),
+      em.find(
+        PersonalTrainerEntity,
+        { deletedAt: null },
+        { orderBy: { code: "asc" } },
+      ),
       em.findAll(PtContractEntity, {
         orderBy: { effectiveFrom: "asc", id: "asc" },
       }),
@@ -1582,18 +2663,20 @@ export class GymManagementService {
       em.findAll(PayrollEntryEntity, {
         orderBy: { createdAt: "asc", id: "asc" },
       }),
-      em.findAll(MemberEntity, { orderBy: { code: "asc" } }),
+      em.find(MemberEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
       em.findAll(MembershipPlanEntity, { orderBy: { code: "asc" } }),
-      em.findAll(MemberMembershipEntity, {
-        orderBy: { startDate: "asc", id: "asc" },
-      }),
+      em.find(
+        MemberMembershipEntity,
+        { deletedAt: null },
+        { orderBy: { startDate: "asc", id: "asc" } },
+      ),
       em.findAll(MemberPtAssignmentEntity, {
         orderBy: { assignedFrom: "asc", id: "asc" },
       }),
       em.findAll(MembershipInvoiceEntity, {
         orderBy: { invoiceDate: "asc", id: "asc" },
       }),
-      em.findAll(ProductEntity, { orderBy: { code: "asc" } }),
+      em.find(ProductEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
       em.findAll(InventoryTransactionEntity, {
         orderBy: { transactionDate: "asc", id: "asc" },
       }),
@@ -1606,7 +2689,11 @@ export class GymManagementService {
       em.findAll(OperatingExpenseEntity, {
         orderBy: { expenseDate: "asc", id: "asc" },
       }),
-      em.findAll(EquipmentAssetEntity, { orderBy: { code: "asc" } }),
+      em.find(
+        EquipmentAssetEntity,
+        { deletedAt: null },
+        { orderBy: { code: "asc" } },
+      ),
       em.findAll(MaintenanceRecordEntity, {
         orderBy: { maintenanceDate: "asc", id: "asc" },
       }),
@@ -1853,6 +2940,10 @@ export class GymManagementService {
       data.name = dto.name;
     }
 
+    if (dto.category !== undefined) {
+      data.category = dto.category;
+    }
+
     if (dto.purchasedAt !== undefined) {
       data.purchasedAt = parseDateOnly(dto.purchasedAt);
     }
@@ -1861,12 +2952,22 @@ export class GymManagementService {
       data.purchaseValue = toDecimalString(dto.purchaseValue);
     }
 
+    if (dto.status !== undefined) {
+      data.status = dto.status;
+    }
+
     if (dto.condition !== undefined) {
       data.condition = dto.condition;
     }
 
+    if (dto.location !== undefined) {
+      data.location = dto.location;
+    }
+
     if (dto.nextMaintenanceAt !== undefined) {
-      data.nextMaintenanceAt = parseDateOnly(dto.nextMaintenanceAt);
+      data.nextMaintenanceAt = dto.nextMaintenanceAt
+        ? parseDateOnly(dto.nextMaintenanceAt)
+        : null;
     }
 
     if (dto.note !== undefined) {
@@ -1956,12 +3057,26 @@ export class GymManagementService {
     return approvedByUser;
   }
 
+  private async getRequiredUserEntity(
+    em: EntityManager,
+    userId: string,
+  ): Promise<UserEntity> {
+    const user = await em.findOne(UserEntity, { id: userId, deletedAt: null });
+
+    if (!user) {
+      throw new NotFoundException(`User ${userId} not found`);
+    }
+
+    return user;
+  }
+
   private async getRequiredPersonalTrainerEntity(
     em: EntityManager,
     ptId: string,
   ): Promise<PersonalTrainerEntity> {
     const personalTrainer = await em.findOne(PersonalTrainerEntity, {
       id: ptId,
+      deletedAt: null,
     });
 
     if (!personalTrainer) {
@@ -1975,7 +3090,10 @@ export class GymManagementService {
     em: EntityManager,
     memberId: string,
   ): Promise<MemberEntity> {
-    const member = await em.findOne(MemberEntity, { id: memberId });
+    const member = await em.findOne(MemberEntity, {
+      id: memberId,
+      deletedAt: null,
+    });
 
     if (!member) {
       throw new NotFoundException(`Member ${memberId} not found`);
@@ -2012,7 +3130,10 @@ export class GymManagementService {
     em: EntityManager,
     productId: string,
   ): Promise<ProductEntity> {
-    const product = await em.findOne(ProductEntity, { id: productId });
+    const product = await em.findOne(ProductEntity, {
+      id: productId,
+      deletedAt: null,
+    });
 
     if (!product) {
       throw new NotFoundException(`Product ${productId} not found`);
@@ -2034,6 +3155,7 @@ export class GymManagementService {
   ): Promise<EquipmentAssetEntity> {
     const equipmentAsset = await em.findOne(EquipmentAssetEntity, {
       id: equipmentAssetId,
+      deletedAt: null,
     });
 
     if (!equipmentAsset) {

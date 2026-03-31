@@ -39,6 +39,30 @@ function isActivePath(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function getNavigationByRole(role?: string): {
+  readonly main: NavItem[];
+  readonly secondary: NavItem[];
+} {
+  if (role === 'PT') {
+    return {
+      main: [{href: '/pts/attendance', label: 'Cham cong', iconClassName: 'pi pi-clock'}],
+      secondary: [{href: '/payroll', label: 'Luong cua toi', iconClassName: 'pi pi-money-bill'}],
+    };
+  }
+
+  if (!role) {
+    return {
+      main: [],
+      secondary: [],
+    };
+  }
+
+  return {
+    main: mainNavigation,
+    secondary: secondaryNavigation,
+  };
+}
+
 function NavigationGroup({
   title,
   items,
@@ -75,8 +99,21 @@ function NavigationGroup({
   );
 }
 
-export function AppShell({children}: {readonly children: ReactNode}): JSX.Element {
+export function AppShell({
+  children,
+  locale,
+  currentUserName,
+  currentUserRole,
+  logoutAction,
+}: {
+  readonly children: ReactNode;
+  readonly locale: string;
+  readonly currentUserName?: string;
+  readonly currentUserRole?: string;
+  readonly logoutAction: (formData: FormData) => void;
+}): JSX.Element {
   const pathname = usePathname();
+  const navigation = getNavigationByRole(currentUserRole);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.12),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#fff7ed_100%)] lg:grid lg:grid-cols-[295px_minmax(0,1fr)]">
@@ -85,7 +122,7 @@ export function AppShell({children}: {readonly children: ReactNode}): JSX.Elemen
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-orange-300">Gym Manager</p>
           <h1 className="font-display mt-3 text-2xl font-semibold tracking-tight">Operations Hub</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">
-            MVP fullstack duoc dong bo tu cung mot domain dataset de ban mo rong thanh persistence that.
+            Session, read model va core workflow hien da chay truc tiep tren backend Gym Manager.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-orange-100">NestJS API</span>
@@ -95,8 +132,10 @@ export function AppShell({children}: {readonly children: ReactNode}): JSX.Elemen
         </div>
 
         <div className="mt-6 space-y-6">
-          <NavigationGroup title="Primary" items={mainNavigation} pathname={pathname} />
-          <NavigationGroup title="Operations" items={secondaryNavigation} pathname={pathname} />
+          {navigation.main.length > 0 ? <NavigationGroup title="Primary" items={navigation.main} pathname={pathname} /> : null}
+          {navigation.secondary.length > 0 ? (
+            <NavigationGroup title="Operations" items={navigation.secondary} pathname={pathname} />
+          ) : null}
         </div>
       </aside>
 
@@ -106,17 +145,34 @@ export function AppShell({children}: {readonly children: ReactNode}): JSX.Elemen
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</p>
               <p className="font-display mt-1 text-xl font-semibold text-slate-950">Gym Management System v2.1</p>
+              {currentUserName ? (
+                <p className="mt-1 text-sm text-slate-600">
+                  {currentUserName} ({currentUserRole})
+                </p>
+              ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600">
                 UTC+7 workspace
               </span>
-              <Link
-                href="/login"
-                className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600"
-              >
-                Demo login
-              </Link>
+              {currentUserName ? (
+                <form action={logoutAction}>
+                  <input type="hidden" name="locale" value={locale} />
+                  <button
+                    type="submit"
+                    className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    Logout
+                  </button>
+                </form>
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600"
+                >
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         </header>

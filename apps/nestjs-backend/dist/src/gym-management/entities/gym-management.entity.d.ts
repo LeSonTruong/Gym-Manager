@@ -1,13 +1,23 @@
+import { OptionalProps } from '@mikro-orm/core';
 import { BaseEntity } from '../../common/entities/base.entity';
 export declare class UserEntity extends BaseEntity {
     fullName: string;
     email: string;
     role: string;
     status: string;
-    passwordHint: string;
+    passwordHash: string;
+    deletedAt?: Date | null;
+}
+export declare class RefreshTokenEntity extends BaseEntity {
+    user: UserEntity;
+    tokenHash: string;
+    sessionId: string;
+    expiresAt: Date;
+    revokedAt?: Date | null;
 }
 export declare class PersonalTrainerEntity extends BaseEntity {
     code: string;
+    user?: UserEntity | null;
     fullName: string;
     gender: string;
     birthDate: Date;
@@ -19,9 +29,11 @@ export declare class PersonalTrainerEntity extends BaseEntity {
     experienceYears: number;
     avatarUrl: string;
     startDate: Date;
+    deletedAt?: Date | null;
 }
 export declare class PtContractEntity extends BaseEntity {
     personalTrainer: PersonalTrainerEntity;
+    contractCode: string;
     contractType: string;
     salaryType: string;
     baseSalary: string;
@@ -35,7 +47,7 @@ export declare class PtContractEntity extends BaseEntity {
     allowances: string;
     penaltyRules: string[];
     effectiveFrom: Date;
-    effectiveTo: Date;
+    effectiveTo?: Date | null;
 }
 export declare class AttendanceLogEntity extends BaseEntity {
     personalTrainer: PersonalTrainerEntity;
@@ -43,9 +55,11 @@ export declare class AttendanceLogEntity extends BaseEntity {
     checkInAt: Date;
     checkOutAt?: Date | null;
     workedHours: string;
+    paidHours: string;
     overtimeHours: string;
     status: string;
     workCredit: string;
+    note?: string | null;
 }
 export declare class PayrollPeriodEntity extends BaseEntity {
     code: string;
@@ -60,11 +74,18 @@ export declare class PayrollPeriodEntity extends BaseEntity {
 export declare class PayrollEntryEntity extends BaseEntity {
     payrollPeriod: PayrollPeriodEntity;
     personalTrainer: PersonalTrainerEntity;
+    contract?: PtContractEntity | null;
     validShiftCredits: string;
+    paidHours: string;
     overtimeHours: string;
+    baseSalaryAmount: string;
+    attendanceBonusAmount: string;
+    overtimeAmount: string;
     packageCommission: string;
     salesCommission: string;
     performanceBonus: string;
+    allowanceAmount: string;
+    deductionAmount: string;
     penalties: string;
     grossPay: string;
     netPay: string;
@@ -84,6 +105,7 @@ export declare class MemberEntity extends BaseEntity {
     healthNotes: string;
     registeredAt: Date;
     status: string;
+    deletedAt?: Date | null;
 }
 export declare class MembershipPlanEntity extends BaseEntity {
     code: string;
@@ -104,6 +126,7 @@ export declare class MemberMembershipEntity extends BaseEntity {
     endDate: Date;
     remainingSessions?: number | null;
     status: string;
+    deletedAt?: Date | null;
 }
 export declare class MemberPtAssignmentEntity extends BaseEntity {
     member: MemberEntity;
@@ -111,8 +134,11 @@ export declare class MemberPtAssignmentEntity extends BaseEntity {
     memberMembership: MemberMembershipEntity;
     assignedFrom: Date;
     assignedTo?: Date | null;
+    commissionType?: string | null;
+    commissionValue?: string | null;
     commissionAmount: string;
     status: string;
+    note?: string | null;
 }
 export declare class MembershipInvoiceEntity extends BaseEntity {
     code: string;
@@ -132,6 +158,7 @@ export declare class ProductEntity extends BaseEntity {
     stockOnHand: number;
     minimumStockLevel: number;
     status: string;
+    deletedAt?: Date | null;
 }
 export declare class InventoryTransactionEntity extends BaseEntity {
     product: ProductEntity;
@@ -168,11 +195,15 @@ export declare class SalesInvoiceItemEntity extends BaseEntity {
 export declare class EquipmentAssetEntity extends BaseEntity {
     code: string;
     name: string;
+    category?: string | null;
     purchasedAt: Date;
     purchaseValue: string;
+    status?: string | null;
     condition: string;
-    nextMaintenanceAt: Date;
+    location?: string | null;
+    nextMaintenanceAt?: Date | null;
     note: string;
+    deletedAt?: Date | null;
 }
 export declare class OperatingExpenseEntity extends BaseEntity {
     code: string;
@@ -193,10 +224,14 @@ export declare class OperatingExpenseEntity extends BaseEntity {
 }
 export declare class MaintenanceRecordEntity extends BaseEntity {
     equipmentAsset: EquipmentAssetEntity;
+    maintenanceType?: string | null;
     maintenanceDate: Date;
     description: string;
     vendorName: string;
     amount: string;
+    resultStatus?: string | null;
+    note?: string | null;
+    createdByUser?: UserEntity | null;
 }
 export declare class AuditLogEntity extends BaseEntity {
     action: string;
@@ -214,4 +249,8 @@ export declare class SystemConfigEntity {
     label: string;
     value: string;
     description: string;
+    updatedByUser?: UserEntity | null;
+    createdAt: Date;
+    updatedAt: Date;
+    [OptionalProps]?: 'createdAt' | 'updatedAt';
 }

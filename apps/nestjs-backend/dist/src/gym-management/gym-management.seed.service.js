@@ -15,11 +15,18 @@ const core_1 = require("@mikro-orm/core");
 const shared_1 = require("@next-nest-turbo-boilerplate/shared");
 const common_1 = require("@nestjs/common");
 const gym_management_entity_1 = require("./entities/gym-management.entity");
+const auth_crypto_1 = require("./auth/auth-crypto");
 function toDateOnly(value) {
     return new Date(`${value.slice(0, 10)}T00:00:00.000Z`);
 }
 function toDateTime(value) {
     return new Date(value);
+}
+function toOptionalDateOnly(value) {
+    return value ? toDateOnly(value) : null;
+}
+function toOptionalDateTime(value) {
+    return value ? toDateTime(value) : null;
 }
 function toDecimal(value) {
     return value.toString();
@@ -47,22 +54,8 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             email: user.email,
             role: user.role,
             status: user.status,
-            passwordHint: user.passwordHint,
-        })));
-        em.persist(dataset.personalTrainers.map((trainer) => em.create(gym_management_entity_1.PersonalTrainerEntity, {
-            id: trainer.id,
-            code: trainer.code,
-            fullName: trainer.fullName,
-            gender: trainer.gender,
-            birthDate: toDateOnly(trainer.birthDate),
-            phone: trainer.phone,
-            email: trainer.email,
-            address: trainer.address,
-            status: trainer.status,
-            specialties: trainer.specialties,
-            experienceYears: trainer.experienceYears,
-            avatarUrl: trainer.avatarUrl,
-            startDate: toDateOnly(trainer.startDate),
+            passwordHash: (0, auth_crypto_1.hashPassword)(user.passwordHint ?? 'demo123'),
+            deletedAt: toOptionalDateTime(user.deletedAt),
         })));
         em.persist(dataset.members.map((member) => em.create(gym_management_entity_1.MemberEntity, {
             id: member.id,
@@ -79,6 +72,7 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             healthNotes: member.healthNotes,
             registeredAt: toDateOnly(member.registeredAt),
             status: member.status,
+            deletedAt: toOptionalDateTime(member.deletedAt),
         })));
         em.persist(dataset.membershipPlans.map((plan) => em.create(gym_management_entity_1.MembershipPlanEntity, {
             id: plan.id,
@@ -103,27 +97,59 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             stockOnHand: product.stockOnHand,
             minimumStockLevel: product.minimumStockLevel,
             status: product.status,
+            deletedAt: toOptionalDateTime(product.deletedAt),
         })));
         em.persist(dataset.equipmentAssets.map((equipmentAsset) => em.create(gym_management_entity_1.EquipmentAssetEntity, {
             id: equipmentAsset.id,
             code: equipmentAsset.code,
             name: equipmentAsset.name,
+            category: equipmentAsset.category ?? 'Strength',
             purchasedAt: toDateOnly(equipmentAsset.purchasedAt),
             purchaseValue: toDecimal(equipmentAsset.purchaseValue),
+            status: equipmentAsset.status ?? 'IN_USE',
             condition: equipmentAsset.condition,
-            nextMaintenanceAt: toDateOnly(equipmentAsset.nextMaintenanceAt),
+            location: equipmentAsset.location ?? 'Main floor',
+            nextMaintenanceAt: toOptionalDateOnly(equipmentAsset.nextMaintenanceAt),
             note: equipmentAsset.note,
+            deletedAt: toOptionalDateTime(equipmentAsset.deletedAt),
         })));
         em.persist(dataset.systemConfigs.map((config) => em.create(gym_management_entity_1.SystemConfigEntity, {
             key: config.key,
             label: config.label,
             value: config.value,
             description: config.description,
+            updatedByUser: config.updatedByUserId
+                ? em.getReference(gym_management_entity_1.UserEntity, config.updatedByUserId)
+                : null,
+            updatedAt: toOptionalDateTime(config.updatedAt) ?? new Date(),
+        })));
+        await em.flush();
+        const usersByEmail = new Map((await em.findAll(gym_management_entity_1.UserEntity)).map((user) => [user.email, user]));
+        em.persist(dataset.personalTrainers.map((trainer) => em.create(gym_management_entity_1.PersonalTrainerEntity, {
+            id: trainer.id,
+            code: trainer.code,
+            user: trainer.userId
+                ? em.getReference(gym_management_entity_1.UserEntity, trainer.userId)
+                : usersByEmail.get(trainer.email) ?? null,
+            fullName: trainer.fullName,
+            gender: trainer.gender,
+            birthDate: toDateOnly(trainer.birthDate),
+            phone: trainer.phone,
+            email: trainer.email,
+            address: trainer.address,
+            status: trainer.status,
+            specialties: trainer.specialties,
+            experienceYears: trainer.experienceYears,
+            avatarUrl: trainer.avatarUrl,
+            startDate: toDateOnly(trainer.startDate),
+            deletedAt: toOptionalDateTime(trainer.deletedAt),
         })));
         await em.flush();
         em.persist(dataset.ptContracts.map((contract) => em.create(gym_management_entity_1.PtContractEntity, {
             id: contract.id,
             personalTrainer: em.getReference(gym_management_entity_1.PersonalTrainerEntity, contract.ptId),
+            contractCode: contract.contractCode ??
+                `PTC-${contract.ptId.toUpperCase()}-${contract.id.slice(-3)}`,
             contractType: contract.contractType,
             salaryType: contract.salaryType,
             baseSalary: toDecimal(contract.baseSalary),
@@ -137,7 +163,7 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             allowances: toDecimal(contract.allowances),
             penaltyRules: contract.penaltyRules,
             effectiveFrom: toDateOnly(contract.effectiveFrom),
-            effectiveTo: toDateOnly(contract.effectiveTo),
+            effectiveTo: toOptionalDateOnly(contract.effectiveTo),
         })));
         em.persist(dataset.attendanceLogs.map((attendanceLog) => em.create(gym_management_entity_1.AttendanceLogEntity, {
             id: attendanceLog.id,
@@ -146,9 +172,11 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             checkInAt: toDateTime(attendanceLog.checkInAt),
             checkOutAt: attendanceLog.checkOutAt ? toDateTime(attendanceLog.checkOutAt) : null,
             workedHours: toDecimal(attendanceLog.workedHours),
+            paidHours: toDecimal(attendanceLog.paidHours ?? attendanceLog.workedHours),
             overtimeHours: toDecimal(attendanceLog.overtimeHours),
             status: attendanceLog.status,
             workCredit: toDecimal(attendanceLog.workCredit),
+            note: attendanceLog.note ?? null,
         })));
         em.persist(dataset.payrollPeriods.map((period) => em.create(gym_management_entity_1.PayrollPeriodEntity, {
             id: period.id,
@@ -156,6 +184,12 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             fromDate: toDateOnly(period.from),
             toDate: toDateOnly(period.to),
             status: period.status,
+            submittedAt: toOptionalDateTime(period.submittedAt),
+            approvedByUser: period.approvedByUserId
+                ? em.getReference(gym_management_entity_1.UserEntity, period.approvedByUserId)
+                : null,
+            approvedAt: toOptionalDateTime(period.approvedAt),
+            paidAt: toOptionalDateTime(period.paidAt),
         })));
         em.persist(dataset.memberMemberships.map((membership) => em.create(gym_management_entity_1.MemberMembershipEntity, {
             id: membership.id,
@@ -165,30 +199,66 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             endDate: toDateOnly(membership.endDate),
             remainingSessions: membership.remainingSessions,
             status: membership.status,
+            deletedAt: toOptionalDateTime(membership.deletedAt),
         })));
         em.persist(dataset.maintenanceRecords.map((maintenanceRecord) => em.create(gym_management_entity_1.MaintenanceRecordEntity, {
             id: maintenanceRecord.id,
             equipmentAsset: em.getReference(gym_management_entity_1.EquipmentAssetEntity, maintenanceRecord.equipmentAssetId),
+            maintenanceType: maintenanceRecord.maintenanceType ?? 'PREVENTIVE',
             maintenanceDate: toDateOnly(maintenanceRecord.maintenanceDate),
             description: maintenanceRecord.description,
             vendorName: maintenanceRecord.vendorName,
             amount: toDecimal(maintenanceRecord.amount),
+            resultStatus: maintenanceRecord.resultStatus ?? 'RESOLVED',
+            note: maintenanceRecord.note ?? null,
+            createdByUser: maintenanceRecord.createdByUserId
+                ? em.getReference(gym_management_entity_1.UserEntity, maintenanceRecord.createdByUserId)
+                : null,
         })));
         await em.flush();
-        em.persist(dataset.payrollEntries.map((entry) => em.create(gym_management_entity_1.PayrollEntryEntity, {
-            id: entry.id,
-            payrollPeriod: em.getReference(gym_management_entity_1.PayrollPeriodEntity, entry.payrollPeriodId),
-            personalTrainer: em.getReference(gym_management_entity_1.PersonalTrainerEntity, entry.ptId),
-            validShiftCredits: toDecimal(entry.validShiftCredits),
-            overtimeHours: toDecimal(entry.overtimeHours),
-            packageCommission: toDecimal(entry.packageCommission),
-            salesCommission: toDecimal(entry.salesCommission),
-            performanceBonus: toDecimal(entry.performanceBonus),
-            penalties: toDecimal(entry.penalties),
-            grossPay: toDecimal(entry.grossPay),
-            netPay: toDecimal(entry.netPay),
-            status: entry.status,
-        })));
+        const periodLookup = new Map(dataset.payrollPeriods.map((period) => [period.id, period]));
+        const contractLookup = new Map(dataset.ptContracts.map((contract) => [contract.ptId, contract]));
+        const attendanceByPtId = new Map();
+        for (const attendanceLog of dataset.attendanceLogs) {
+            const current = attendanceByPtId.get(attendanceLog.ptId) ?? [];
+            current.push(attendanceLog);
+            attendanceByPtId.set(attendanceLog.ptId, current);
+        }
+        em.persist(dataset.payrollEntries.map((entry) => {
+            const period = periodLookup.get(entry.payrollPeriodId);
+            const contract = contractLookup.get(entry.ptId);
+            const paidHours = (attendanceByPtId.get(entry.ptId) ?? [])
+                .filter((attendanceLog) => {
+                if (!period) {
+                    return false;
+                }
+                return (attendanceLog.attendanceDate >= period.from &&
+                    attendanceLog.attendanceDate <= period.to);
+            })
+                .reduce((total, attendanceLog) => total + (attendanceLog.paidHours ?? attendanceLog.workedHours), 0);
+            return em.create(gym_management_entity_1.PayrollEntryEntity, {
+                id: entry.id,
+                payrollPeriod: em.getReference(gym_management_entity_1.PayrollPeriodEntity, entry.payrollPeriodId),
+                personalTrainer: em.getReference(gym_management_entity_1.PersonalTrainerEntity, entry.ptId),
+                contract: contract ? em.getReference(gym_management_entity_1.PtContractEntity, contract.id) : null,
+                validShiftCredits: toDecimal(entry.validShiftCredits),
+                paidHours: toDecimal(entry.paidHours ?? paidHours),
+                overtimeHours: toDecimal(entry.overtimeHours),
+                baseSalaryAmount: toDecimal(entry.baseSalaryAmount ?? contract?.baseSalary ?? 0),
+                attendanceBonusAmount: toDecimal(entry.attendanceBonusAmount ?? 0),
+                overtimeAmount: toDecimal(entry.overtimeAmount ??
+                    Number((entry.overtimeHours * (contract?.overtimeHourlyRate ?? 0)).toFixed(2))),
+                packageCommission: toDecimal(entry.packageCommission),
+                salesCommission: toDecimal(entry.salesCommission),
+                performanceBonus: toDecimal(entry.performanceBonus),
+                allowanceAmount: toDecimal(entry.allowanceAmount ?? contract?.allowances ?? 0),
+                deductionAmount: toDecimal(entry.deductionAmount ?? 0),
+                penalties: toDecimal(entry.penalties),
+                grossPay: toDecimal(entry.grossPay),
+                netPay: toDecimal(entry.netPay),
+                status: entry.status,
+            });
+        }));
         em.persist(dataset.memberPtAssignments.map((assignment) => em.create(gym_management_entity_1.MemberPtAssignmentEntity, {
             id: assignment.id,
             member: em.getReference(gym_management_entity_1.MemberEntity, assignment.memberId),
@@ -196,8 +266,13 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             memberMembership: em.getReference(gym_management_entity_1.MemberMembershipEntity, assignment.memberMembershipId),
             assignedFrom: toDateOnly(assignment.assignedFrom),
             assignedTo: assignment.assignedTo ? toDateOnly(assignment.assignedTo) : null,
+            commissionType: assignment.commissionType ?? 'FIXED',
+            commissionValue: assignment.commissionValue === undefined || assignment.commissionValue === null
+                ? null
+                : toDecimal(assignment.commissionValue),
             commissionAmount: toDecimal(assignment.commissionAmount),
             status: assignment.status,
+            note: assignment.note ?? null,
         })));
         em.persist(dataset.membershipInvoices.map((invoice) => em.create(gym_management_entity_1.MembershipInvoiceEntity, {
             id: invoice.id,
@@ -221,6 +296,9 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             discountAmount: toDecimal(invoice.discountAmount),
             totalAmount: toDecimal(invoice.totalAmount),
             note: invoice.note,
+            confirmedAt: toOptionalDateTime(invoice.confirmedAt),
+            cancelledAt: toOptionalDateTime(invoice.cancelledAt),
+            cancellationReason: invoice.cancellationReason ?? null,
         })));
         em.persist(dataset.operatingExpenses.map((expense) => em.create(gym_management_entity_1.OperatingExpenseEntity, {
             id: expense.id,
@@ -236,6 +314,11 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             approvedByUser: expense.approvedByUserId
                 ? em.getReference(gym_management_entity_1.UserEntity, expense.approvedByUserId)
                 : null,
+            submittedAt: toOptionalDateTime(expense.submittedAt),
+            approvedAt: toOptionalDateTime(expense.approvedAt),
+            rejectedAt: toOptionalDateTime(expense.rejectedAt),
+            rejectionReason: expense.rejectionReason ?? null,
+            paidAt: toOptionalDateTime(expense.paidAt),
             attachmentUrl: expense.attachmentUrl,
             status: expense.status,
         })));

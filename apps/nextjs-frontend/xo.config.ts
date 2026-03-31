@@ -43,6 +43,22 @@ const xoConfig: FlatXoConfig = [
     rules: {
       complexity: "off",
       "max-lines": "off",
+      "react/jsx-sort-props": "off",
+      "react/boolean-prop-naming": "off",
+      "@typescript-eslint/no-restricted-types": "off",
+    },
+  },
+  {
+    files: ["src/lib/gym-auth.ts"],
+    rules: {
+      "import-x/no-unassigned-import": "off",
+      "@typescript-eslint/no-restricted-types": "off",
+    },
+  },
+  {
+    files: ["src/lib/gym-data.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-types": "off",
     },
   },
   {

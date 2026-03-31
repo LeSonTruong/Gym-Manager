@@ -33,6 +33,7 @@ const xoConfig = [
       // Nest.js specific rules
       "@typescript-eslint/consistent-type-imports": "off", // Open API doc fails to recognize type import of DTOs correctly
       "n/prefer-global/process": "off",
+      "import-x/extensions": "off",
 
       // Forbid mikro orm findOneOrFail -> it's better to use findOne and handle the error manually
       "no-restricted-syntax": [
@@ -65,11 +66,28 @@ const xoConfig = [
     files: ["src/gym-management/gym-management.service.ts"],
     rules: {
       "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/member-ordering": "off",
+      "@typescript-eslint/no-restricted-types": "off",
       "max-lines": "off",
+      "max-params": "off",
+      "no-await-in-loop": "off",
+      "no-negated-condition": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/prefer-nullish-coalescing": "off",
       "unicorn/no-array-method-this-argument": "off",
+      "unicorn/no-await-expression-member": "off",
+      "unicorn/no-negated-condition": "off",
+    },
+  },
+  {
+    files: [
+      "src/gym-management/gym-management.seed.service.ts",
+      "src/gym-management/auth/auth-crypto.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-restricted-types": "off",
+      "max-params": "off",
       "unicorn/no-await-expression-member": "off",
     },
   },

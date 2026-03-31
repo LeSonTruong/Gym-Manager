@@ -1,7 +1,7 @@
 import { MikroORM } from "@mikro-orm/core";
 import { type DemoUser, type GymManagementDataset, type GymManagementSnapshot } from "@next-nest-turbo-boilerplate/shared";
 import { RedisService } from "../redis/redis.service";
-import { AttendanceCheckInDto, AttendanceCheckOutDto, CreateEquipmentDto, CreateMemberDto, CreateMembershipPlanDto, CreateOperatingExpenseDto, CreatePersonalTrainerDto, CreateProductDto, PatchSystemConfigDto, UpdateEquipmentDto, UpdateMemberDto, UpdateMembershipPlanDto, UpdateOperatingExpenseDto, UpdatePersonalTrainerDto, UpdateProductDto } from "./dto/gym-management.dto";
+import { AttendanceCheckInDto, AttendanceCheckOutDto, CreateMaintenanceDto, CreateEquipmentDto, CreateMemberDto, CreateMemberAssignmentDto, CreateMemberMembershipDto, CreateMembershipPlanDto, CreateOperatingExpenseDto, CreatePayrollPeriodDto, CreatePersonalTrainerDto, CreateProductDto, CreatePtContractDto, CreateSalesInvoiceDto, EndMemberAssignmentDto, GeneratePayrollDto, InventoryImportDto, PatchSystemConfigDto, PatchAttendanceDto, RenewMemberMembershipDto, UpdateEquipmentDto, UpdateMemberDto, UpdateMembershipPlanDto, UpdateOperatingExpenseDto, UpdatePersonalTrainerDto, UpdatePtContractDto, UpdateProductDto } from "./dto/gym-management.dto";
 import type { AuthenticatedUser } from "./auth/authenticated-user.type";
 type LoginResult = {
     user: DemoUser;
@@ -63,6 +63,38 @@ export declare class GymManagementService {
     getSalesInvoiceDetail(salesInvoiceId: string): Promise<GymManagementSnapshot["dataset"]["salesInvoices"][number]>;
     getExpenseDetail(expenseId: string): Promise<OperatingExpenseRecord>;
     getEquipmentDetail(equipmentAssetId: string): Promise<EquipmentAssetRecord>;
+    createPtContract(ptId: string, createPtContractDto: CreatePtContractDto): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]>;
+    updatePtContract(ptId: string, contractId: string, updatePtContractDto: UpdatePtContractDto): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]>;
+    createMemberMembership(createMemberMembershipDto: CreateMemberMembershipDto): Promise<{
+        membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+        invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }>;
+    renewMemberMembership(membershipId: string, renewMemberMembershipDto: RenewMemberMembershipDto): Promise<{
+        membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+        invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }>;
+    cancelMemberMembership(membershipId: string, cancelledAt?: string): Promise<GymManagementSnapshot["dataset"]["memberMemberships"][number]>;
+    createMemberAssignment(createMemberAssignmentDto: CreateMemberAssignmentDto): Promise<GymManagementSnapshot["dataset"]["memberPtAssignments"][number]>;
+    endMemberAssignment(assignmentId: string, endMemberAssignmentDto: EndMemberAssignmentDto): Promise<GymManagementSnapshot["dataset"]["memberPtAssignments"][number]>;
+    createPayrollPeriod(createPayrollPeriodDto: CreatePayrollPeriodDto): Promise<GymManagementSnapshot["dataset"]["payrollPeriods"][number]>;
+    generatePayroll(generatePayrollDto: GeneratePayrollDto): Promise<PayrollPeriodTransitionResult>;
+    getPayrollMe(userId: string): Promise<GymManagementSnapshot["dataset"]["payrollEntries"]>;
+    createSalesInvoice(createSalesInvoiceDto: CreateSalesInvoiceDto, createdByUserId: string): Promise<GymManagementSnapshot["dataset"]["salesInvoices"][number]>;
+    importInventory(inventoryImportDto: InventoryImportDto): Promise<GymManagementSnapshot["dataset"]["inventoryTransactions"][number]>;
+    createMaintenance(createMaintenanceDto: CreateMaintenanceDto, createdByUserId: string): Promise<GymManagementSnapshot["dataset"]["maintenanceRecords"][number]>;
+    patchAttendance(attendanceLogId: string, patchAttendanceDto: PatchAttendanceDto): Promise<AttendanceRecord>;
+    private createMembershipSale;
+    private ensureValidDateRange;
+    private ensurePtContractDateRangeAvailable;
+    private doDateRangesOverlap;
+    private addDays;
+    private sumNumbers;
+    private calculateAssignmentCommissionAmount;
+    private isDateWithinPeriod;
+    private isAssignmentActiveOnDate;
+    private findPtContractForPeriod;
+    private recalculateAttendanceLog;
+    private generateReferenceCode;
     submitPayrollPeriod(payrollPeriodId: string, submittedByUserId: string): Promise<PayrollPeriodTransitionResult>;
     approvePayrollPeriod(payrollPeriodId: string, approvedByUserId: string): Promise<PayrollPeriodTransitionResult>;
     markPayrollPeriodPaid(payrollPeriodId: string, paidByUserId: string): Promise<PayrollPeriodTransitionResult>;
@@ -89,7 +121,7 @@ export declare class GymManagementService {
     updateEquipment(equipmentAssetId: string, updateEquipmentDto: UpdateEquipmentDto): Promise<EquipmentAssetRecord>;
     createOperatingExpense(createOperatingExpenseDto: CreateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
     updateOperatingExpense(expenseId: string, updateOperatingExpenseDto: UpdateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
-    patchSystemConfig(configKey: string, patchSystemConfigDto: PatchSystemConfigDto): Promise<SystemConfigRecord>;
+    patchSystemConfig(configKey: string, patchSystemConfigDto: PatchSystemConfigDto, actorUserId?: string): Promise<SystemConfigRecord>;
     private createEntityManager;
     private transitionPayrollPeriodStatus;
     private transitionExpenseStatus;
@@ -107,10 +139,10 @@ export declare class GymManagementService {
     private getStringSystemConfig;
     private getNumberSystemConfig;
     private getBooleanSystemConfig;
+    private issueAccessToken;
     private issueAuthTokens;
     private generateOpaqueToken;
     private toAccessTokenKey;
-    private toRefreshTokenKey;
     private toRevokedAccessTokenKey;
     private resolvePtIdForUser;
     private loadDataset;
@@ -122,6 +154,7 @@ export declare class GymManagementService {
     private toOperatingExpenseEntityData;
     private resolveEquipmentAsset;
     private resolveApprovedByUser;
+    private getRequiredUserEntity;
     private getRequiredPersonalTrainerEntity;
     private getRequiredMemberEntity;
     private getRequiredMembershipPlanEntity;
