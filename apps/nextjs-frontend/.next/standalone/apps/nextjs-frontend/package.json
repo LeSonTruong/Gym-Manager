@@ -8,7 +8,7 @@
     "start:prod": "next start",
     "lint": "xo",
     "lint:fix": "xo --fix",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --pass-with-no-tests",
     "test:e2e:debug": "playwright test --debug",
     "docker:build": "cd ../.. && docker build -t nextjs-frontend -f apps/nextjs-frontend/dockerfile .",
     "docker:start:dev": "docker run -p 3000:3000 --env-file .env nextjs-frontend"

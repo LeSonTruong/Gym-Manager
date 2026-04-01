@@ -38,7 +38,9 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
         this.orm = orm;
     }
     async onModuleInit() {
-        await this.orm.migrator.up();
+        await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'
+            ? this.orm.schema.updateSchema()
+            : this.orm.migrator.up());
         await this.seedIfEmpty();
     }
     async seedIfEmpty() {
@@ -343,7 +345,9 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             lineTotal: toDecimal(item.lineTotal),
         }))));
         await em.flush();
-        this.logger.log('Seeded Gym Manager demo data into PostgreSQL');
+        this.logger.log((((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite')
+            ? 'Seeded Gym Manager demo data into local SQLite fallback'
+            : 'Seeded Gym Manager demo data into PostgreSQL');
     }
 };
 exports.GymManagementSeedService = GymManagementSeedService;

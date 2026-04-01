@@ -25,13 +25,13 @@ export type DemoUser = {
     email: string;
     role: UserRole;
     status: UserStatus;
-    passwordHint?: string | null;
-    deletedAt?: string | null;
+    passwordHint?: string | undefined;
+    deletedAt?: string | undefined;
 };
 export type PersonalTrainer = {
     id: string;
     code: string;
-    userId?: string | null;
+    userId?: string | undefined;
     fullName: string;
     gender: Gender;
     birthDate: string;
@@ -43,7 +43,7 @@ export type PersonalTrainer = {
     experienceYears: number;
     avatarUrl: string;
     startDate: string;
-    deletedAt?: string | null;
+    deletedAt?: string | undefined;
 };
 export type PtContract = {
     id: string;
@@ -62,20 +62,20 @@ export type PtContract = {
     allowances: number;
     penaltyRules: string[];
     effectiveFrom: string;
-    effectiveTo?: string | null;
+    effectiveTo?: string | undefined;
 };
 export type AttendanceLog = {
     id: string;
     ptId: string;
     attendanceDate: string;
     checkInAt: string;
-    checkOutAt?: string | null;
+    checkOutAt?: string | undefined;
     workedHours: number;
     paidHours?: number;
     overtimeHours: number;
     status: AttendanceLogStatus;
     workCredit: number;
-    note?: string | null;
+    note?: string | undefined;
 };
 export type PayrollPeriod = {
     id: string;
@@ -83,16 +83,16 @@ export type PayrollPeriod = {
     from: string;
     to: string;
     status: PayrollPeriodStatus;
-    submittedAt?: string | null;
-    approvedByUserId?: string | null;
-    approvedAt?: string | null;
-    paidAt?: string | null;
+    submittedAt?: string | undefined;
+    approvedByUserId?: string | undefined;
+    approvedAt?: string | undefined;
+    paidAt?: string | undefined;
 };
 export type PayrollEntry = {
     id: string;
     payrollPeriodId: string;
     ptId: string;
-    contractId?: string | null;
+    contractId?: string | undefined;
     validShiftCredits: number;
     paidHours?: number;
     overtimeHours: number;
@@ -124,7 +124,7 @@ export type Member = {
     healthNotes: string;
     registeredAt: string;
     status: UserStatus;
-    deletedAt?: string | null;
+    deletedAt?: string | undefined;
 };
 export type MembershipPlan = {
     id: string;
@@ -133,7 +133,7 @@ export type MembershipPlan = {
     type: MembershipPlanType;
     price: number;
     durationDays: number;
-    usageLimit?: number | null;
+    usageLimit?: number | undefined;
     includesPt: boolean;
     includedPtSessions: number;
     perks: string[];
@@ -145,9 +145,9 @@ export type MemberMembership = {
     membershipPlanId: string;
     startDate: string;
     endDate: string;
-    remainingSessions?: number | null;
+    remainingSessions?: number | undefined;
     status: MembershipStatus;
-    deletedAt?: string | null;
+    deletedAt?: string | undefined;
 };
 export type MemberPtAssignment = {
     id: string;
@@ -155,12 +155,12 @@ export type MemberPtAssignment = {
     ptId: string;
     memberMembershipId: string;
     assignedFrom: string;
-    assignedTo?: string | null;
-    commissionType?: CommissionType | null;
-    commissionValue?: number | null;
+    assignedTo?: string | undefined;
+    commissionType?: CommissionType | undefined;
+    commissionValue?: number | undefined;
     commissionAmount: number;
     status: PtAssignmentStatus;
-    note?: string | null;
+    note?: string | undefined;
 };
 export type MembershipInvoice = {
     id: string;
@@ -182,7 +182,7 @@ export type Product = {
     stockOnHand: number;
     minimumStockLevel: number;
     status: 'ACTIVE' | 'INACTIVE';
-    deletedAt?: string | null;
+    deletedAt?: string | undefined;
 };
 export type InventoryTransaction = {
     id: string;
@@ -206,7 +206,7 @@ export type SalesInvoice = {
     code: string;
     invoiceDate: string;
     createdByUserId: string;
-    memberId?: string | null;
+    memberId?: string | undefined;
     customerName: string;
     status: SalesInvoiceStatus;
     paymentMethod: PaymentMethod;
@@ -214,61 +214,61 @@ export type SalesInvoice = {
     totalAmount: number;
     note: string;
     items: SalesInvoiceItem[];
-    confirmedAt?: string | null;
-    cancelledAt?: string | null;
-    cancellationReason?: string | null;
+    confirmedAt?: string | undefined;
+    cancelledAt?: string | undefined;
+    cancellationReason?: string | undefined;
 };
 export type OperatingExpense = {
     id: string;
     code: string;
     expenseDate: string;
     category: OperatingExpenseCategory;
-    equipmentAssetId?: string | null;
+    equipmentAssetId?: string | undefined;
     vendorName: string;
     amount: number;
     description: string;
-    approvedByUserId?: string | null;
-    attachmentUrl?: string | null;
+    approvedByUserId?: string | undefined;
+    attachmentUrl?: string | undefined;
     status: ExpenseStatus;
-    submittedAt?: string | null;
-    approvedAt?: string | null;
-    rejectedAt?: string | null;
-    rejectionReason?: string | null;
-    paidAt?: string | null;
+    submittedAt?: string | undefined;
+    approvedAt?: string | undefined;
+    rejectedAt?: string | undefined;
+    rejectionReason?: string | undefined;
+    paidAt?: string | undefined;
 };
 export type EquipmentAsset = {
     id: string;
     code: string;
     name: string;
-    category?: string | null;
+    category?: string | undefined;
     purchasedAt: string;
     purchaseValue: number;
-    status?: EquipmentStatus | null;
+    status?: EquipmentStatus | undefined;
     condition: EquipmentCondition;
-    location?: string | null;
-    nextMaintenanceAt?: string | null;
+    location?: string | undefined;
+    nextMaintenanceAt?: string | undefined;
     note: string;
-    deletedAt?: string | null;
+    deletedAt?: string | undefined;
 };
 export type MaintenanceRecord = {
     id: string;
     equipmentAssetId: string;
     maintenanceDate: string;
-    maintenanceType?: MaintenanceType | null;
+    maintenanceType?: MaintenanceType | undefined;
     description: string;
     vendorName: string;
     amount: number;
-    resultStatus?: MaintenanceResultStatus | null;
-    note?: string | null;
-    createdByUserId?: string | null;
+    resultStatus?: MaintenanceResultStatus | undefined;
+    note?: string | undefined;
+    createdByUserId?: string | undefined;
 };
 export type SystemConfig = {
     key: string;
     label: string;
     value: string;
     description: string;
-    updatedByUserId?: string | null;
-    updatedAt?: string | null;
+    updatedByUserId?: string | undefined;
+    updatedAt?: string | undefined;
 };
 export type GymManagementDataset = {
     generatedAt: string;

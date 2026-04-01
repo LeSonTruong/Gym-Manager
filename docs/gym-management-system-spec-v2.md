@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD031 MD032 MD060 -->
+
 # Gym Management System Specification v2.1
 
 > **Phiên bản:** 2.1 — Chuẩn hóa nghiệp vụ và schema từ v2.0
@@ -1140,7 +1142,7 @@ apps/nextjs-frontend/src/app
 
 ### 9.1 Đăng ký member và bán vé
 
-```
+```text
 Nhân viên → Tạo hồ sơ member
          → Chọn gói vé (DAY / MONTH / YEAR)
          → Nếu gói có PT → Chọn PT phụ trách
@@ -1152,7 +1154,7 @@ Nhân viên → Tạo hồ sơ member
 
 ### 9.2 PT chấm công
 
-```
+```text
 PT → Check In → Hệ thống tạo attendance log (status=OPEN)
 PT → Check Out → Hệ thống tính worked_hours
               → Nếu worked_hours ≥ min_valid_shift_hours → status=VALID, work_credit=1
@@ -1162,7 +1164,7 @@ PT → Check Out → Hệ thống tính worked_hours
 
 ### 9.3 Bán sản phẩm dịch vụ
 
-```
+```text
 Nhân viên → Tạo hóa đơn (status=DRAFT)
           → Thêm sản phẩm và số lượng
           → Xác nhận thanh toán → status=CONFIRMED
@@ -1171,7 +1173,7 @@ Nhân viên → Tạo hóa đơn (status=DRAFT)
 
 ### 9.4 Ghi nhận chi phí sửa chữa / thay mới
 
-```
+```text
 Nhân viên → Tạo phiếu chi
            → Chọn loại chi phí & thiết bị liên quan
            → Ghi số tiền, mô tả, upload chứng từ
@@ -1184,7 +1186,7 @@ Nhân viên → Tạo phiếu chi
 
 ### 9.5 Tính lương PT cuối kỳ
 
-```
+```text
 Admin → Tạo payroll_period (OPEN)
       → POST /payroll/generate → Hệ thống tính lương từng PT
         (lấy hợp đồng hiệu lực, tổng hợp attendance, overtime, hoa hồng)
@@ -1268,7 +1270,7 @@ Loi_nhuan_rong =
 - Truy cập toàn bộ báo cáo và audit logs.
 - Cấu hình Settings hệ thống.
 
-### PT
+### PT (Role permissions)
 
 - Xem thông tin cá nhân (chỉ của mình).
 - Check In / Check Out.

@@ -16,12 +16,19 @@ const ioredis_1 = require("ioredis");
 const config_key_enum_1 = require("../config/config-key.enum");
 let RedisService = class RedisService {
     configService;
+    memoryStore = new Map();
+    memorySubscribers = new Map();
     publisher;
     subscriber;
+    useInMemoryRedis = false;
     constructor(configService) {
         this.configService = configService;
     }
     onModuleInit() {
+        if ((this.configService.get(config_key_enum_1.ConfigKey.REDIS_HOST) ?? '').toLowerCase() === 'memory') {
+            this.useInMemoryRedis = true;
+            return;
+        }
         const redisConfig = {
             host: this.configService.get(config_key_enum_1.ConfigKey.REDIS_HOST),
             port: this.configService.get(config_key_enum_1.ConfigKey.REDIS_PORT),
@@ -35,12 +42,25 @@ let RedisService = class RedisService {
     }
     async publish(channel, message) {
         const serialized = JSON.stringify(message);
+        if (this.useInMemoryRedis) {
+            for (const callback of this.memorySubscribers.get(channel) ?? []) {
+                callback(serialized);
+            }
+            return;
+        }
         if (!this.publisher) {
             throw new Error('Redis publisher is not initialized');
         }
         await this.publisher.publish(channel, serialized);
     }
     async setValue(key, value, ttlSeconds) {
+        if (this.useInMemoryRedis) {
+            this.memoryStore.set(key, {
+                value,
+                expiresAt: ttlSeconds && ttlSeconds > 0 ? Date.now() + ttlSeconds * 1000 : undefined,
+            });
+            return;
+        }
         const client = this.getPublisher();
         if (ttlSeconds && ttlSeconds > 0) {
             await client.set(key, value, 'EX', ttlSeconds);
@@ -49,9 +69,24 @@ let RedisService = class RedisService {
         await client.set(key, value);
     }
     async getValue(key) {
+        if (this.useInMemoryRedis) {
+            const entry = this.memoryStore.get(key);
+            if (!entry) {
+                return undefined;
+            }
+            if (entry.expiresAt && entry.expiresAt <= Date.now()) {
+                this.memoryStore.delete(key);
+                return undefined;
+            }
+            return entry.value;
+        }
         return (await this.getPublisher().get(key)) ?? undefined;
     }
     async deleteKey(key) {
+        if (this.useInMemoryRedis) {
+            this.memoryStore.delete(key);
+            return;
+        }
         await this.getPublisher().del(key);
     }
     async setJson(key, value, ttlSeconds) {
@@ -65,6 +100,19 @@ let RedisService = class RedisService {
         return JSON.parse(value);
     }
     async subscribe(channel, callback) {
+        if (this.useInMemoryRedis) {
+            const callbacks = this.memorySubscribers.get(channel) ?? new Set();
+            callbacks.add((message) => {
+                try {
+                    callback(JSON.parse(message));
+                }
+                catch {
+                    callback(message);
+                }
+            });
+            this.memorySubscribers.set(channel, callbacks);
+            return;
+        }
         if (!this.subscriber) {
             throw new Error('Redis subscriber is not initialized');
         }
@@ -83,12 +131,21 @@ let RedisService = class RedisService {
         });
     }
     async unsubscribe(channel) {
+        if (this.useInMemoryRedis) {
+            this.memorySubscribers.delete(channel);
+            return;
+        }
         if (!this.subscriber) {
             throw new Error('Redis subscriber is not initialized');
         }
         await this.subscriber.unsubscribe(channel);
     }
     async onModuleDestroy() {
+        if (this.useInMemoryRedis) {
+            this.memoryStore.clear();
+            this.memorySubscribers.clear();
+            return;
+        }
         await this.publisher?.quit();
         await this.subscriber?.quit();
     }

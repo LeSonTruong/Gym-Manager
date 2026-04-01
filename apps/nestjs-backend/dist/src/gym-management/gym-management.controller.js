@@ -402,6 +402,7 @@ __decorate([
 ], GymManagementController.prototype, "getPts", null);
 __decorate([
     (0, common_1.Post)("pts"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [gym_management_dto_1.CreatePersonalTrainerDto]),
@@ -444,6 +445,7 @@ __decorate([
 ], GymManagementController.prototype, "updatePtContract", null);
 __decorate([
     (0, common_1.Patch)("pts/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -452,6 +454,7 @@ __decorate([
 ], GymManagementController.prototype, "updatePt", null);
 __decorate([
     (0, common_1.Delete)("pts/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("id")),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -465,7 +468,7 @@ __decorate([
 ], GymManagementController.prototype, "getAttendance", null);
 __decorate([
     (0, common_1.Post)("attendance/check-in"),
-    (0, roles_decorator_1.Roles)("ADMIN", "STAFF", "PT"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     (0, audit_action_decorator_1.AuditAction)("ATTENDANCE_CHECK_IN", "attendance_logs"),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
@@ -475,7 +478,7 @@ __decorate([
 ], GymManagementController.prototype, "checkInAttendance", null);
 __decorate([
     (0, common_1.Post)("attendance/check-out"),
-    (0, roles_decorator_1.Roles)("ADMIN", "STAFF", "PT"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     (0, audit_action_decorator_1.AuditAction)("ATTENDANCE_CHECK_OUT", "attendance_logs"),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
@@ -628,6 +631,7 @@ __decorate([
 ], GymManagementController.prototype, "getMembershipPlans", null);
 __decorate([
     (0, common_1.Post)("membership-plans"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [gym_management_dto_1.CreateMembershipPlanDto]),
@@ -635,6 +639,7 @@ __decorate([
 ], GymManagementController.prototype, "createMembershipPlan", null);
 __decorate([
     (0, common_1.Patch)("membership-plans/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -643,6 +648,7 @@ __decorate([
 ], GymManagementController.prototype, "updateMembershipPlan", null);
 __decorate([
     (0, common_1.Delete)("membership-plans/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("id")),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -717,6 +723,7 @@ __decorate([
 ], GymManagementController.prototype, "getProducts", null);
 __decorate([
     (0, common_1.Post)("products"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [gym_management_dto_1.CreateProductDto]),
@@ -724,6 +731,7 @@ __decorate([
 ], GymManagementController.prototype, "createProduct", null);
 __decorate([
     (0, common_1.Patch)("products/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -732,6 +740,7 @@ __decorate([
 ], GymManagementController.prototype, "updateProduct", null);
 __decorate([
     (0, common_1.Delete)("products/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("id")),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -867,6 +876,7 @@ __decorate([
 ], GymManagementController.prototype, "getEquipment", null);
 __decorate([
     (0, common_1.Post)("equipment"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [gym_management_dto_1.CreateEquipmentDto]),
@@ -881,6 +891,7 @@ __decorate([
 ], GymManagementController.prototype, "getEquipmentDetail", null);
 __decorate([
     (0, common_1.Patch)("equipment/:id"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -950,6 +961,7 @@ __decorate([
 ], GymManagementController.prototype, "getSettings", null);
 __decorate([
     (0, common_1.Patch)("settings/:key"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
     __param(0, (0, common_1.Param)("key")),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)()),

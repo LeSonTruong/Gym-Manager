@@ -94,6 +94,7 @@ export declare class GymManagementService {
     private isAssignmentActiveOnDate;
     private findPtContractForPeriod;
     private recalculateAttendanceLog;
+    private calculateAttendanceCompensation;
     private generateReferenceCode;
     submitPayrollPeriod(payrollPeriodId: string, submittedByUserId: string): Promise<PayrollPeriodTransitionResult>;
     approvePayrollPeriod(payrollPeriodId: string, approvedByUserId: string): Promise<PayrollPeriodTransitionResult>;
@@ -134,6 +135,7 @@ export declare class GymManagementService {
     private flattenToRow;
     private toPdfBuffer;
     private toVietnamDate;
+    private assertCurrentVietnamDate;
     private findActivePtContractEntity;
     private findAttendanceLogForCheckOut;
     private getStringSystemConfig;

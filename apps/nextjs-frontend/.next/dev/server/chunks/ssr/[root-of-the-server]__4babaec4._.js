@@ -35,11 +35,10 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$intl
 const routing = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$intl$2f$dist$2f$esm$2f$development$2f$routing$2f$defineRouting$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__defineRouting$3e$__["defineRouting"])({
     // A list of all locales that are supported
     locales: [
-        'en',
-        'de'
+        'vi'
     ],
     // Used when no locale matches
-    defaultLocale: 'en'
+    defaultLocale: 'vi'
 });
 }),
 "[project]/apps/nextjs-frontend/src/i18n/navigation.ts [app-ssr] (ecmascript)", ((__turbopack_context__) => {
@@ -71,99 +70,208 @@ __turbopack_context__.s([
     ()=>AppShell
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$intl$2f$dist$2f$esm$2f$development$2f$react$2d$client$2f$index$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next-intl/dist/esm/development/react-client/index.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$nextjs$2d$frontend$2f$src$2f$i18n$2f$navigation$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/apps/nextjs-frontend/src/i18n/navigation.ts [app-ssr] (ecmascript)");
 'use client';
 ;
 ;
-const mainNavigation = [
-    {
-        href: '/dashboard',
-        label: 'Dashboard',
-        iconClassName: 'pi pi-home'
-    },
-    {
-        href: '/pts',
-        label: 'PT',
-        iconClassName: 'pi pi-users'
-    },
-    {
-        href: '/members',
-        label: 'Members',
-        iconClassName: 'pi pi-id-card'
-    },
-    {
-        href: '/membership-plans',
-        label: 'Goi tap',
-        iconClassName: 'pi pi-ticket'
-    },
-    {
-        href: '/products',
-        label: 'San pham',
-        iconClassName: 'pi pi-shopping-bag'
-    },
-    {
-        href: '/expenses',
-        label: 'Chi phi',
-        iconClassName: 'pi pi-wallet'
-    },
-    {
-        href: '/equipment',
-        label: 'Thiet bi',
-        iconClassName: 'pi pi-cog'
-    },
-    {
-        href: '/reports/revenue',
-        label: 'Bao cao',
-        iconClassName: 'pi pi-chart-line'
-    }
-];
-const secondaryNavigation = [
-    {
-        href: '/pts/attendance',
-        label: 'Cham cong',
-        iconClassName: 'pi pi-clock'
-    },
-    {
-        href: '/payroll',
-        label: 'Luong PT',
-        iconClassName: 'pi pi-money-bill'
-    },
-    {
-        href: '/members/memberships',
-        label: 'Ve da ban',
-        iconClassName: 'pi pi-calendar'
-    },
-    {
-        href: '/membership-invoices',
-        label: 'Hoa don ve',
-        iconClassName: 'pi pi-file'
-    },
-    {
-        href: '/inventory',
-        label: 'Ton kho',
-        iconClassName: 'pi pi-box'
-    },
-    {
-        href: '/invoices',
-        label: 'Hoa don dich vu',
-        iconClassName: 'pi pi-receipt'
-    },
-    {
-        href: '/maintenance',
-        label: 'Bao tri',
-        iconClassName: 'pi pi-wrench'
-    },
-    {
-        href: '/settings',
-        label: 'Cau hinh',
-        iconClassName: 'pi pi-sliders-h'
-    }
-];
+;
+;
 function isActivePath(pathname, href) {
     if (href === '/dashboard') {
         return pathname === '/' || pathname === '/dashboard';
     }
     return pathname === href || pathname.startsWith(`${href}/`);
+}
+function getNavigationByRole(t, role) {
+    const adminMainNavigation = [
+        {
+            href: '/dashboard',
+            label: t('Dashboard'),
+            iconClassName: 'pi pi-home'
+        },
+        {
+            href: '/pts',
+            label: t('PT'),
+            iconClassName: 'pi pi-users'
+        },
+        {
+            href: '/members',
+            label: t('Members'),
+            iconClassName: 'pi pi-id-card'
+        },
+        {
+            href: '/membership-plans',
+            label: t('Plans'),
+            iconClassName: 'pi pi-ticket'
+        },
+        {
+            href: '/products',
+            label: t('Products'),
+            iconClassName: 'pi pi-shopping-bag'
+        },
+        {
+            href: '/expenses',
+            label: t('Expenses'),
+            iconClassName: 'pi pi-wallet'
+        },
+        {
+            href: '/equipment',
+            label: t('Equipment'),
+            iconClassName: 'pi pi-cog'
+        },
+        {
+            href: '/reports/revenue',
+            label: t('Reports'),
+            iconClassName: 'pi pi-chart-line'
+        }
+    ];
+    const adminSecondaryNavigation = [
+        {
+            href: '/pts/attendance',
+            label: t('Attendance'),
+            iconClassName: 'pi pi-clock'
+        },
+        {
+            href: '/payroll',
+            label: t('Payroll'),
+            iconClassName: 'pi pi-money-bill'
+        },
+        {
+            href: '/members/memberships',
+            label: t('SoldMemberships'),
+            iconClassName: 'pi pi-calendar'
+        },
+        {
+            href: '/member-assignments',
+            label: t('Assignments'),
+            iconClassName: 'pi pi-users'
+        },
+        {
+            href: '/membership-invoices',
+            label: t('MembershipInvoices'),
+            iconClassName: 'pi pi-file'
+        },
+        {
+            href: '/inventory',
+            label: t('Inventory'),
+            iconClassName: 'pi pi-box'
+        },
+        {
+            href: '/invoices',
+            label: t('SalesInvoices'),
+            iconClassName: 'pi pi-receipt'
+        },
+        {
+            href: '/maintenance',
+            label: t('Maintenance'),
+            iconClassName: 'pi pi-wrench'
+        },
+        {
+            href: '/settings',
+            label: t('Settings'),
+            iconClassName: 'pi pi-sliders-h'
+        }
+    ];
+    const staffMainNavigation = [
+        {
+            href: '/dashboard',
+            label: t('Dashboard'),
+            iconClassName: 'pi pi-home'
+        },
+        {
+            href: '/members',
+            label: t('Members'),
+            iconClassName: 'pi pi-id-card'
+        },
+        {
+            href: '/expenses',
+            label: t('Expenses'),
+            iconClassName: 'pi pi-wallet'
+        },
+        {
+            href: '/reports/revenue',
+            label: t('Reports'),
+            iconClassName: 'pi pi-chart-line'
+        }
+    ];
+    const staffSecondaryNavigation = [
+        {
+            href: '/pts/attendance',
+            label: t('Attendance'),
+            iconClassName: 'pi pi-clock'
+        },
+        {
+            href: '/payroll',
+            label: t('Payroll'),
+            iconClassName: 'pi pi-money-bill'
+        },
+        {
+            href: '/members/memberships',
+            label: t('SoldMemberships'),
+            iconClassName: 'pi pi-calendar'
+        },
+        {
+            href: '/member-assignments',
+            label: t('Assignments'),
+            iconClassName: 'pi pi-users'
+        },
+        {
+            href: '/membership-invoices',
+            label: t('MembershipInvoices'),
+            iconClassName: 'pi pi-file'
+        },
+        {
+            href: '/inventory',
+            label: t('Inventory'),
+            iconClassName: 'pi pi-box'
+        },
+        {
+            href: '/invoices',
+            label: t('SalesInvoices'),
+            iconClassName: 'pi pi-receipt'
+        },
+        {
+            href: '/maintenance',
+            label: t('Maintenance'),
+            iconClassName: 'pi pi-wrench'
+        }
+    ];
+    if (role === 'PT') {
+        return {
+            main: [
+                {
+                    href: '/pts/attendance',
+                    label: t('Attendance'),
+                    iconClassName: 'pi pi-clock'
+                }
+            ],
+            secondary: [
+                {
+                    href: '/payroll',
+                    label: t('MyPayroll'),
+                    iconClassName: 'pi pi-money-bill'
+                }
+            ]
+        };
+    }
+    if (!role) {
+        return {
+            main: [],
+            secondary: []
+        };
+    }
+    if (role === 'STAFF') {
+        return {
+            main: staffMainNavigation,
+            secondary: staffSecondaryNavigation
+        };
+    }
+    return {
+        main: adminMainNavigation,
+        secondary: adminSecondaryNavigation
+    };
 }
 function NavigationGroup({ title, items, pathname }) {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -173,7 +281,7 @@ function NavigationGroup({ title, items, pathname }) {
                 children: title
             }, void 0, false, {
                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                lineNumber: 53,
+                lineNumber: 104,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
@@ -182,13 +290,14 @@ function NavigationGroup({ title, items, pathname }) {
                     const active = isActivePath(pathname, item.href);
                     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$nextjs$2d$frontend$2f$src$2f$i18n$2f$navigation$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Link"], {
                         href: item.href,
-                        className: `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${active ? 'bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]' : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'}`,
+                        "aria-current": active ? 'page' : undefined,
+                        className: `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${active ? 'bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]' : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`,
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                 className: `text-sm ${item.iconClassName}`
                             }, void 0, false, {
                                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 68,
+                                lineNumber: 119,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -196,35 +305,52 @@ function NavigationGroup({ title, items, pathname }) {
                                 children: item.label
                             }, void 0, false, {
                                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 69,
+                                lineNumber: 120,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, item.href, true, {
                         fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                        lineNumber: 59,
+                        lineNumber: 110,
                         columnNumber: 13
                     }, this);
                 })
             }, void 0, false, {
                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                lineNumber: 54,
+                lineNumber: 105,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-        lineNumber: 52,
+        lineNumber: 103,
         columnNumber: 5
     }, this);
 }
-function AppShell({ children }) {
+function AppShell({ children, locale, currentUserName, currentUserRole, logoutAction }) {
     const pathname = (0, __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$nextjs$2d$frontend$2f$src$2f$i18n$2f$navigation$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["usePathname"])();
+    const tNav = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$intl$2f$dist$2f$esm$2f$development$2f$react$2d$client$2f$index$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useTranslations"])('Navigation');
+    const tApp = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2d$intl$2f$dist$2f$esm$2f$development$2f$react$2d$client$2f$index$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useTranslations"])('AppShell');
+    const navigation = getNavigationByRole(tNav, currentUserRole);
+    const [theme, setTheme] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])('light');
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        const savedTheme = globalThis.localStorage.getItem('gym-theme');
+        const preferredDark = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+        const resolvedTheme = savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : preferredDark ? 'dark' : 'light';
+        setTheme(resolvedTheme);
+        document.documentElement.dataset.theme = resolvedTheme;
+    }, []);
+    const toggleTheme = ()=>{
+        const nextTheme = theme === 'dark' ? 'light' : 'dark';
+        setTheme(nextTheme);
+        document.documentElement.dataset.theme = nextTheme;
+        globalThis.localStorage.setItem('gym-theme', nextTheme);
+    };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.12),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#fff7ed_100%)] lg:grid lg:grid-cols-[295px_minmax(0,1fr)]",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("aside", {
-                className: "border-b border-white/60 bg-white/72 p-5 backdrop-blur lg:min-h-screen lg:border-b-0 lg:border-r",
+                className: "border-b border-white/60 bg-white/72 p-5 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r",
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "rounded-[1.75rem] bg-slate-950 p-5 text-white shadow-[0_25px_60px_rgba(15,23,42,0.32)]",
@@ -234,102 +360,69 @@ function AppShell({ children }) {
                                 children: "Gym Manager"
                             }, void 0, false, {
                                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 85,
+                                lineNumber: 171,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
                                 className: "font-display mt-3 text-2xl font-semibold tracking-tight",
-                                children: "Operations Hub"
+                                children: tApp('Title')
                             }, void 0, false, {
                                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 86,
+                                lineNumber: 172,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                 className: "mt-3 text-sm leading-6 text-slate-300",
-                                children: "MVP fullstack duoc dong bo tu cung mot domain dataset de ban mo rong thanh persistence that."
+                                children: tApp('Subtitle')
                             }, void 0, false, {
                                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 87,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                className: "mt-5 flex flex-wrap gap-2",
-                                children: [
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-orange-100",
-                                        children: "NestJS API"
-                                    }, void 0, false, {
-                                        fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                        lineNumber: 91,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-sky-100",
-                                        children: "Next.js App"
-                                    }, void 0, false, {
-                                        fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                        lineNumber: 92,
-                                        columnNumber: 13
-                                    }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-100",
-                                        children: "Shared contracts"
-                                    }, void 0, false, {
-                                        fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                        lineNumber: 93,
-                                        columnNumber: 13
-                                    }, this)
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 90,
+                                lineNumber: 173,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                        lineNumber: 84,
+                        lineNumber: 170,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "mt-6 space-y-6",
                         children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(NavigationGroup, {
-                                title: "Primary",
-                                items: mainNavigation,
+                            navigation.main.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(NavigationGroup, {
+                                title: tApp('GroupPrimary'),
+                                items: navigation.main,
                                 pathname: pathname
                             }, void 0, false, {
                                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 98,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(NavigationGroup, {
-                                title: "Operations",
-                                items: secondaryNavigation,
+                                lineNumber: 179,
+                                columnNumber: 41
+                            }, this) : null,
+                            navigation.secondary.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(NavigationGroup, {
+                                title: tApp('GroupOperations'),
+                                items: navigation.secondary,
                                 pathname: pathname
                             }, void 0, false, {
                                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                lineNumber: 99,
-                                columnNumber: 11
-                            }, this)
+                                lineNumber: 181,
+                                columnNumber: 13
+                            }, this) : null
                         ]
                     }, void 0, true, {
                         fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                        lineNumber: 97,
+                        lineNumber: 178,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                lineNumber: 83,
+                lineNumber: 169,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                 className: "min-w-0",
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("header", {
-                        className: "border-b border-white/60 bg-white/62 px-4 py-4 backdrop-blur lg:px-8",
+                        className: "sticky top-0 z-20 border-b border-white/60 bg-white/72 px-4 py-4 backdrop-blur lg:px-8",
                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
                             children: [
@@ -337,10 +430,10 @@ function AppShell({ children }) {
                                     children: [
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                             className: "text-xs font-semibold uppercase tracking-[0.24em] text-slate-500",
-                                            children: "Workspace"
+                                            children: tApp('Workspace')
                                         }, void 0, false, {
                                             fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                            lineNumber: 107,
+                                            lineNumber: 190,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -348,70 +441,142 @@ function AppShell({ children }) {
                                             children: "Gym Management System v2.1"
                                         }, void 0, false, {
                                             fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                            lineNumber: 108,
+                                            lineNumber: 191,
                                             columnNumber: 15
-                                        }, this)
+                                        }, this),
+                                        currentUserName ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "mt-1 text-sm text-slate-600",
+                                            children: [
+                                                currentUserName,
+                                                " (",
+                                                currentUserRole,
+                                                ")"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
+                                            lineNumber: 193,
+                                            columnNumber: 17
+                                        }, this) : null
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                    lineNumber: 106,
+                                    lineNumber: 189,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "flex flex-wrap items-center gap-2",
                                     children: [
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                            className: "rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600",
-                                            children: "UTC+7 workspace"
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                            type: "button",
+                                            className: "rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70",
+                                            onClick: toggleTheme,
+                                            children: theme === 'dark' ? tApp('ThemeLight') : tApp('ThemeDark')
                                         }, void 0, false, {
                                             fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                            lineNumber: 111,
+                                            lineNumber: 199,
                                             columnNumber: 15
                                         }, this),
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$nextjs$2d$frontend$2f$src$2f$i18n$2f$navigation$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Link"], {
-                                            href: "/login",
-                                            className: "rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600",
-                                            children: "Demo login"
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                            className: "rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600",
+                                            children: tApp('WorkspaceTag')
                                         }, void 0, false, {
                                             fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                            lineNumber: 114,
+                                            lineNumber: 206,
                                             columnNumber: 15
+                                        }, this),
+                                        currentUserName ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
+                                            action: logoutAction,
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                                                    type: "hidden",
+                                                    name: "locale",
+                                                    value: locale
+                                                }, void 0, false, {
+                                                    fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
+                                                    lineNumber: 211,
+                                                    columnNumber: 19
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                                    type: "submit",
+                                                    className: "rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70",
+                                                    children: tApp('Logout')
+                                                }, void 0, false, {
+                                                    fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
+                                                    lineNumber: 212,
+                                                    columnNumber: 19
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
+                                            lineNumber: 210,
+                                            columnNumber: 17
+                                        }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$nextjs$2d$frontend$2f$src$2f$i18n$2f$navigation$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Link"], {
+                                            href: "/login",
+                                            className: "rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70",
+                                            children: tApp('Login')
+                                        }, void 0, false, {
+                                            fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
+                                            lineNumber: 220,
+                                            columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                                    lineNumber: 110,
+                                    lineNumber: 198,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                            lineNumber: 105,
+                            lineNumber: 188,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                        lineNumber: 104,
+                        lineNumber: 187,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
                         className: "mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8 lg:py-8",
-                        children: children
-                    }, void 0, false, {
+                        children: [
+                            navigation.main.length > 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("nav", {
+                                className: "-mx-1 flex gap-2 overflow-x-auto pb-2 lg:hidden",
+                                "aria-label": "Điều hướng nhanh",
+                                children: navigation.main.map((item)=>{
+                                    const active = isActivePath(pathname, item.href);
+                                    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$nextjs$2d$frontend$2f$src$2f$i18n$2f$navigation$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Link"], {
+                                        href: item.href,
+                                        "aria-current": active ? 'page' : undefined,
+                                        className: `shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition ${active ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50'}`,
+                                        children: item.label
+                                    }, `quick-${item.href}`, false, {
+                                        fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
+                                        lineNumber: 238,
+                                        columnNumber: 19
+                                    }, this);
+                                })
+                            }, void 0, false, {
+                                fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
+                                lineNumber: 233,
+                                columnNumber: 13
+                            }, this) : null,
+                            children
+                        ]
+                    }, void 0, true, {
                         fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                        lineNumber: 124,
+                        lineNumber: 231,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-                lineNumber: 103,
+                lineNumber: 186,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/apps/nextjs-frontend/src/components/app-shell/app-shell.component.tsx",
-        lineNumber: 82,
+        lineNumber: 168,
         columnNumber: 5
     }, this);
 }

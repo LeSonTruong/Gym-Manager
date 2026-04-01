@@ -2,8 +2,11 @@ import { OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 export declare class RedisService implements OnModuleInit, OnModuleDestroy {
     private readonly configService;
+    private readonly memoryStore;
+    private readonly memorySubscribers;
     private publisher;
     private subscriber;
+    private useInMemoryRedis;
     constructor(configService: ConfigService);
     onModuleInit(): void;
     publish<T>(channel: string, message: T): Promise<void>;

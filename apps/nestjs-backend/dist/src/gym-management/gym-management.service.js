@@ -189,6 +189,7 @@ let GymManagementService = class GymManagementService {
         if (Number.isNaN(checkInAt.getTime())) {
             throw new common_1.BadRequestException("Invalid check in time");
         }
+        this.assertCurrentVietnamDate(checkInAt, "checkInAt");
         const allowMultipleShifts = await this.getBooleanSystemConfig(em, "allow_multiple_shifts_per_day", false);
         const attendanceDate = this.toVietnamDate(checkInAt);
         if (!allowMultipleShifts) {
@@ -235,6 +236,12 @@ let GymManagementService = class GymManagementService {
         if (Number.isNaN(checkOutAt.getTime())) {
             throw new common_1.BadRequestException("Invalid check out time");
         }
+        this.assertCurrentVietnamDate(attendanceLog.attendanceDate, "attendanceDate");
+        this.assertCurrentVietnamDate(checkOutAt, "checkOutAt");
+        const earliestCheckOutAt = new Date(attendanceLog.checkInAt.getTime() + 5 * 36e5);
+        if (checkOutAt < earliestCheckOutAt) {
+            throw new common_1.BadRequestException("Check out is allowed only after 5 working hours from check in");
+        }
         if (checkOutAt <= attendanceLog.checkInAt) {
             throw new common_1.BadRequestException("Check out time must be after check in time");
         }
@@ -262,12 +269,10 @@ let GymManagementService = class GymManagementService {
             status = "INVALID";
             workCredit = 0;
         }
-        const overtimeHours = workedHours > standardShiftHours
-            ? Number((workedHours - standardShiftHours).toFixed(2))
-            : 0;
+        const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(workedHours, standardShiftHours);
         attendanceLog.checkOutAt = checkOutAt;
         attendanceLog.workedHours = workedHours.toString();
-        attendanceLog.paidHours = workedHours.toString();
+        attendanceLog.paidHours = paidHours.toString();
         attendanceLog.overtimeHours = overtimeHours.toString();
         attendanceLog.status = status;
         attendanceLog.workCredit = workCredit.toString();
@@ -754,11 +759,13 @@ let GymManagementService = class GymManagementService {
         if (!attendanceLog) {
             throw new common_1.NotFoundException(`Attendance log ${attendanceLogId} not found`);
         }
+        this.assertCurrentVietnamDate(attendanceLog.attendanceDate, "attendanceDate");
         if (patchAttendanceDto.checkInAt !== undefined) {
             const checkInAt = new Date(patchAttendanceDto.checkInAt);
             if (Number.isNaN(checkInAt.getTime())) {
                 throw new common_1.BadRequestException("Invalid check in time");
             }
+            this.assertCurrentVietnamDate(checkInAt, "checkInAt");
             attendanceLog.checkInAt = checkInAt;
             attendanceLog.attendanceDate = this.toVietnamDate(checkInAt);
         }
@@ -767,6 +774,7 @@ let GymManagementService = class GymManagementService {
             if (Number.isNaN(checkOutAt.getTime())) {
                 throw new common_1.BadRequestException("Invalid check out time");
             }
+            this.assertCurrentVietnamDate(checkOutAt, "checkOutAt");
             attendanceLog.checkOutAt = checkOutAt;
         }
         if (patchAttendanceDto.note !== undefined) {
@@ -892,6 +900,10 @@ let GymManagementService = class GymManagementService {
         if (attendanceLog.checkOutAt <= attendanceLog.checkInAt) {
             throw new common_1.BadRequestException("Check out time must be after check in time");
         }
+        const earliestCheckOutAt = new Date(attendanceLog.checkInAt.getTime() + 5 * 36e5);
+        if (attendanceLog.checkOutAt < earliestCheckOutAt) {
+            throw new common_1.BadRequestException("Check out is allowed only after 5 working hours from check in");
+        }
         const workedHours = Number(((attendanceLog.checkOutAt.getTime() - attendanceLog.checkInAt.getTime()) /
             36e5).toFixed(2));
         const ptContract = await this.findActivePtContractEntity(em, attendanceLog.personalTrainer.id, attendanceLog.attendanceDate);
@@ -916,14 +928,25 @@ let GymManagementService = class GymManagementService {
             status = "INVALID";
             workCredit = 0;
         }
-        const overtimeHours = workedHours > standardShiftHours
-            ? Number((workedHours - standardShiftHours).toFixed(2))
-            : 0;
+        const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(workedHours, standardShiftHours);
         attendanceLog.workedHours = (0, gym_management_mapper_1.toDecimalString)(workedHours);
-        attendanceLog.paidHours = (0, gym_management_mapper_1.toDecimalString)(workedHours);
+        attendanceLog.paidHours = (0, gym_management_mapper_1.toDecimalString)(paidHours);
         attendanceLog.overtimeHours = (0, gym_management_mapper_1.toDecimalString)(overtimeHours);
         attendanceLog.status = status;
         attendanceLog.workCredit = (0, gym_management_mapper_1.toDecimalString)(workCredit);
+    }
+    calculateAttendanceCompensation(workedHours, standardShiftHours) {
+        if (workedHours <= standardShiftHours) {
+            return {
+                paidHours: workedHours,
+                overtimeHours: 0,
+            };
+        }
+        const overtimeHours = Math.floor(workedHours - standardShiftHours);
+        return {
+            paidHours: standardShiftHours,
+            overtimeHours,
+        };
     }
     generateReferenceCode(prefix) {
         return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${(0, node_crypto_1.randomUUID)().slice(0, 8).toUpperCase()}`;
@@ -1380,6 +1403,13 @@ let GymManagementService = class GymManagementService {
         });
         const [year, month, day] = formatter.format(value).split("-");
         return (0, gym_management_mapper_1.parseDateOnly)(`${year}-${month}-${day}`);
+    }
+    assertCurrentVietnamDate(value, fieldName) {
+        const targetDate = this.toVietnamDate(value).getTime();
+        const currentDate = this.toVietnamDate(new Date()).getTime();
+        if (targetDate !== currentDate) {
+            throw new common_1.BadRequestException(`${fieldName} must be on current Vietnam date`);
+        }
     }
     async findActivePtContractEntity(em, ptId, attendanceDate) {
         return this.findPtContractForPeriod(em, ptId, attendanceDate, attendanceDate);

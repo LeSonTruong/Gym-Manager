@@ -57,14 +57,14 @@ function mapUserEntity(entity) {
         email: entity.email,
         role: entity.role,
         status: entity.status,
-        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
 function mapPersonalTrainerEntity(entity) {
     return {
         id: entity.id,
         code: entity.code,
-        userId: entity.user?.id ?? null,
+        userId: entity.user?.id ?? undefined,
         fullName: entity.fullName,
         gender: entity.gender,
         birthDate: toDateOnlyString(entity.birthDate),
@@ -76,7 +76,7 @@ function mapPersonalTrainerEntity(entity) {
         experienceYears: entity.experienceYears,
         avatarUrl: entity.avatarUrl,
         startDate: toDateOnlyString(entity.startDate),
-        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
 function mapPtContractEntity(entity) {
@@ -97,7 +97,7 @@ function mapPtContractEntity(entity) {
         allowances: Number(entity.allowances),
         penaltyRules: entity.penaltyRules,
         effectiveFrom: toDateOnlyString(entity.effectiveFrom),
-        effectiveTo: entity.effectiveTo ? toDateOnlyString(entity.effectiveTo) : null,
+        effectiveTo: entity.effectiveTo ? toDateOnlyString(entity.effectiveTo) : undefined,
     };
 }
 function mapAttendanceLogEntity(entity) {
@@ -106,13 +106,13 @@ function mapAttendanceLogEntity(entity) {
         ptId: entity.personalTrainer.id,
         attendanceDate: toDateOnlyString(entity.attendanceDate),
         checkInAt: toDateTimeString(entity.checkInAt),
-        checkOutAt: entity.checkOutAt ? toDateTimeString(entity.checkOutAt) : null,
+        checkOutAt: entity.checkOutAt ? toDateTimeString(entity.checkOutAt) : undefined,
         workedHours: Number(entity.workedHours),
         paidHours: Number(entity.paidHours),
         overtimeHours: Number(entity.overtimeHours),
         status: entity.status,
         workCredit: Number(entity.workCredit),
-        note: entity.note ?? null,
+        note: entity.note ?? undefined,
     };
 }
 function mapPayrollPeriodEntity(entity) {
@@ -122,10 +122,10 @@ function mapPayrollPeriodEntity(entity) {
         from: toDateOnlyString(entity.fromDate),
         to: toDateOnlyString(entity.toDate),
         status: entity.status,
-        submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : null,
-        approvedByUserId: entity.approvedByUser?.id ?? null,
-        approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : null,
-        paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : null,
+        submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
+        approvedByUserId: entity.approvedByUser?.id ?? undefined,
+        approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
+        paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : undefined,
     };
 }
 function mapPayrollEntryEntity(entity) {
@@ -133,7 +133,7 @@ function mapPayrollEntryEntity(entity) {
         id: entity.id,
         payrollPeriodId: entity.payrollPeriod.id,
         ptId: entity.personalTrainer.id,
-        contractId: entity.contract?.id ?? null,
+        contractId: entity.contract?.id ?? undefined,
         validShiftCredits: Number(entity.validShiftCredits),
         paidHours: Number(entity.paidHours),
         overtimeHours: Number(entity.overtimeHours),
@@ -167,7 +167,7 @@ function mapMemberEntity(entity) {
         healthNotes: entity.healthNotes,
         registeredAt: toDateOnlyString(entity.registeredAt),
         status: entity.status,
-        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
 function mapMembershipPlanEntity(entity) {
@@ -178,7 +178,7 @@ function mapMembershipPlanEntity(entity) {
         type: entity.type,
         price: Number(entity.price),
         durationDays: entity.durationDays,
-        usageLimit: entity.usageLimit ?? null,
+        usageLimit: entity.usageLimit ?? undefined,
         includesPt: entity.includesPt,
         includedPtSessions: entity.includedPtSessions,
         perks: entity.perks,
@@ -192,9 +192,9 @@ function mapMemberMembershipEntity(entity) {
         membershipPlanId: entity.membershipPlan.id,
         startDate: toDateOnlyString(entity.startDate),
         endDate: toDateOnlyString(entity.endDate),
-        remainingSessions: entity.remainingSessions ?? null,
+        remainingSessions: entity.remainingSessions ?? undefined,
         status: entity.status,
-        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
 function mapMemberPtAssignmentEntity(entity) {
@@ -204,12 +204,12 @@ function mapMemberPtAssignmentEntity(entity) {
         ptId: entity.personalTrainer.id,
         memberMembershipId: entity.memberMembership.id,
         assignedFrom: toDateOnlyString(entity.assignedFrom),
-        assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : null,
-        commissionType: entity.commissionType ?? null,
-        commissionValue: entity.commissionValue ? Number(entity.commissionValue) : null,
+        assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
+        commissionType: entity.commissionType ?? undefined,
+        commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,
         commissionAmount: Number(entity.commissionAmount),
         status: entity.status,
-        note: entity.note ?? null,
+        note: entity.note ?? undefined,
     };
 }
 function mapMembershipInvoiceEntity(entity) {
@@ -235,7 +235,7 @@ function mapProductEntity(entity) {
         stockOnHand: entity.stockOnHand,
         minimumStockLevel: entity.minimumStockLevel,
         status: entity.status,
-        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
 function mapInventoryTransactionEntity(entity) {
@@ -265,7 +265,7 @@ function mapSalesInvoiceEntity(entity, items) {
         code: entity.code,
         invoiceDate: toDateTimeString(entity.invoiceDate),
         createdByUserId: entity.createdByUser.id,
-        memberId: entity.member?.id ?? null,
+        memberId: entity.member?.id ?? undefined,
         customerName: entity.customerName,
         status: entity.status,
         paymentMethod: entity.paymentMethod,
@@ -273,9 +273,9 @@ function mapSalesInvoiceEntity(entity, items) {
         totalAmount: Number(entity.totalAmount),
         note: entity.note,
         items,
-        confirmedAt: entity.confirmedAt ? toDateTimeString(entity.confirmedAt) : null,
-        cancelledAt: entity.cancelledAt ? toDateTimeString(entity.cancelledAt) : null,
-        cancellationReason: entity.cancellationReason ?? null,
+        confirmedAt: entity.confirmedAt ? toDateTimeString(entity.confirmedAt) : undefined,
+        cancelledAt: entity.cancelledAt ? toDateTimeString(entity.cancelledAt) : undefined,
+        cancellationReason: entity.cancellationReason ?? undefined,
     };
 }
 function mapEquipmentAssetEntity(entity) {
@@ -283,17 +283,17 @@ function mapEquipmentAssetEntity(entity) {
         id: entity.id,
         code: entity.code,
         name: entity.name,
-        category: entity.category ?? null,
+        category: entity.category ?? undefined,
         purchasedAt: toDateOnlyString(entity.purchasedAt),
         purchaseValue: Number(entity.purchaseValue),
-        status: entity.status ?? null,
+        status: entity.status ?? undefined,
         condition: entity.condition,
-        location: entity.location ?? null,
+        location: entity.location ?? undefined,
         nextMaintenanceAt: entity.nextMaintenanceAt
             ? toDateOnlyString(entity.nextMaintenanceAt)
-            : null,
+            : undefined,
         note: entity.note,
-        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : null,
+        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
 function mapOperatingExpenseEntity(entity) {
@@ -302,18 +302,18 @@ function mapOperatingExpenseEntity(entity) {
         code: entity.code,
         expenseDate: toDateOnlyString(entity.expenseDate),
         category: entity.category,
-        equipmentAssetId: entity.equipmentAsset?.id ?? null,
+        equipmentAssetId: entity.equipmentAsset?.id ?? undefined,
         vendorName: entity.vendorName,
         amount: Number(entity.amount),
         description: entity.description,
-        approvedByUserId: entity.approvedByUser?.id ?? null,
-        attachmentUrl: entity.attachmentUrl ?? null,
+        approvedByUserId: entity.approvedByUser?.id ?? undefined,
+        attachmentUrl: entity.attachmentUrl ?? undefined,
         status: entity.status,
-        submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : null,
-        approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : null,
-        rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : null,
-        rejectionReason: entity.rejectionReason ?? null,
-        paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : null,
+        submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
+        approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
+        rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : undefined,
+        rejectionReason: entity.rejectionReason ?? undefined,
+        paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : undefined,
     };
 }
 function mapMaintenanceRecordEntity(entity) {
@@ -321,13 +321,13 @@ function mapMaintenanceRecordEntity(entity) {
         id: entity.id,
         equipmentAssetId: entity.equipmentAsset.id,
         maintenanceDate: toDateOnlyString(entity.maintenanceDate),
-        maintenanceType: entity.maintenanceType ?? null,
+        maintenanceType: entity.maintenanceType ?? undefined,
         description: entity.description,
         vendorName: entity.vendorName,
         amount: Number(entity.amount),
-        resultStatus: entity.resultStatus ?? null,
-        note: entity.note ?? null,
-        createdByUserId: entity.createdByUser?.id ?? null,
+        resultStatus: entity.resultStatus ?? undefined,
+        note: entity.note ?? undefined,
+        createdByUserId: entity.createdByUser?.id ?? undefined,
     };
 }
 function mapSystemConfigEntity(entity) {
@@ -336,7 +336,7 @@ function mapSystemConfigEntity(entity) {
         label: entity.label,
         value: entity.value,
         description: entity.description,
-        updatedByUserId: entity.updatedByUser?.id ?? null,
+        updatedByUserId: entity.updatedByUser?.id ?? undefined,
         updatedAt: toDateTimeString(entity.updatedAt),
     };
 }
