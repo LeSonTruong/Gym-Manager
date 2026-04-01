@@ -1,5 +1,5 @@
-import {type JSX, type ReactNode} from 'react';
-import {type BadgeTone} from '@/lib/gym-data.ts';
+import { type JSX, type ReactNode } from 'react';
+import { type BadgeTone } from '@/lib/gym-data.ts';
 
 type PageHeaderProps = {
   readonly eyebrow: string;
@@ -45,14 +45,15 @@ const badgeToneClassMap: Record<BadgeTone, string> = {
   sky: 'border-sky-300 bg-sky-100 text-sky-700',
 };
 
-export function PageHeader({eyebrow, title, description, actions}: PageHeaderProps): JSX.Element {
+export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps): JSX.Element {
+  void description;
+
   return (
     <section className="rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-[0_30px_70px_rgba(15,23,42,0.08)] backdrop-blur lg:p-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-600">{eyebrow}</p>
           <h1 className="font-display mt-3 text-3xl font-semibold tracking-tight text-slate-950 lg:text-4xl">{title}</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 lg:text-base">{description}</p>
         </div>
         {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : undefined}
       </div>
@@ -60,7 +61,7 @@ export function PageHeader({eyebrow, title, description, actions}: PageHeaderPro
   );
 }
 
-export function StatsGrid({items}: StatsGridProps): JSX.Element {
+export function StatsGrid({ items }: StatsGridProps): JSX.Element {
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
@@ -77,19 +78,20 @@ export function StatsGrid({items}: StatsGridProps): JSX.Element {
   );
 }
 
-export function SectionCard({title, description, children}: SectionCardProps): JSX.Element {
+export function SectionCard({ title, description, children }: SectionCardProps): JSX.Element {
+  void description;
+
   return (
     <section className="rounded-[1.75rem] border border-white/70 bg-white/82 p-5 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur lg:p-6">
       <div className="mb-5">
         <h2 className="font-display text-2xl font-semibold tracking-tight text-slate-950">{title}</h2>
-        {description ? <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p> : undefined}
       </div>
       {children}
     </section>
   );
 }
 
-export function Badge({children, tone = 'slate'}: {readonly children: ReactNode; readonly tone?: BadgeTone}): JSX.Element {
+export function Badge({ children, tone = 'slate' }: { readonly children: ReactNode; readonly tone?: BadgeTone }): JSX.Element {
   return (
     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${badgeToneClassMap[tone]}`}>
       {children}
@@ -97,7 +99,7 @@ export function Badge({children, tone = 'slate'}: {readonly children: ReactNode;
   );
 }
 
-export function DataTable({headers, rows, emptyMessage = 'Khong co du lieu.'}: DataTableProps): JSX.Element {
+export function DataTable({ headers, rows, emptyMessage = 'Khong co du lieu.' }: DataTableProps): JSX.Element {
   return (
     <div className="overflow-hidden rounded-[1.25rem] border border-slate-200/80">
       <div className="overflow-x-auto">
@@ -136,7 +138,7 @@ export function DataTable({headers, rows, emptyMessage = 'Khong co du lieu.'}: D
   );
 }
 
-export function KeyValueList({items}: KeyValueListProps): JSX.Element {
+export function KeyValueList({ items }: KeyValueListProps): JSX.Element {
   return (
     <dl className="grid gap-4 md:grid-cols-2">
       {items.map((item) => (

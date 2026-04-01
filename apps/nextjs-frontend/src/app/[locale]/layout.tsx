@@ -18,8 +18,7 @@ import { getOptionalGymSession } from "@/lib/gym-auth.ts";
 
 export const metadata: Metadata = {
   title: "Gym Manager",
-  description:
-    "Gym management MVP built on Next.js, NestJS and shared domain contracts.",
+  description: "Professional platform for end-to-end gym operations management.",
 };
 
 export default async function Layout({

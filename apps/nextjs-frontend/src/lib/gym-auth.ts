@@ -78,18 +78,25 @@ export async function getOptionalGymSession(): Promise<GymFrontendSession | null
     return null;
   }
 
-  const response = await fetch(`${getBackendUrl()}/api/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-    body: JSON.stringify({ refreshToken }),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${getBackendUrl()}/api/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Backend might still be booting in dev; treat as no active session.
+    return null;
+  }
 
   if (!response.ok) {
-    await clearRefreshTokenCookie();
-
+    // Cookie mutation is only allowed in server actions/route handlers.
+    // During render, simply treat the session as missing.
     return null;
   }
 

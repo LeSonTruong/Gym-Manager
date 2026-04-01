@@ -302,6 +302,7 @@ export async function checkInAttendanceAction(
   const locale = getString(formData, "locale") || "en";
 
   await postToBackend(locale, "/api/attendance/check-in", {
+    ptId: getOptionalString(formData, "ptId"),
     checkInAt: getOptionalString(formData, "checkInAt"),
   });
   revalidatePath(`/${locale}/pts/attendance`);
@@ -313,6 +314,7 @@ export async function checkOutAttendanceAction(
   const locale = getString(formData, "locale") || "en";
 
   await postToBackend(locale, "/api/attendance/check-out", {
+    ptId: getOptionalString(formData, "ptId"),
     attendanceLogId: getOptionalString(formData, "attendanceLogId"),
     checkOutAt: getOptionalString(formData, "checkOutAt"),
   });

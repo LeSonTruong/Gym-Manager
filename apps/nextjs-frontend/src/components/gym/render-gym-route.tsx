@@ -1,17 +1,16 @@
-import process from "node:process";
-import { type JSX, type ReactNode } from "react";
+import { cache, type JSX, type ReactNode } from "react";
 import { notFound } from "next/navigation";
 import {
   type DemoUser,
   type GymManagementSnapshot,
 } from "@next-nest-turbo-boilerplate/shared";
 import {
-  Badge,
-  DataTable,
-  KeyValueList,
-  PageHeader,
-  SectionCard,
-  StatsGrid,
+  Badge as BaseBadge,
+  DataTable as BaseDataTable,
+  KeyValueList as BaseKeyValueList,
+  PageHeader as BasePageHeader,
+  SectionCard as BaseSectionCard,
+  StatsGrid as BaseStatsGrid,
 } from "./gym-ui.tsx";
 import {
   cancelMembershipAction,
@@ -27,7 +26,6 @@ import {
   generatePayrollAction,
   importInventoryAction,
   loginAction,
-  patchAttendanceAction,
   renewMembershipAction,
   updatePtContractAction,
 } from "@/app/[locale]/gym-actions.ts";
@@ -50,6 +48,43 @@ import {
   sortMembersByDate,
   sortProductsByStock,
 } from "@/lib/gym-data.ts";
+import { translateFromText } from "@/lib/translations.ts";
+
+type UiLocale = "en" | "vi";
+
+const getLocaleStore = cache(() => ({
+  locale: "en" as UiLocale,
+}));
+
+function setActiveUiLocale(locale: UiLocale): void {
+  getLocaleStore().locale = locale;
+}
+
+function getActiveUiLocale(): UiLocale {
+  return getLocaleStore().locale;
+}
+
+function translateText(value: string, locale: "en" | "vi"): string {
+  return translateFromText(value, locale);
+}
+
+function translateNode(node: ReactNode, locale: "en" | "vi"): ReactNode {
+  if (typeof node === "string") {
+    return translateText(node, locale);
+  }
+
+  if (Array.isArray(node)) {
+    const translatedItems: ReactNode[] = [];
+
+    for (const item of node as ReactNode[]) {
+      translatedItems.push(translateNode(item, locale));
+    }
+
+    return translatedItems;
+  }
+
+  return node;
+}
 
 function ActionLink({
   href,
@@ -58,14 +93,114 @@ function ActionLink({
   readonly href: string;
   readonly children: string;
 }): JSX.Element {
+  const locale = getActiveUiLocale();
+
   return (
     <Link
       href={href}
       className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
     >
-      {children}
+      {translateText(children, locale)}
     </Link>
   );
+}
+
+function PageHeader(props: {
+  readonly eyebrow: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly actions?: ReactNode;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return (
+    <BasePageHeader
+      eyebrow={translateText(props.eyebrow, locale)}
+      title={translateText(props.title, locale)}
+      description={translateText(props.description ?? "", locale)}
+      actions={translateNode(props.actions, locale)}
+    />
+  );
+}
+
+function SectionCard(props: {
+  readonly title: string;
+  readonly children: ReactNode;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return (
+    <BaseSectionCard
+      title={translateText(props.title, locale)}
+    >
+      {translateNode(props.children, locale)}
+    </BaseSectionCard>
+  );
+}
+
+function StatsGrid(props: {
+  readonly items: Array<{ readonly label: string; readonly value: string; readonly note: string }>;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return (
+    <BaseStatsGrid
+      items={props.items.map((item) => ({
+        ...item,
+        label: translateText(item.label, locale),
+        note: translateText(item.note, locale),
+      }))}
+    />
+  );
+}
+
+function KeyValueList(props: {
+  readonly items: Array<{ readonly label: string; readonly value: ReactNode }>;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return (
+    <BaseKeyValueList
+      items={props.items.map((item) => ({
+        label: translateText(item.label, locale),
+        value: translateNode(item.value, locale),
+      }))}
+    />
+  );
+}
+
+function DataTable(props: {
+  readonly headers: string[];
+  readonly rows: ReactNode[][];
+  readonly emptyMessage?: string;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+  const translatedHeaders = props.headers.map((header) => translateText(header, locale));
+  const translatedRows: ReactNode[][] = [];
+
+  for (const row of props.rows) {
+    const translatedRow: ReactNode[] = [];
+
+    for (const cell of row) {
+      translatedRow.push(translateNode(cell, locale));
+    }
+
+    translatedRows.push(translatedRow);
+  }
+
+  return (
+    <BaseDataTable
+      headers={translatedHeaders}
+      rows={translatedRows}
+      emptyMessage={props.emptyMessage ? translateText(props.emptyMessage, locale) : undefined}
+    />
+  );
+}
+
+function Badge({ children, tone = "slate" }: { readonly children: ReactNode; readonly tone?: "slate" | "emerald" | "amber" | "rose" | "sky" }): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return <BaseBadge tone={tone}>{translateNode(children, locale)}</BaseBadge>;
 }
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
@@ -145,16 +280,18 @@ function FormField({
   readonly min?: string | number;
   readonly step?: string | number;
 }): JSX.Element {
+  const locale = getActiveUiLocale();
+
   return (
     <label className="block">
       <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-        {label}
+        {translateText(label, locale)}
       </span>
       <input
         type={type}
         name={name}
         defaultValue={defaultValue}
-        placeholder={placeholder}
+        placeholder={placeholder ? translateText(placeholder, locale) : undefined}
         required={required}
         min={min}
         step={step}
@@ -177,10 +314,12 @@ function FormSelect({
   readonly defaultValue?: string;
   readonly required?: boolean;
 }): JSX.Element {
+  const locale = getActiveUiLocale();
+
   return (
     <label className="block">
       <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-        {label}
+        {translateText(label, locale)}
       </span>
       <select
         name={name}
@@ -190,7 +329,7 @@ function FormSelect({
       >
         {options.map((option) => (
           <option key={`${name}-${option.value}`} value={option.value}>
-            {option.label}
+            {translateText(option.label, locale)}
           </option>
         ))}
       </select>
@@ -211,15 +350,17 @@ function FormTextArea({
   readonly placeholder?: string;
   readonly rows?: number;
 }): JSX.Element {
+  const locale = getActiveUiLocale();
+
   return (
     <label className="block">
       <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-        {label}
+        {translateText(label, locale)}
       </span>
       <textarea
         name={name}
         defaultValue={defaultValue}
-        placeholder={placeholder}
+        placeholder={placeholder ? translateText(placeholder, locale) : undefined}
         rows={rows}
         className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
       />
@@ -228,88 +369,78 @@ function FormTextArea({
 }
 
 function SubmitButton({ label }: { readonly label: string }): JSX.Element {
+  const locale = getActiveUiLocale();
+
   return (
     <button
       type="submit"
       className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
     >
-      {label}
+      {translateText(label, locale)}
     </button>
   );
 }
 
 function buildDashboardPage(): JSX.Element {
   const snapshot = getGymSnapshot();
-  const backendUrl =
-    process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:4000";
 
   return (
     <>
       <PageHeader
-        eyebrow="Gym operations"
-        title="Dashboard overview"
-        description="Tong hop doanh thu, nhan su, ton kho, payroll va cac canh bao van hanh tu bo du lieu Gym Manager."
+        eyebrow="Vận hành phòng gym"
+        title="Tổng quan vận hành"
         actions={
-          <>
-            <a
-              href={`${backendUrl}/api/docs`}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Open API docs
-            </a>
-            <ActionLink href="/reports/profit">Profit report</ActionLink>
-          </>
+          <ActionLink href="/reports/profit">
+            Báo cáo lợi nhuận
+          </ActionLink>
         }
       />
 
       <StatsGrid
         items={[
           {
-            label: "Active members",
+            label: "Hội viên đang hoạt động",
             value: `${snapshot.dashboard.activeMembers}/${snapshot.dashboard.totalMembers}`,
-            note: "Bao gom 1 day pass, 2 monthly va 2 yearly memberships dang active.",
+            note: "Bao gồm hội viên day-pass, gói tháng và gói năm đang hiệu lực.",
           },
           {
-            label: "PT on roster",
+            label: "PT trong biên chế",
             value: `${snapshot.dashboard.totalPts}`,
-            note: "Tat ca PT hien dang o trang thai ACTIVE va co contract hieu luc.",
+            note: "Toàn bộ PT đang ở trạng thái ACTIVE và có hợp đồng hiệu lực.",
           },
           {
-            label: "Monthly revenue",
+            label: "Doanh thu tháng",
             value: formatCurrency(snapshot.dashboard.revenue.monthly),
-            note: `Membership ${formatCurrency(snapshot.dashboard.revenue.membership)} + services ${formatCurrency(snapshot.dashboard.revenue.services)}.`,
+            note: `Gói tập ${formatCurrency(snapshot.dashboard.revenue.membership)} + dịch vụ ${formatCurrency(snapshot.dashboard.revenue.services)}.`,
           },
           {
-            label: "Current payroll",
+            label: "Quỹ lương hiện tại",
             value: formatCurrency(snapshot.dashboard.totalPtPayroll),
-            note: "Tong net pay cua ky luong hien tai dang review.",
+            note: "Tổng lương thực nhận của kỳ lương hiện tại đang duyệt.",
           },
         ]}
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
-          title="Revenue split"
-          description="Nhom chi so nhanh cho doanh thu ngay, thang, nam va tong chi phi van hanh duoc tinh vao dashboard."
+          title="Phân tích doanh thu"
         >
           <KeyValueList
             items={[
               {
-                label: "Daily revenue",
+                label: "Doanh thu ngày",
                 value: formatCurrency(snapshot.dashboard.revenue.daily),
               },
               {
-                label: "Yearly revenue",
+                label: "Doanh thu năm",
                 value: formatCurrency(snapshot.dashboard.revenue.yearly),
               },
               {
-                label: "Operating expense",
+                label: "Chi phí vận hành",
                 value: formatCurrency(snapshot.dashboard.totalOperatingExpense),
               },
               {
-                label: "Net profit",
+                label: "Lợi nhuận ròng",
                 value: formatCurrency(snapshot.profitReport.netProfit),
               },
             ]}
@@ -317,18 +448,22 @@ function buildDashboardPage(): JSX.Element {
         </SectionCard>
 
         <SectionCard
-          title="Low stock alerts"
-          description="Cac san pham can uu tien restock trong ngay."
+          title="Cảnh báo tồn kho thấp"
         >
           <DataTable
-            headers={["Product", "Stock", "Threshold", "Status"]}
+            headers={[
+              "Sản phẩm",
+              "Tồn kho",
+              "Ngưỡng",
+              "Trạng thái",
+            ]}
             rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
               (product) => [
                 product.name,
-                `${product.stockOnHand} units`,
-                `${product.minimumStockLevel} units`,
+                `${product.stockOnHand} đơn vị`,
+                `${product.minimumStockLevel} đơn vị`,
                 <Badge key={product.id} tone="amber">
-                  Restock now
+                  Bổ sung ngay
                 </Badge>,
               ],
             )}
@@ -338,11 +473,10 @@ function buildDashboardPage(): JSX.Element {
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <SectionCard
-          title="Maintenance alerts"
-          description="Thiet bi can bao tri hoac thay the som."
+          title="Cảnh báo bảo trì"
         >
           <DataTable
-            headers={["Equipment", "Condition", "Next maintenance", "Action"]}
+            headers={["Thiết bị", "Tình trạng", "Bảo trì tiếp theo", "Hành động"]}
             rows={sortEquipmentByMaintenance(
               snapshot.dashboard.maintenanceAlerts,
             ).map((equipmentAsset) => [
@@ -358,22 +492,21 @@ function buildDashboardPage(): JSX.Element {
                 key={`${equipmentAsset.id}-action`}
                 href={`/equipment/${equipmentAsset.id}`}
               >
-                Open asset
+                Mở tài sản
               </ActionLink>,
             ])}
           />
         </SectionCard>
 
         <SectionCard
-          title="Top selling products"
-          description="San pham dang tao doanh so cao nhat trong ky hien tai."
+          title="Sản phẩm bán chạy"
         >
           <DataTable
-            headers={["Product", "Sold qty", "Current stock"]}
+            headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
             rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
               entry.product.name,
-              `${entry.soldQuantity} units`,
-              `${entry.product.stockOnHand} units`,
+              `${entry.soldQuantity} đơn vị`,
+              `${entry.product.stockOnHand} đơn vị`,
             ])}
           />
         </SectionCard>
@@ -388,62 +521,60 @@ function buildPtsPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="PT management"
-        title="Personal trainers"
-        description="Danh sach PT, tai trong member, cong cham cong va payroll tam tinh cua Gym Manager."
+        eyebrow="Quản lý PT"
+        title="Huấn luyện viên cá nhân"
         actions={
-          <ActionLink href="/pts/attendance">Open attendance</ActionLink>
+          <ActionLink href="/pts/attendance">Mở chấm công</ActionLink>
         }
       />
 
       <StatsGrid
         items={[
           {
-            label: "Assigned members",
+            label: "Hội viên được phân công",
             value: `${snapshot.ptOverview.reduce((total, item) => total + item.activeMembers, 0)}`,
-            note: "Tong so member dang co PT active assignment.",
+            note: "Tổng số hội viên đang có PT phụ trách.",
           },
           {
-            label: "Shift credits",
+            label: "Công quy đổi",
             value: `${snapshot.ptOverview.reduce((total, item) => total + item.validShiftCredits, 0)}`,
-            note: "Tong cong VALID/HALF quy doi trong dataset.",
+            note: "Tổng công VALID/HALF quy đổi trong dữ liệu mẫu.",
           },
           {
-            label: "Overtime",
+            label: "Tăng ca",
             value: formatHours(
               snapshot.ptOverview.reduce(
                 (total, item) => total + item.overtimeHours,
                 0,
               ),
             ),
-            note: "Tong gio tang ca duoc lay tu attendance logs.",
+            note: "Tổng giờ tăng ca được lấy từ nhật ký chấm công.",
           },
           {
-            label: "Estimated payroll",
+            label: "Lương ước tính",
             value: formatCurrency(
               snapshot.ptOverview.reduce(
                 (total, item) => total + item.estimatedPayroll,
                 0,
               ),
             ),
-            note: "Tong net pay ky gan nhat cua tat ca PT.",
+            note: "Tổng thực lĩnh kỳ gần nhất của tất cả PT.",
           },
         ]}
       />
 
       <SectionCard
-        title="PT roster"
-        description="Mo tung profile de xem contract, attendance va payroll chi tiet."
+        title="Danh sách PT"
       >
         <DataTable
           headers={[
             "PT",
-            "Specialties",
-            "Active members",
-            "Shift credits",
-            "Overtime",
-            "Net pay",
-            "Detail",
+            "Chuyên môn",
+            "Hội viên đang hoạt động",
+            "Công quy đổi",
+            "Tăng ca",
+            "Thực lĩnh",
+            "Chi tiết",
           ]}
           rows={snapshot.ptOverview.map((item) => [
             <div key={item.pt.id}>
@@ -456,9 +587,9 @@ function buildPtsPage(): JSX.Element {
             formatHours(item.overtimeHours),
             formatCurrency(item.estimatedPayroll),
             <div key={`${item.pt.id}-links`} className="flex gap-2">
-              <ActionLink href={`/pts/${item.pt.id}`}>Profile</ActionLink>
+              <ActionLink href={`/pts/${item.pt.id}`}>Hồ sơ</ActionLink>
               <ActionLink href={`/pts/${item.pt.id}/contracts`}>
-                Contract
+                Hợp đồng
               </ActionLink>
             </div>,
           ])}
@@ -497,52 +628,51 @@ function buildPtDetailPage(ptId: string): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="PT profile"
+        eyebrow="Hồ sơ PT"
         title={ptOverview.pt.fullName}
-        description={`${ptOverview.pt.code} | ${ptOverview.pt.specialties.join(", ")} | Started ${formatDate(ptOverview.pt.startDate)}`}
         actions={
-          <ActionLink href={`/pts/${ptId}/contracts`}>View contract</ActionLink>
+          <ActionLink href={`/pts/${ptId}/contracts`}>Xem hợp đồng</ActionLink>
         }
       />
 
       <StatsGrid
         items={[
           {
-            label: "Active members",
+            label: "Hội viên đang hoạt động",
             value: `${ptOverview.activeMembers}`,
-            note: "Member assignments dang mo.",
+            note: "Phân công hội viên đang mở.",
           },
           {
-            label: "Shift credits",
+            label: "Công quy đổi",
             value: `${ptOverview.validShiftCredits}`,
-            note: "Cong VALID/HALF trong ky.",
+            note: "Công VALID/HALF trong kỳ.",
           },
           {
-            label: "Overtime",
+            label: "Tăng ca",
             value: formatHours(ptOverview.overtimeHours),
-            note: "Tong gio tang ca.",
+            note: "Tổng giờ tăng ca.",
           },
           {
-            label: "Latest payroll",
+            label: "Lương kỳ gần nhất",
             value: formatCurrency(ptOverview.estimatedPayroll),
-            note: "Net pay ky gan nhat.",
+            note: "Thực lĩnh kỳ gần nhất.",
           },
         ]}
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Profile summary">
+        <SectionCard title="Tóm tắt hồ sơ">
           <KeyValueList
             items={[
-              { label: "Email", value: ptOverview.pt.email },
-              { label: "Phone", value: ptOverview.pt.phone },
-              { label: "Address", value: ptOverview.pt.address },
+              { label: "Thư điện tử", value: ptOverview.pt.email },
+              { label: "Số điện thoại", value: ptOverview.pt.phone },
+              { label: "Địa chỉ", value: ptOverview.pt.address },
               {
-                label: "Experience",
-                value: `${ptOverview.pt.experienceYears} years`,
+                label: "Kinh nghiệm",
+                value: `${ptOverview.pt.experienceYears} năm`,
               },
               {
-                label: "Status",
+                label: "Trạng thái",
                 value: (
                   <Badge tone={getStatusTone(ptOverview.pt.status)}>
                     {ptOverview.pt.status}
@@ -550,16 +680,16 @@ function buildPtDetailPage(ptId: string): JSX.Element {
                 ),
               },
               {
-                label: "Contract type",
-                value: ptOverview.contract?.contractType ?? "No contract",
+                label: "Loại hợp đồng",
+                value: ptOverview.contract?.contractType ?? "Chưa có hợp đồng",
               },
             ]}
           />
         </SectionCard>
 
-        <SectionCard title="Assigned members">
+        <SectionCard title="Hội viên được phân công">
           <DataTable
-            headers={["Member", "Status", "Joined", "Detail"]}
+            headers={["Hội viên", "Trạng thái", "Ngày tham gia", "Chi tiết"]}
             rows={assignedMembers.map((member) => [
               member.fullName,
               <Badge key={member.id} tone={getStatusTone(member.status)}>
@@ -570,29 +700,29 @@ function buildPtDetailPage(ptId: string): JSX.Element {
                 key={`${member.id}-detail`}
                 href={`/members/${member.id}`}
               >
-                Open member
+                Mở hội viên
               </ActionLink>,
             ])}
           />
         </SectionCard>
       </div>
 
-      <SectionCard title="Attendance timeline">
+      <SectionCard title="Dòng thời gian chấm công">
         <DataTable
           headers={[
-            "Date",
-            "Check in",
-            "Check out",
-            "Worked",
-            "Overtime",
-            "Status",
+            "Ngày",
+            "Vào ca",
+            "Ra ca",
+            "Giờ làm",
+            "Tăng ca",
+            "Trạng thái",
           ]}
           rows={attendanceLogs.map((attendanceLog) => [
             attendanceLog.attendanceDate,
             formatDateTime(attendanceLog.checkInAt),
             attendanceLog.checkOutAt
               ? formatDateTime(attendanceLog.checkOutAt)
-              : "Open",
+              : "Đang mở",
             formatHours(attendanceLog.workedHours),
             formatHours(attendanceLog.overtimeHours),
             <Badge
@@ -605,15 +735,15 @@ function buildPtDetailPage(ptId: string): JSX.Element {
         />
       </SectionCard>
 
-      <SectionCard title="Payroll history">
+      <SectionCard title="Lịch sử lương">
         <DataTable
           headers={[
-            "Period",
-            "Shift credits",
-            "Overtime",
-            "Package commission",
-            "Net pay",
-            "Status",
+            "Kỳ",
+            "Công quy đổi",
+            "Tăng ca",
+            "Hoa hồng gói",
+            "Thực lĩnh",
+            "Trạng thái",
           ]}
           rows={payrollEntries.map((entry) => [
             snapshot.dataset.payrollPeriods.find(
@@ -651,48 +781,47 @@ function buildPtContractsPage(
   return (
     <>
       <PageHeader
-        eyebrow="PT contract"
-        title={`${trainer.fullName} contract`}
-        description="Cau hinh luong, overtime, commission va performance bonus dang duoc ap dung."
-        actions={<ActionLink href={`/pts/${ptId}`}>Back to profile</ActionLink>}
+        eyebrow="Hợp đồng PT"
+        title={`Hợp đồng của ${trainer.fullName}`}
+        actions={<ActionLink href={`/pts/${ptId}`}>Quay lại hồ sơ</ActionLink>}
       />
 
-      <SectionCard title="Contract settings">
+      <SectionCard title="Thiết lập hợp đồng">
         <KeyValueList
           items={[
-            { label: "Salary type", value: contract.salaryType },
+            { label: "Loại lương", value: contract.salaryType },
             {
-              label: "Base salary",
+              label: "Lương cơ bản",
               value: formatCurrency(contract.baseSalary),
             },
             {
-              label: "Min valid shift",
+              label: "Ca tối thiểu hợp lệ",
               value: formatHours(contract.minValidShiftHours),
             },
             {
-              label: "Standard shift",
+              label: "Ca chuẩn",
               value: formatHours(contract.standardShiftHours),
             },
             {
-              label: "Overtime rate",
-              value: `${formatCurrency(contract.overtimeHourlyRate)} / hour`,
+              label: "Tỷ lệ tăng ca",
+              value: `${formatCurrency(contract.overtimeHourlyRate)} / giờ`,
             },
             {
-              label: "Package commission",
+              label: "Hoa hồng gói",
               value: `${contract.packageCommissionRate * 100}%`,
             },
             {
-              label: "Sales commission",
+              label: "Hoa hồng bán hàng",
               value: `${contract.salesCommissionRate * 100}%`,
             },
             {
-              label: "Performance bonus",
-              value: `${formatCurrency(contract.performanceBonusAmount)} at ${contract.performanceBonusThreshold} active members`,
+              label: "Thưởng hiệu suất",
+              value: `${formatCurrency(contract.performanceBonusAmount)} khi đạt ${contract.performanceBonusThreshold} hội viên hoạt động`,
             },
-            { label: "Allowances", value: formatCurrency(contract.allowances) },
+            { label: "Phụ cấp", value: formatCurrency(contract.allowances) },
             {
-              label: "Effective",
-              value: `${formatDate(contract.effectiveFrom)} - ${contract.effectiveTo ? formatDate(contract.effectiveTo) : "Open ended"}`,
+              label: "Hiệu lực",
+              value: `${formatDate(contract.effectiveFrom)} - ${contract.effectiveTo ? formatDate(contract.effectiveTo) : "Không thời hạn"}`,
             },
           ]}
         />
@@ -701,8 +830,7 @@ function buildPtContractsPage(
       {isAdmin(options) ? (
         <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <SectionCard
-            title="Update active contract"
-            description="Chinh sua directly contract dang ap dung cho PT nay."
+            title="Cập nhật hợp đồng đang áp dụng"
           >
             <form action={updatePtContractAction} className="space-y-4">
               <input type="hidden" name="locale" value={locale} />
@@ -710,24 +838,24 @@ function buildPtContractsPage(
               <input type="hidden" name="contractId" value={contract.id} />
               <FormGrid>
                 <FormField
-                  label="Contract code"
+                  label="Mã hợp đồng"
                   name="contractCode"
                   defaultValue={contract.contractCode}
                 />
                 <FormField
-                  label="Contract type"
+                  label="Loại hợp đồng"
                   name="contractType"
                   defaultValue={contract.contractType}
                   required
                 />
                 <FormField
-                  label="Salary type"
+                  label="Loại lương"
                   name="salaryType"
                   defaultValue={contract.salaryType}
                   required
                 />
                 <FormField
-                  label="Base salary"
+                  label="Lương cơ bản"
                   name="baseSalary"
                   type="number"
                   defaultValue={contract.baseSalary}
@@ -735,7 +863,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Min valid shift hours"
+                  label="Số giờ tối thiểu hợp lệ"
                   name="minValidShiftHours"
                   type="number"
                   defaultValue={contract.minValidShiftHours}
@@ -743,7 +871,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Standard shift hours"
+                  label="Số giờ ca chuẩn"
                   name="standardShiftHours"
                   type="number"
                   defaultValue={contract.standardShiftHours}
@@ -751,7 +879,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Overtime hourly rate"
+                  label="Đơn giá tăng ca theo giờ"
                   name="overtimeHourlyRate"
                   type="number"
                   defaultValue={contract.overtimeHourlyRate}
@@ -759,14 +887,14 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Performance threshold"
+                  label="Ngưỡng hiệu suất"
                   name="performanceBonusThreshold"
                   type="number"
                   defaultValue={contract.performanceBonusThreshold}
                   required
                 />
                 <FormField
-                  label="Performance bonus"
+                  label="Thưởng hiệu suất"
                   name="performanceBonusAmount"
                   type="number"
                   defaultValue={contract.performanceBonusAmount}
@@ -774,7 +902,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Package commission rate"
+                  label="Tỷ lệ hoa hồng gói"
                   name="packageCommissionRate"
                   type="number"
                   defaultValue={contract.packageCommissionRate}
@@ -782,7 +910,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Sales commission rate"
+                  label="Tỷ lệ hoa hồng bán hàng"
                   name="salesCommissionRate"
                   type="number"
                   defaultValue={contract.salesCommissionRate}
@@ -790,7 +918,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Allowances"
+                  label="Phụ cấp"
                   name="allowances"
                   type="number"
                   defaultValue={contract.allowances}
@@ -798,56 +926,55 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Effective from"
+                  label="Hiệu lực từ"
                   name="effectiveFrom"
                   type="date"
                   defaultValue={toDateInputValue(contract.effectiveFrom)}
                   required
                 />
                 <FormField
-                  label="Effective to"
+                  label="Hiệu lực đến"
                   name="effectiveTo"
                   type="date"
                   defaultValue={toDateInputValue(contract.effectiveTo)}
                 />
               </FormGrid>
               <FormTextArea
-                label="Penalty rules"
+                label="Quy tắc phạt"
                 name="penaltyRules"
                 defaultValue={contract.penaltyRules.join("\n")}
-                placeholder="One rule per line"
+                placeholder="Mỗi dòng một quy tắc"
               />
-              <SubmitButton label="Update contract" />
+              <SubmitButton label="Cập nhật hợp đồng" />
             </form>
           </SectionCard>
 
           <SectionCard
-            title="Issue next contract"
-            description="Tao contract moi cho dot luong tiep theo cua PT."
+            title="Tạo hợp đồng kế tiếp"
           >
             <form action={createPtContractAction} className="space-y-4">
               <input type="hidden" name="locale" value={locale} />
               <input type="hidden" name="ptId" value={ptId} />
               <FormGrid>
                 <FormField
-                  label="Contract code"
+                  label="Mã hợp đồng"
                   name="contractCode"
                   placeholder="PTC-2026-APR"
                 />
                 <FormField
-                  label="Contract type"
+                  label="Loại hợp đồng"
                   name="contractType"
                   defaultValue={contract.contractType}
                   required
                 />
                 <FormField
-                  label="Salary type"
+                  label="Loại lương"
                   name="salaryType"
                   defaultValue={contract.salaryType}
                   required
                 />
                 <FormField
-                  label="Base salary"
+                  label="Lương cơ bản"
                   name="baseSalary"
                   type="number"
                   defaultValue={contract.baseSalary}
@@ -855,7 +982,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Min valid shift hours"
+                  label="Số giờ tối thiểu hợp lệ"
                   name="minValidShiftHours"
                   type="number"
                   defaultValue={contract.minValidShiftHours}
@@ -863,7 +990,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Standard shift hours"
+                  label="Số giờ ca chuẩn"
                   name="standardShiftHours"
                   type="number"
                   defaultValue={contract.standardShiftHours}
@@ -871,7 +998,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Overtime hourly rate"
+                  label="Đơn giá tăng ca theo giờ"
                   name="overtimeHourlyRate"
                   type="number"
                   defaultValue={contract.overtimeHourlyRate}
@@ -879,14 +1006,14 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Performance threshold"
+                  label="Ngưỡng hiệu suất"
                   name="performanceBonusThreshold"
                   type="number"
                   defaultValue={contract.performanceBonusThreshold}
                   required
                 />
                 <FormField
-                  label="Performance bonus"
+                  label="Thưởng hiệu suất"
                   name="performanceBonusAmount"
                   type="number"
                   defaultValue={contract.performanceBonusAmount}
@@ -894,7 +1021,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Package commission rate"
+                  label="Tỷ lệ hoa hồng gói"
                   name="packageCommissionRate"
                   type="number"
                   defaultValue={contract.packageCommissionRate}
@@ -902,7 +1029,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Sales commission rate"
+                  label="Tỷ lệ hoa hồng bán hàng"
                   name="salesCommissionRate"
                   type="number"
                   defaultValue={contract.salesCommissionRate}
@@ -910,7 +1037,7 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Allowances"
+                  label="Phụ cấp"
                   name="allowances"
                   type="number"
                   defaultValue={contract.allowances}
@@ -918,29 +1045,29 @@ function buildPtContractsPage(
                   required
                 />
                 <FormField
-                  label="Effective from"
+                  label="Hiệu lực từ"
                   name="effectiveFrom"
                   type="date"
                   defaultValue={toDateInputValue(contract.effectiveTo)}
                   required
                 />
                 <FormField
-                  label="Effective to"
+                  label="Hiệu lực đến"
                   name="effectiveTo"
                   type="date"
                 />
               </FormGrid>
               <FormTextArea
-                label="Penalty rules"
+                label="Quy tắc phạt"
                 name="penaltyRules"
                 defaultValue={contract.penaltyRules.join("\n")}
-                placeholder="One rule per line"
+                placeholder="Mỗi dòng một quy tắc"
               />
               <p className="text-sm leading-6 text-slate-500">
-                Neu contract hien tai van open-ended, hay cap nhat `effective to`
-                truoc khi tao contract moi de tranh overlap.
+                Nếu hợp đồng hiện tại vẫn không thời hạn, hãy cập nhật trường
+                hiệu lực đến trước khi tạo hợp đồng mới để tránh chồng lấn.
               </p>
-              <SubmitButton label="Create next contract" />
+              <SubmitButton label="Tạo hợp đồng kế tiếp" />
             </form>
           </SectionCard>
         </div>
@@ -952,63 +1079,75 @@ function buildPtContractsPage(
 function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const { attendanceLogs } = snapshot.dataset;
+  const trainerOptions = snapshot.dataset.personalTrainers.map((trainer) => ({
+    value: trainer.id,
+    label: `${trainer.fullName} | ${trainer.code}`,
+  }));
+  const uniqueTrainerCount = new Set(
+    attendanceLogs.map((attendanceLog) => attendanceLog.ptId),
+  ).size;
 
   return (
     <>
       <PageHeader
-        eyebrow="PT attendance"
-        title="Attendance logs"
-        description="Tat ca check-in/check-out duoc phan loai VALID, HALF hoac INVALID de tinh payroll."
+        eyebrow="Chấm công PT"
+        title="Nhật ký chấm công"
       />
 
       <StatsGrid
         items={[
           {
-            label: "VALID shifts",
-            value: `${snapshot.dataset.attendanceLogs.filter((attendanceLog) => attendanceLog.status === "VALID").length}`,
-            note: "Ca du gio chuan va duoc tinh full credit.",
+            label: "PT có chấm công",
+            value: `${uniqueTrainerCount}`,
+            note: "Số PT khác nhau có bản ghi trong bảng chấm công.",
           },
           {
-            label: "HALF shifts",
-            value: `${snapshot.dataset.attendanceLogs.filter((attendanceLog) => attendanceLog.status === "HALF").length}`,
-            note: "Ca duoi chuan nhung van tinh nua cong theo setting.",
+            label: "Ca VALID",
+            value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.status === "VALID").length}`,
+            note: "Ca đủ giờ chuẩn và được tính full credit.",
           },
           {
-            label: "Overtime",
+            label: "Ca HALF",
+            value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.status === "HALF").length}`,
+            note: "Ca dưới chuẩn nhưng vẫn tính nửa công theo cài đặt.",
+          },
+          {
+            label: "Tăng ca",
             value: formatHours(
-              snapshot.dataset.attendanceLogs.reduce(
+              attendanceLogs.reduce(
                 (total, attendanceLog) => total + attendanceLog.overtimeHours,
                 0,
               ),
             ),
-            note: "Tong gio vuot standard shift.",
+            note: "Tổng giờ vượt ca chuẩn.",
           },
           {
-            label: "Work credits",
-            value: `${snapshot.dataset.attendanceLogs.reduce((total, attendanceLog) => total + attendanceLog.workCredit, 0)}`,
-            note: "Tong cong quy doi trong ky.",
+            label: "Công quy đổi",
+            value: `${attendanceLogs.reduce((total, attendanceLog) => total + attendanceLog.workCredit, 0)}`,
+            note: "Tổng công quy đổi trong kỳ.",
           },
         ]}
       />
 
-      <SectionCard title="Attendance table">
+      <SectionCard title={`Bảng chấm công (${attendanceLogs.length} bản ghi / ${uniqueTrainerCount} PT)`}>
         <DataTable
           headers={[
             "PT",
-            "Date",
-            "Check in",
-            "Check out",
-            "Worked",
-            "Overtime",
-            "Status",
+            "Ngày",
+            "Vào ca",
+            "Ra ca",
+            "Giờ làm",
+            "Tăng ca",
+            "Trạng thái",
           ]}
-          rows={snapshot.dataset.attendanceLogs.map((attendanceLog) => [
+          rows={attendanceLogs.map((attendanceLog) => [
             getTrainerName(snapshot, attendanceLog.ptId),
             attendanceLog.attendanceDate,
             formatDateTime(attendanceLog.checkInAt),
             attendanceLog.checkOutAt
               ? formatDateTime(attendanceLog.checkOutAt)
-              : "Open",
+              : "Đang mở",
             formatHours(attendanceLog.workedHours),
             formatHours(attendanceLog.overtimeHours),
             <Badge
@@ -1023,40 +1162,34 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
 
       {canManageGym(options) ? (
         <SectionCard
-          title="Manual correction"
-          description="Admin va Staff co the chinh lai moc check-in/check-out cho cac ca da ghi."
+          title="Thao tác chấm công nhanh"
         >
-          <form action={patchAttendanceAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
+          <div className="grid gap-4 md:grid-cols-2">
+            <form action={checkInAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+              <input type="hidden" name="locale" value={locale} />
               <FormSelect
-                label="Attendance log"
-                name="attendanceLogId"
+                label="PT"
+                name="ptId"
                 required
-                options={snapshot.dataset.attendanceLogs.map((attendanceLog) => ({
-                  value: attendanceLog.id,
-                  label: `${getTrainerName(snapshot, attendanceLog.ptId)} | ${attendanceLog.attendanceDate} | ${attendanceLog.status}`,
-                }))}
+                options={trainerOptions}
               />
-              <FormField
-                label="Check in"
-                name="checkInAt"
-                type="datetime-local"
+              <SubmitButton label="Chấm công vào" />
+            </form>
+
+            <form action={checkOutAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormSelect
+                label="PT"
+                name="ptId"
+                required
+                options={trainerOptions}
               />
-              <FormField
-                label="Check out"
-                name="checkOutAt"
-                type="datetime-local"
-              />
-            </FormGrid>
-            <FormTextArea
-              label="Note"
-              name="note"
-              placeholder="Explain why this correction was made"
-              rows={3}
-            />
-            <SubmitButton label="Patch attendance" />
-          </form>
+              <SubmitButton label="Chấm công ra" />
+            </form>
+          </div>
+          <p className="mt-3 text-xs text-slate-500">
+            Hệ thống tự lấy thời điểm hiện tại khi bấm nút. Chấm công ra chỉ hợp lệ sau tối thiểu 5 giờ từ lúc vào ca.
+          </p>
         </SectionCard>
       ) : null}
     </>
@@ -1067,102 +1200,78 @@ function buildPtSelfAttendancePage(
   options?: RenderGymRouteOptions,
 ): JSX.Element {
   const attendanceLogs = options?.ptAttendance ?? [];
-  const locale = getLocale(options);
   const openShift = attendanceLogs.find((attendanceLog) => !attendanceLog.checkOutAt);
 
   return (
     <>
       <PageHeader
-        eyebrow="PT attendance"
-        title="My attendance"
-        description="Cham cong duoc scope theo session hien tai. Ban co the check-in, check-out va xem lich su ca lam cua minh."
-        actions={<ActionLink href="/payroll">Open payroll</ActionLink>}
+        eyebrow="Chấm công PT"
+        title="Chấm công của tôi"
+        actions={<ActionLink href="/payroll">Mở bảng lương</ActionLink>}
       />
 
       <StatsGrid
         items={[
           {
-            label: "Open shift",
-            value: openShift ? "1 shift" : "No open shift",
+            label: "Ca đang mở",
+            value: openShift ? "1 ca" : "Không có ca đang mở",
             note: openShift
-              ? `Started at ${formatDateTime(openShift.checkInAt)}`
-              : "Ban co the bat dau ca moi ngay tai day.",
+              ? `Bắt đầu lúc ${formatDateTime(openShift.checkInAt)}`
+              : "Bạn có thể bắt đầu ca mới ngay tại đây.",
           },
           {
-            label: "Completed shifts",
+            label: "Ca đã hoàn tất",
             value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.checkOutAt).length}`,
-            note: "Tong so ca da dong trong lich su session nay.",
+            note: "Tổng số ca đã đóng trong lịch sử phiên này.",
           },
           {
-            label: "Paid hours",
+            label: "Giờ tính lương",
             value: formatHours(
               attendanceLogs.reduce(
                 (total, attendanceLog) => total + (attendanceLog.paidHours ?? attendanceLog.workedHours),
                 0,
               ),
             ),
-            note: "Tong gio duoc tinh luong sau khi ap quy tac valid/half shift.",
+            note: "Tổng giờ được tính lương sau khi áp quy tắc valid/half.",
           },
           {
-            label: "Overtime",
+            label: "Tăng ca",
             value: formatHours(
               attendanceLogs.reduce(
                 (total, attendanceLog) => total + attendanceLog.overtimeHours,
                 0,
               ),
             ),
-            note: "Tong gio tang ca da duoc ghi nhan.",
+            note: "Tổng giờ tăng ca đã được ghi nhận.",
           },
         ]}
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <SectionCard
-          title="Attendance actions"
-          description="Su dung thao tac nay de dong/mo ca thay vi ghi nhap thu cong."
+          title="Theo dõi ngày công"
         >
-          <div className="grid gap-4 md:grid-cols-2">
-            <form action={checkInAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormField
-                label="Check in time"
-                name="checkInAt"
-                type="datetime-local"
-              />
-              <SubmitButton label="Check in" />
-            </form>
-
-            <form action={checkOutAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
-              <input type="hidden" name="locale" value={locale} />
-              {openShift ? (
-                <input type="hidden" name="attendanceLogId" value={openShift.id} />
-              ) : null}
-              <FormField
-                label="Check out time"
-                name="checkOutAt"
-                type="datetime-local"
-              />
-              <SubmitButton label="Check out" />
-            </form>
-          </div>
+          <p className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700">
+            PT chỉ có quyền theo dõi ngày công và lương. Việc chấm công được thực hiện bởi quản lý/staff tại màn PT Attendance.
+          </p>
         </SectionCard>
 
-        <SectionCard title="My attendance log">
+        <SectionCard title="Nhật ký chấm công của tôi">
           <DataTable
             headers={[
-              "Date",
-              "Check in",
-              "Check out",
-              "Paid",
-              "Overtime",
-              "Status",
+              "Ngày",
+              "Vào ca",
+              "Ra ca",
+              "Giờ tính lương",
+              "Tăng ca",
+              "Trạng thái",
             ]}
             rows={attendanceLogs.map((attendanceLog) => [
               attendanceLog.attendanceDate,
               formatDateTime(attendanceLog.checkInAt),
               attendanceLog.checkOutAt
                 ? formatDateTime(attendanceLog.checkOutAt)
-                : "Open",
+                : "Đang mở",
               formatHours(attendanceLog.paidHours ?? attendanceLog.workedHours),
               formatHours(attendanceLog.overtimeHours),
               <Badge
@@ -1186,40 +1295,39 @@ function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Payroll"
-        title="Payroll periods"
-        description="Tong quan cac ky luong PT va phan bo net pay theo tung PT."
+        eyebrow="Bảng lương"
+        title="Kỳ lương"
       />
 
       <StatsGrid
         items={[
           {
-            label: "Total payroll",
+            label: "Tổng lương",
             value: formatCurrency(snapshot.payrollReport.totalPayroll),
-            note: "Tong net pay tat ca ky.",
+            note: "Tổng thực lĩnh tất cả kỳ.",
           },
           {
-            label: "Approved payroll",
+            label: "Lương đã duyệt",
             value: formatCurrency(snapshot.payrollReport.approvedPayroll),
-            note: "Bao gom APPROVED va PAID.",
+            note: "Bao gồm các phiếu đã duyệt và đã chi.",
           },
           {
-            label: "Pending payroll",
+            label: "Lương chờ duyệt",
             value: formatCurrency(snapshot.payrollReport.pendingPayroll),
-            note: "Net pay dang cho review.",
+            note: "Thực nhận đang chờ duyệt.",
           },
           {
-            label: "Periods",
+            label: "Các kỳ",
             value: `${snapshot.dataset.payrollPeriods.length}`,
-            note: "So ky luong co san trong demo dataset.",
+            note: "Số kỳ lương có sẵn trong dữ liệu mẫu.",
           },
         ]}
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-        <SectionCard title="Payroll periods">
+        <SectionCard title="Kỳ lương">
           <DataTable
-            headers={["Code", "Range", "Status", "Detail"]}
+            headers={["Mã", "Khoảng thời gian", "Trạng thái", "Chi tiết"]}
             rows={snapshot.dataset.payrollPeriods.map((period) => [
               period.code,
               `${formatDate(period.from)} - ${formatDate(period.to)}`,
@@ -1230,15 +1338,15 @@ function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
                 key={`${period.id}-detail`}
                 href={`/payroll/${period.id}`}
               >
-                Open period
+                Mở kỳ
               </ActionLink>,
             ])}
           />
         </SectionCard>
 
-        <SectionCard title="Payroll by trainer">
+        <SectionCard title="Bảng lương theo PT">
           <DataTable
-            headers={["PT", "Period", "Net pay", "Status"]}
+            headers={["PT", "Kỳ", "Thực lĩnh", "Trạng thái"]}
             rows={snapshot.payrollReport.byTrainer.map((item) => [
               item.ptName,
               item.payrollPeriodCode,
@@ -1257,32 +1365,30 @@ function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
       {isAdmin(options) ? (
         <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <SectionCard
-            title="Create payroll period"
-            description="Tao ky luong moi truoc khi chay generate payroll."
+            title="Tạo kỳ lương"
           >
             <form action={createPayrollPeriodAction} className="space-y-4">
               <input type="hidden" name="locale" value={locale} />
               <FormGrid>
                 <FormField
-                  label="Code"
+                  label="Mã"
                   name="code"
                   placeholder="2026-04-A"
                 />
-                <FormField label="From" name="from" type="date" required />
-                <FormField label="To" name="to" type="date" required />
+                <FormField label="Từ ngày" name="from" type="date" required />
+                <FormField label="Đến ngày" name="to" type="date" required />
               </FormGrid>
-              <SubmitButton label="Create period" />
+              <SubmitButton label="Tạo kỳ" />
             </form>
           </SectionCard>
 
           <SectionCard
-            title="Generate payroll"
-            description="Tinh lai payroll entries cho mot ky da tao."
+            title="Tạo bảng lương"
           >
             <form action={generatePayrollAction} className="space-y-4">
               <input type="hidden" name="locale" value={locale} />
               <FormSelect
-                label="Payroll period"
+                label="Kỳ lương"
                 name="payrollPeriodId"
                 required
                 options={snapshot.dataset.payrollPeriods.map((period) => ({
@@ -1290,7 +1396,7 @@ function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
                   label: `${period.code} | ${formatDate(period.from)} - ${formatDate(period.to)} | ${humanizeStatus(period.status)}`,
                 }))}
               />
-              <SubmitButton label="Generate payroll" />
+              <SubmitButton label="Tạo bảng lương" />
             </form>
           </SectionCard>
         </div>
@@ -1305,60 +1411,59 @@ function buildPtSelfPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="PT payroll"
-        title="My payroll"
-        description="Danh sach payroll entry da scope theo tai khoan PT hien tai."
-        actions={<ActionLink href="/pts/attendance">Open attendance</ActionLink>}
+        eyebrow="Lương PT"
+        title="Lương của tôi"
+        actions={<ActionLink href="/pts/attendance">Mở chấm công</ActionLink>}
       />
 
       <StatsGrid
         items={[
           {
-            label: "Entries",
+            label: "Bản ghi",
             value: `${payrollEntries.length}`,
-            note: "Tong so dong payroll da duoc tao cho PT nay.",
+            note: "Tổng số dòng bảng lương đã được tạo cho PT này.",
           },
           {
-            label: "Approved or paid",
+            label: "Đã duyệt hoặc đã chi",
             value: formatCurrency(
               payrollEntries
                 .filter((entry) => entry.status === "APPROVED" || entry.status === "PAID")
                 .reduce((total, entry) => total + entry.netPay, 0),
             ),
-            note: "So tien da duoc duyet hoac da thanh toan.",
+            note: "Số tiền đã được duyệt hoặc đã thanh toán.",
           },
           {
-            label: "Pending",
+            label: "Đang chờ",
             value: formatCurrency(
               payrollEntries
                 .filter((entry) => entry.status === "PENDING_APPROVAL")
                 .reduce((total, entry) => total + entry.netPay, 0),
             ),
-            note: "Net pay dang cho review hoac generate lai.",
+            note: "Thực nhận đang chờ duyệt hoặc tạo lại.",
           },
           {
-            label: "Paid hours",
+            label: "Giờ tính lương",
             value: formatHours(
               payrollEntries.reduce(
                 (total, entry) => total + (entry.paidHours ?? 0),
                 0,
               ),
             ),
-            note: "Tong gio da dua vao bang luong.",
+            note: "Tổng giờ đã đưa vào bảng lương.",
           },
         ]}
       />
 
-      <SectionCard title="My payroll entries">
+      <SectionCard title="Bản ghi lương của tôi">
         <DataTable
           headers={[
-            "Period ref",
-            "Paid hours",
-            "Base",
-            "Package commission",
-            "Sales commission",
-            "Net pay",
-            "Status",
+            "Mã kỳ",
+            "Giờ tính lương",
+            "Lương cơ bản",
+            "Hoa hồng gói",
+            "Hoa hồng bán hàng",
+            "Thực lĩnh",
+            "Trạng thái",
           ]}
           rows={payrollEntries.map((entry) => [
             entry.payrollPeriodId,
@@ -1394,22 +1499,21 @@ function buildPayrollPeriodPage(periodId: string): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Payroll detail"
-        title={`Payroll period ${period.code}`}
-        description={`${formatDate(period.from)} - ${formatDate(period.to)} | ${humanizeStatus(period.status)}`}
-        actions={<ActionLink href="/payroll">Back to payroll</ActionLink>}
+        eyebrow="Chi tiết kỳ lương"
+        title={`Kỳ lương ${period.code}`}
+        actions={<ActionLink href="/payroll">Quay lại bảng lương</ActionLink>}
       />
 
-      <SectionCard title="Entries in period">
+      <SectionCard title="Bản ghi trong kỳ">
         <DataTable
           headers={[
             "PT",
-            "Shift credits",
-            "Overtime",
-            "Package commission",
-            "Sales commission",
-            "Net pay",
-            "Status",
+            "Công quy đổi",
+            "Tăng ca",
+            "Hoa hồng gói",
+            "Hoa hồng bán hàng",
+            "Thực lĩnh",
+            "Trạng thái",
           ]}
           rows={entries.map((entry) => [
             getTrainerName(snapshot, entry.ptId),
@@ -1437,12 +1541,11 @@ function buildMembersPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Member management"
-        title="Members"
-        description="Danh sach member, membership active va PT phu trach hien tai."
+        eyebrow="Quản lý hội viên"
+        title="Hội viên"
         actions={
           <ActionLink href="/members/memberships">
-            Open sold memberships
+            Mở gói tập đã bán
           </ActionLink>
         }
       />
@@ -1450,37 +1553,37 @@ function buildMembersPage(): JSX.Element {
       <StatsGrid
         items={[
           {
-            label: "Total members",
+            label: "Tổng hội viên",
             value: `${snapshot.dataset.members.length}`,
-            note: "Bao gom ca active va inactive.",
+            note: "Bao gồm cả trạng thái hoạt động và ngưng hoạt động.",
           },
           {
-            label: "Members with PT",
+            label: "Hội viên có PT",
             value: `${membersWithPt}`,
-            note: "Duoc tinh tu ACTIVE assignments.",
+            note: "Được tính từ các phân công đang hoạt động.",
           },
           {
-            label: "Active yearly plans",
+            label: "Gói năm đang hoạt động",
             value: `${snapshot.dashboard.activeMemberships.YEAR}`,
-            note: "Nhom premium membership co PT kem theo.",
+            note: "Nhóm gói cao cấp có PT kèm theo.",
           },
           {
-            label: "Membership revenue",
+            label: "Doanh thu gói tập",
             value: formatCurrency(snapshot.revenueReport.membershipRevenue),
-            note: "Tong thu membership invoices da confirm.",
+            note: "Tổng thu hóa đơn gói tập đã xác nhận.",
           },
         ]}
       />
 
-      <SectionCard title="Member roster">
+      <SectionCard title="Danh sách hội viên">
         <DataTable
           headers={[
-            "Member",
-            "Current plan",
-            "Assigned PT",
-            "Membership spend",
-            "Service spend",
-            "Detail",
+            "Hội viên",
+            "Gói hiện tại",
+            "PT phụ trách",
+            "Chi cho gói tập",
+            "Chi cho dịch vụ",
+            "Chi tiết",
           ]}
           rows={sortMembersByDate(snapshot.dataset.members).map((member) => {
             const overview = snapshot.memberOverview.find(
@@ -1494,15 +1597,15 @@ function buildMembersPage(): JSX.Element {
                 </p>
                 <p className="text-xs text-slate-500">{member.code}</p>
               </div>,
-              overview?.membershipPlan?.name ?? "No active plan",
-              overview?.trainer?.fullName ?? "Chua gan",
+              overview?.membershipPlan?.name ?? "Chưa có gói hoạt động",
+              overview?.trainer?.fullName ?? "Chưa gán",
               formatCurrency(overview?.totalMembershipSpend ?? 0),
               formatCurrency(overview?.totalServiceSpend ?? 0),
               <ActionLink
                 key={`${member.id}-detail`}
                 href={`/members/${member.id}`}
               >
-                Open member
+                Mở hội viên
               </ActionLink>,
             ];
           })}
@@ -1536,26 +1639,25 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Member detail"
+        eyebrow="Chi tiết hội viên"
         title={member.fullName}
-        description={`${member.goal} | Registered ${formatDate(member.registeredAt)}`}
-        actions={<ActionLink href="/members">Back to members</ActionLink>}
+        actions={<ActionLink href="/members">Quay lại danh sách hội viên</ActionLink>}
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Profile summary">
+        <SectionCard title="Tóm tắt hồ sơ">
           <KeyValueList
             items={[
-              { label: "Phone", value: member.phone },
-              { label: "Email", value: member.email },
-              { label: "Address", value: member.address },
+              { label: "Số điện thoại", value: member.phone },
+              { label: "Thư điện tử", value: member.email },
+              { label: "Địa chỉ", value: member.address },
               {
-                label: "Body profile",
+                label: "Chỉ số cơ thể",
                 value: `${member.heightCm} cm | ${member.weightKg} kg`,
               },
-              { label: "Health notes", value: member.healthNotes },
+              { label: "Ghi chú sức khỏe", value: member.healthNotes },
               {
-                label: "Status",
+                label: "Trạng thái",
                 value: (
                   <Badge tone={getStatusTone(member.status)}>
                     {member.status}
@@ -1566,21 +1668,21 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
           />
         </SectionCard>
 
-        <SectionCard title="Membership history">
+        <SectionCard title="Lịch sử gói tập">
           <DataTable
             headers={[
-              "Plan",
-              "Start",
-              "End",
-              "Remaining PT sessions",
-              "Status",
+              "Gói",
+              "Bắt đầu",
+              "Kết thúc",
+              "Buổi PT còn lại",
+              "Trạng thái",
             ]}
             rows={memberships.map((membership) => [
               getPlanName(snapshot, membership.membershipPlanId),
               formatDate(membership.startDate),
               formatDate(membership.endDate),
               membership.remainingSessions === null
-                ? "Unlimited"
+                ? "Không giới hạn"
                 : `${membership.remainingSessions}`,
               <Badge
                 key={membership.id}
@@ -1593,15 +1695,15 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
         </SectionCard>
       </div>
 
-      <SectionCard title="PT assignments">
+      <SectionCard title="Phân công PT">
         <DataTable
-          headers={["PT", "From", "To", "Commission", "Status"]}
+          headers={["PT", "Từ ngày", "Đến ngày", "Hoa hồng", "Trạng thái"]}
           rows={ptAssignments.map((assignment) => [
             getTrainerName(snapshot, assignment.ptId),
             formatDate(assignment.assignedFrom),
             assignment.assignedTo
               ? formatDate(assignment.assignedTo)
-              : "Active now",
+              : "Đang hoạt động",
             formatCurrency(assignment.commissionAmount),
             <Badge key={assignment.id} tone={getStatusTone(assignment.status)}>
               {humanizeStatus(assignment.status)}
@@ -1611,9 +1713,9 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
       </SectionCard>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionCard title="Membership invoices">
+        <SectionCard title="Hóa đơn gói tập">
           <DataTable
-            headers={["Code", "Date", "Amount", "Payment"]}
+            headers={["Mã", "Ngày", "Số tiền", "Thanh toán"]}
             rows={membershipInvoices.map((invoice) => [
               invoice.code,
               formatDateTime(invoice.invoiceDate),
@@ -1623,9 +1725,9 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
           />
         </SectionCard>
 
-        <SectionCard title="Service invoices">
+        <SectionCard title="Hóa đơn dịch vụ">
           <DataTable
-            headers={["Code", "Date", "Total", "Status"]}
+            headers={["Mã", "Ngày", "Tổng", "Trạng thái"]}
             rows={salesInvoices.map((invoice) => [
               invoice.code,
               formatDateTime(invoice.invoiceDate),
@@ -1656,23 +1758,21 @@ function buildMembershipOverviewPage(
   return (
     <>
       <PageHeader
-        eyebrow="Membership lifecycle"
-        title="Sold memberships"
-        description="Nguon su that cho goi tap da ban, PT assignments va membership invoice confirmations."
+        eyebrow="Vòng đời gói tập"
+        title="Gói tập đã bán"
       />
 
       {canManageGym(options) ? (
         <>
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
             <SectionCard
-              title="Sell new membership"
-              description="Ban goi tap moi va tao membership invoice confirm ngay."
+              title="Bán gói tập mới"
             >
               <form action={createMembershipAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
                 <FormGrid>
                   <FormSelect
-                    label="Member"
+                    label="Hội viên"
                     name="memberId"
                     required
                     options={snapshot.dataset.members.map((member) => ({
@@ -1681,7 +1781,7 @@ function buildMembershipOverviewPage(
                     }))}
                   />
                   <FormSelect
-                    label="Plan"
+                    label="Gói"
                     name="membershipPlanId"
                     required
                     options={snapshot.dataset.membershipPlans.map((plan) => ({
@@ -1690,35 +1790,34 @@ function buildMembershipOverviewPage(
                     }))}
                   />
                   <FormField
-                    label="Start date"
+                    label="Ngày bắt đầu"
                     name="startDate"
                     type="date"
                     required
                   />
                   <FormSelect
-                    label="Payment method"
+                    label="Phương thức thanh toán"
                     name="paymentMethod"
                     required
                     defaultValue="BANK_TRANSFER"
                     options={[
-                      { value: "CASH", label: "Cash" },
-                      { value: "CARD", label: "Card" },
-                      { value: "BANK_TRANSFER", label: "Bank transfer" },
+                      { value: "CASH", label: "Tiền mặt" },
+                      { value: "CARD", label: "Thẻ" },
+                      { value: "BANK_TRANSFER", label: "Chuyển khoản" },
                     ]}
                   />
                 </FormGrid>
-                <SubmitButton label="Sell membership" />
+                <SubmitButton label="Bán gói tập" />
               </form>
             </SectionCard>
 
             <SectionCard
-              title="Renew membership"
-              description="Gia han goi tap dang hoat dong hoac sap het han."
+              title="Gia hạn gói tập"
             >
               <form action={renewMembershipAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
                 <FormSelect
-                  label="Existing membership"
+                  label="Gói tập hiện có"
                   name="membershipId"
                   required
                   options={manageableMemberships.map((membership) => ({
@@ -1728,36 +1827,35 @@ function buildMembershipOverviewPage(
                 />
                 <FormGrid>
                   <FormField
-                    label="New start date"
+                    label="Ngày bắt đầu mới"
                     name="startDate"
                     type="date"
                   />
                   <FormSelect
-                    label="Payment method"
+                    label="Phương thức thanh toán"
                     name="paymentMethod"
                     defaultValue="BANK_TRANSFER"
                     options={[
-                      { value: "", label: "Keep default" },
-                      { value: "CASH", label: "Cash" },
-                      { value: "CARD", label: "Card" },
-                      { value: "BANK_TRANSFER", label: "Bank transfer" },
+                      { value: "", label: "Giữ mặc định" },
+                      { value: "CASH", label: "Tiền mặt" },
+                      { value: "CARD", label: "Thẻ" },
+                      { value: "BANK_TRANSFER", label: "Chuyển khoản" },
                     ]}
                   />
                 </FormGrid>
-                <SubmitButton label="Renew membership" />
+                <SubmitButton label="Gia hạn gói tập" />
               </form>
             </SectionCard>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
             <SectionCard
-              title="Cancel membership"
-              description="Dong goi tap som va cap nhat lifecycle."
+              title="Hủy gói tập"
             >
               <form action={cancelMembershipAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
                 <FormSelect
-                  label="Membership"
+                  label="Gói tập"
                   name="membershipId"
                   required
                   options={manageableMemberships.map((membership) => ({
@@ -1766,22 +1864,21 @@ function buildMembershipOverviewPage(
                   }))}
                 />
                 <FormField
-                  label="Cancelled at"
+                  label="Thời điểm hủy"
                   name="cancelledAt"
                   type="date"
                 />
-                <SubmitButton label="Cancel membership" />
+                <SubmitButton label="Hủy gói tập" />
               </form>
             </SectionCard>
 
             <SectionCard
-              title="Assign PT"
-              description="Gan member vao PT theo membership dang con hieu luc."
+              title="Phân công PT"
             >
               <form action={createAssignmentAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
                 <FormSelect
-                  label="Member"
+                  label="Hội viên"
                   name="memberId"
                   required
                   options={snapshot.dataset.members.map((member) => ({
@@ -1799,7 +1896,7 @@ function buildMembershipOverviewPage(
                   }))}
                 />
                 <FormSelect
-                  label="Membership"
+                  label="Gói tập"
                   name="memberMembershipId"
                   required
                   options={manageableMemberships.map((membership) => ({
@@ -1809,40 +1906,39 @@ function buildMembershipOverviewPage(
                 />
                 <FormGrid>
                   <FormField
-                    label="Assigned from"
+                    label="Phân công từ"
                     name="assignedFrom"
                     type="date"
                     required
                   />
                   <FormSelect
-                    label="Commission type"
+                    label="Loại hoa hồng"
                     name="commissionType"
                     defaultValue="PERCENTAGE"
                     options={[
-                      { value: "PERCENTAGE", label: "Percentage" },
-                      { value: "FIXED", label: "Fixed" },
+                      { value: "PERCENTAGE", label: "Phần trăm" },
+                      { value: "FIXED", label: "Cố định" },
                     ]}
                   />
                   <FormField
-                    label="Commission value"
+                    label="Giá trị hoa hồng"
                     name="commissionValue"
                     type="number"
                     defaultValue={10}
                     step="0.5"
                   />
                 </FormGrid>
-                <SubmitButton label="Create assignment" />
+                <SubmitButton label="Tạo phân công" />
               </form>
             </SectionCard>
 
             <SectionCard
-              title="End PT assignment"
-              description="Ket thuc assignment active khi member chuyen PT hoac dung dich vu."
+              title="Kết thúc phân công PT"
             >
               <form action={endAssignmentAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
                 <FormSelect
-                  label="Active assignment"
+                  label="Phân công đang hoạt động"
                   name="assignmentId"
                   required
                   options={activeAssignments.map((assignment) => ({
@@ -1851,20 +1947,20 @@ function buildMembershipOverviewPage(
                   }))}
                 />
                 <FormField
-                  label="Assigned to"
+                  label="Phân công đến"
                   name="assignedTo"
                   type="date"
                 />
-                <SubmitButton label="End assignment" />
+                <SubmitButton label="Kết thúc phân công" />
               </form>
             </SectionCard>
           </div>
         </>
       ) : null}
 
-      <SectionCard title="Member memberships">
+      <SectionCard title="Gói tập của hội viên">
         <DataTable
-          headers={["Member", "Plan", "Range", "PT included", "Status"]}
+          headers={["Hội viên", "Gói", "Khoảng thời gian", "Kèm PT", "Trạng thái"]}
           rows={snapshot.dataset.memberMemberships.map((membership) => {
             const plan = snapshot.dataset.membershipPlans.find(
               (item) => item.id === membership.membershipPlanId,
@@ -1874,7 +1970,7 @@ function buildMembershipOverviewPage(
               getMemberName(snapshot, membership.memberId),
               plan?.name ?? membership.membershipPlanId,
               `${formatDate(membership.startDate)} - ${formatDate(membership.endDate)}`,
-              plan?.includesPt ? "Yes" : "No",
+              plan?.includesPt ? "Có" : "Không",
               <Badge
                 key={membership.id}
                 tone={getStatusTone(membership.status)}
@@ -1896,37 +1992,36 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
   return (
     <>
       <PageHeader
-        eyebrow="PT assigning"
-        title="Member assignments"
-        description="Quan ly viec phan cong hoac thay doi PT huong dan cho member dua tren tung membership."
+        eyebrow="Phân công PT"
+        title="Phân công hội viên"
       />
 
       <StatsGrid
         items={[
           {
-            label: "Active assignments",
+            label: "Phân công đang hoạt động",
             value: `${snapshot.dataset.memberPtAssignments.filter(a => a.status === 'ACTIVE').length}`,
-            note: "Tong so PT dang theo doi members.",
+            note: "Tổng số PT đang theo dõi hội viên.",
           },
           {
-            label: "Total assignments",
+            label: "Tổng phân công",
             value: `${snapshot.dataset.memberPtAssignments.length}`,
-            note: "Lich su toan bo danh sach phan cong.",
+            note: "Lịch sử toàn bộ phân công.",
           },
         ]}
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionCard title="Assignments log">
+        <SectionCard title="Nhật ký phân công">
           <DataTable
             headers={[
-              "Member",
+              "Hội viên",
               "PT",
-              "Commission",
-              "Assigned from",
-              "To",
-              "Status",
-              "Action",
+              "Hoa hồng",
+              "Phân công từ",
+              "Đến ngày",
+              "Trạng thái",
+              "Hành động",
             ]}
             rows={snapshot.dataset.memberPtAssignments.map((assignment) => [
               getMemberName(snapshot, assignment.memberId),
@@ -1946,7 +2041,7 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
                 <form key={`${assignment.id}-form`} action={endAssignmentAction}>
                   <input type="hidden" name="locale" value={locale} />
                   <input type="hidden" name="assignmentId" value={assignment.id} />
-                  <button type="submit" className="text-sm font-semibold text-rose-600 hover:text-rose-700">End</button>
+                  <button type="submit" className="text-sm font-semibold text-rose-600 hover:text-rose-700">Kết thúc</button>
                 </form>
               ) : null,
             ])}
@@ -1955,14 +2050,13 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
 
         {canManageGym(options) ? (
           <SectionCard
-            title="Create assignment"
-            description="Phan cong PT cho member dua vao goi tap premium hoac co PT di kem."
+            title="Tạo phân công"
           >
             <form action={createAssignmentAction} className="space-y-4">
               <input type="hidden" name="locale" value={locale} />
               <FormGrid>
                 <FormSelect
-                  label="Member"
+                  label="Hội viên"
                   name="memberId"
                   options={snapshot.dataset.members.map((m) => ({
                     value: m.id,
@@ -1980,7 +2074,7 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
                   required
                 />
                 <FormSelect
-                  label="Membership"
+                  label="Gói tập"
                   name="memberMembershipId"
                   options={snapshot.dataset.memberMemberships.filter(m => m.status === 'ACTIVE').map((m) => ({
                     value: m.id,
@@ -1989,27 +2083,27 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
                   required
                 />
                 <FormField
-                  label="Assigned from"
+                  label="Phân công từ"
                   name="assignedFrom"
                   type="date"
                   required
                 />
                 <FormField
-                  label="Assigned to"
+                  label="Phân công đến"
                   name="assignedTo"
                   type="date"
                 />
                 <FormSelect
-                  label="Commission type"
+                  label="Loại hoa hồng"
                   name="commissionType"
                   options={[
-                    { value: "PERCENT", label: "Percentage" },
-                    { value: "FIXED", label: "Fixed amount" },
+                    { value: "PERCENT", label: "Phần trăm" },
+                    { value: "FIXED", label: "Số tiền cố định" },
                   ]}
                   defaultValue="PERCENT"
                 />
                 <FormField
-                  label="Commission value"
+                  label="Giá trị hoa hồng"
                   name="commissionValue"
                   type="number"
                   step="0.01"
@@ -2017,11 +2111,11 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
                 />
               </FormGrid>
               <FormTextArea
-                label="Note"
+                label="Ghi chú"
                 name="note"
-                placeholder="Details about this assignment"
+                placeholder="Chi tiết cho phân công này"
               />
-              <SubmitButton label="Create assignment" />
+              <SubmitButton label="Tạo phân công" />
             </form>
           </SectionCard>
         ) : null}
@@ -2036,18 +2130,17 @@ function buildMembershipPlansPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Catalog"
-        title="Membership plans"
-        description="Danh muc plan DAY / MONTH / YEAR va perks di kem cho tung goi."
+        eyebrow="Danh mục"
+        title="Gói tập"
       />
-      <SectionCard title="Plan catalog">
+      <SectionCard title="Danh mục gói tập">
         <DataTable
-          headers={["Plan", "Type", "Price", "PT included", "Perks", "Status"]}
+          headers={["Gói", "Loại", "Giá", "Kèm PT", "Quyền lợi", "Trạng thái"]}
           rows={snapshot.dataset.membershipPlans.map((plan) => [
             plan.name,
             plan.type,
             formatCurrency(plan.price),
-            plan.includesPt ? `${plan.includedPtSessions} sessions` : "No",
+            plan.includesPt ? `${plan.includedPtSessions} buổi` : "Không",
             plan.perks.join(", "),
             <Badge key={plan.id} tone={getStatusTone(plan.status)}>
               {humanizeStatus(plan.status)}
@@ -2065,13 +2158,12 @@ function buildMembershipInvoicesPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Membership billing"
-        title="Membership invoices"
-        description="Danh sach hoa don membership da tao khi member mua hoac gia han goi tap."
+        eyebrow="Thanh toán gói tập"
+        title="Hóa đơn gói tập"
       />
-      <SectionCard title="Membership invoice list">
+      <SectionCard title="Danh sách hóa đơn gói tập">
         <DataTable
-          headers={["Code", "Member", "Date", "Amount", "Payment", "Status"]}
+          headers={["Mã", "Hội viên", "Ngày", "Số tiền", "Thanh toán", "Trạng thái"]}
           rows={snapshot.dataset.membershipInvoices.map((invoice) => [
             invoice.code,
             getMemberName(snapshot, invoice.memberId),
@@ -2094,44 +2186,43 @@ function buildProductsPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Retail catalog"
-        title="Products"
-        description="San pham dich vu trong gym, gia ban, gia von va trang thai ton kho hien tai."
+        eyebrow="Danh mục bán lẻ"
+        title="Sản phẩm"
       />
       <StatsGrid
         items={[
           {
-            label: "Total products",
+            label: "Tổng sản phẩm",
             value: `${snapshot.inventoryOverview.totalProducts}`,
-            note: "So SKU dang duoc track trong phong gym.",
+            note: "Số SKU đang được theo dõi trong phòng gym.",
           },
           {
-            label: "Low stock",
+            label: "Tồn kho thấp",
             value: `${snapshot.inventoryOverview.lowStockCount}`,
-            note: "Can restock ngay trong ky.",
+            note: "Cần nhập bổ sung ngay trong kỳ.",
           },
           {
-            label: "Stock value",
+            label: "Giá trị tồn kho",
             value: formatCurrency(snapshot.inventoryOverview.stockValue),
-            note: "Ton kho tinh theo unit cost.",
+            note: "Tồn kho tính theo đơn giá vốn.",
           },
           {
-            label: "Service revenue",
+            label: "Doanh thu dịch vụ",
             value: formatCurrency(snapshot.revenueReport.servicesRevenue),
-            note: "Doanh thu tu sales invoices confirmed.",
+            note: "Doanh thu từ hóa đơn bán hàng đã xác nhận.",
           },
         ]}
       />
 
-      <SectionCard title="Product list">
+      <SectionCard title="Danh sách sản phẩm">
         <DataTable
           headers={[
-            "Product",
-            "Category",
-            "Unit cost",
-            "Sale price",
-            "Stock",
-            "Threshold",
+            "Sản phẩm",
+            "Danh mục",
+            "Đơn giá vốn",
+            "Giá bán",
+            "Tồn kho",
+            "Ngưỡng",
           ]}
           rows={sortProductsByStock(snapshot.dataset.products).map(
             (product) => [
@@ -2156,48 +2247,46 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Inventory"
-        title="Inventory transactions"
-        description="Theo doi bien dong import, sale, adjustment va muc ton kho hien tai."
-        actions={<ActionLink href="/inventory/import">Open imports</ActionLink>}
+        eyebrow="Kho hàng"
+        title="Giao dịch kho"
+        actions={<ActionLink href="/inventory/import">Mở phiếu nhập</ActionLink>}
       />
       <StatsGrid
         items={[
           {
-            label: "Stock value",
+            label: "Giá trị tồn kho",
             value: formatCurrency(snapshot.inventoryOverview.stockValue),
-            note: "Tinh theo unit cost.",
+            note: "Tính theo đơn giá vốn.",
           },
           {
-            label: "Recent transactions",
+            label: "Giao dịch gần đây",
             value: `${snapshot.inventoryOverview.recentTransactions.length}`,
-            note: "6 giao dich gan nhat.",
+            note: "6 giao dịch gần nhất.",
           },
           {
-            label: "Top seller",
+            label: "Sản phẩm bán chạy nhất",
             value:
               snapshot.inventoryOverview.topSellingProducts[0]?.product.name ??
-              "N/A",
-            note: "San pham ban chay nhat.",
+              "Không có",
+            note: "Sản phẩm bán chạy nhất.",
           },
           {
-            label: "Low stock count",
+            label: "Số SKU tồn thấp",
             value: `${snapshot.inventoryOverview.lowStockCount}`,
-            note: "So SKU dang canh bao.",
+            note: "Số SKU đang cảnh báo.",
           },
         ]}
       />
 
       {canManageGym(options) ? (
         <SectionCard
-          title="Create import"
-          description="Nhap kho nhanh cho mot SKU dang duoc track trong he thong."
+          title="Tạo phiếu nhập"
         >
           <form action={importInventoryAction} className="space-y-4">
             <input type="hidden" name="locale" value={locale} />
             <FormGrid>
               <FormSelect
-                label="Product"
+                label="Sản phẩm"
                 name="productId"
                 required
                 options={snapshot.dataset.products.map((product) => ({
@@ -2206,7 +2295,7 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
                 }))}
               />
               <FormField
-                label="Quantity"
+                label="Số lượng"
                 name="quantity"
                 type="number"
                 min={1}
@@ -2214,7 +2303,7 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
                 required
               />
               <FormField
-                label="Unit cost"
+                label="Đơn giá vốn"
                 name="unitCost"
                 type="number"
                 min={0}
@@ -2222,19 +2311,19 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
                 required
               />
               <FormField
-                label="Reference code"
+                label="Mã tham chiếu"
                 name="referenceCode"
                 placeholder="PO-2026-04-01"
               />
             </FormGrid>
-            <SubmitButton label="Create import" />
+            <SubmitButton label="Tạo phiếu nhập" />
           </form>
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Inventory ledger">
+      <SectionCard title="Sổ kho">
         <DataTable
-          headers={["Date", "Product", "Type", "Qty", "Reference", "Note"]}
+          headers={["Ngày", "Sản phẩm", "Loại", "SL", "Tham chiếu", "Ghi chú"]}
           rows={snapshot.dataset.inventoryTransactions.map((transaction) => [
             formatDateTime(transaction.transactionDate),
             getProductName(snapshot, transaction.productId),
@@ -2258,14 +2347,13 @@ function buildInventoryImportPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Restocking"
-        title="Import tracker"
-        description="Tap trung vao cac giao dich nhap kho va danh sach san pham can mua them."
+        eyebrow="Nhập hàng"
+        title="Theo dõi nhập kho"
       />
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Import transactions">
+        <SectionCard title="Giao dịch nhập kho">
           <DataTable
-            headers={["Date", "Product", "Qty", "Unit cost", "Reference"]}
+            headers={["Ngày", "Sản phẩm", "SL", "Đơn giá vốn", "Tham chiếu"]}
             rows={importTransactions.map((transaction) => [
               formatDateTime(transaction.transactionDate),
               getProductName(snapshot, transaction.productId),
@@ -2276,20 +2364,20 @@ function buildInventoryImportPage(): JSX.Element {
           />
         </SectionCard>
 
-        <SectionCard title="Suggested restock queue">
+        <SectionCard title="Danh sách gợi ý nhập bổ sung">
           <DataTable
             headers={[
-              "Product",
-              "Current stock",
-              "Threshold",
-              "Suggested action",
+              "Sản phẩm",
+              "Tồn kho hiện tại",
+              "Ngưỡng",
+              "Gợi ý hành động",
             ]}
             rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
               (product) => [
                 product.name,
                 `${product.stockOnHand}`,
                 `${product.minimumStockLevel}`,
-                "Create import request",
+                "Tạo yêu cầu nhập",
               ],
             )}
           />
@@ -2306,25 +2394,23 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Sales"
-        title="Service invoices"
-        description="Hoa don ban san pham dich vu cho member hoac khach le."
+        eyebrow="Bán hàng"
+        title="Hóa đơn dịch vụ"
       />
 
       {canManageGym(options) ? (
         <SectionCard
-          title="Create sales invoice"
-          description="Lap hoa don draft moi cho retail invoice, dong thoi tru ton kho cho item da chon."
+          title="Tạo hóa đơn bán hàng"
         >
           <form action={createSalesInvoiceAction} className="space-y-4">
             <input type="hidden" name="locale" value={locale} />
             <FormGrid>
               <FormSelect
-                label="Customer type"
+                label="Loại khách hàng"
                 name="memberId"
                 defaultValue=""
                 options={[
-                  { value: "", label: "Walk-in customer" },
+                  { value: "", label: "Khách lẻ" },
                   ...snapshot.dataset.members.map((member) => ({
                     value: member.id,
                     label: `${member.code} | ${member.fullName}`,
@@ -2332,13 +2418,13 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
                 ]}
               />
               <FormField
-                label="Customer name"
+                label="Tên khách hàng"
                 name="customerName"
-                placeholder="Tran Van A"
+                placeholder="Trần Văn A"
                 required
               />
               <FormSelect
-                label="Product"
+                label="Sản phẩm"
                 name="productId"
                 required
                 options={snapshot.dataset.products.map((product) => ({
@@ -2347,7 +2433,7 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
                 }))}
               />
               <FormField
-                label="Quantity"
+                label="Số lượng"
                 name="quantity"
                 type="number"
                 min={1}
@@ -2355,18 +2441,18 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
                 required
               />
               <FormSelect
-                label="Payment method"
+                label="Phương thức thanh toán"
                 name="paymentMethod"
                 defaultValue="CASH"
                 required
                 options={[
-                  { value: "CASH", label: "Cash" },
-                  { value: "CARD", label: "Card" },
-                  { value: "BANK_TRANSFER", label: "Bank transfer" },
+                  { value: "CASH", label: "Tiền mặt" },
+                  { value: "CARD", label: "Thẻ" },
+                  { value: "BANK_TRANSFER", label: "Chuyển khoản" },
                 ]}
               />
               <FormField
-                label="Discount amount"
+                label="Số tiền giảm"
                 name="discountAmount"
                 type="number"
                 min={0}
@@ -2374,21 +2460,21 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
                 defaultValue={0}
               />
             </FormGrid>
-            <SubmitButton label="Create invoice" />
+            <SubmitButton label="Tạo hóa đơn" />
           </form>
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Sales invoices">
+      <SectionCard title="Hóa đơn bán hàng">
         <DataTable
           headers={[
-            "Code",
-            "Customer",
-            "Date",
-            "Total",
-            "Payment",
-            "Status",
-            "Detail",
+            "Mã",
+            "Khách hàng",
+            "Ngày",
+            "Tổng",
+            "Thanh toán",
+            "Trạng thái",
+            "Chi tiết",
           ]}
           rows={snapshot.dataset.salesInvoices.map((invoice) => [
             invoice.code,
@@ -2403,7 +2489,7 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
               key={`${invoice.id}-detail`}
               href={`/invoices/${invoice.id}`}
             >
-              Open invoice
+              Mở hóa đơn
             </ActionLink>,
           ])}
         />
@@ -2425,29 +2511,28 @@ function buildInvoiceDetailPage(invoiceId: string): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Sales invoice detail"
+        eyebrow="Chi tiết hóa đơn bán hàng"
         title={invoice.code}
-        description={`${invoice.customerName} | ${formatDateTime(invoice.invoiceDate)}`}
-        actions={<ActionLink href="/invoices">Back to invoices</ActionLink>}
+        actions={<ActionLink href="/invoices">Quay lại danh sách hóa đơn</ActionLink>}
       />
-      <SectionCard title="Invoice summary">
+      <SectionCard title="Tóm tắt hóa đơn">
         <KeyValueList
           items={[
-            { label: "Customer", value: invoice.customerName },
+            { label: "Khách hàng", value: invoice.customerName },
             {
-              label: "Member",
+              label: "Hội viên",
               value: invoice.memberId
                 ? getMemberName(snapshot, invoice.memberId)
-                : "Walk-in",
+                : "Khách lẻ",
             },
-            { label: "Payment method", value: invoice.paymentMethod },
+            { label: "Phương thức thanh toán", value: invoice.paymentMethod },
             {
-              label: "Discount",
+              label: "Giảm giá",
               value: formatCurrency(invoice.discountAmount),
             },
-            { label: "Total", value: formatCurrency(invoice.totalAmount) },
+            { label: "Tổng", value: formatCurrency(invoice.totalAmount) },
             {
-              label: "Status",
+              label: "Trạng thái",
               value: (
                 <Badge tone={getStatusTone(invoice.status)}>
                   {humanizeStatus(invoice.status)}
@@ -2458,9 +2543,9 @@ function buildInvoiceDetailPage(invoiceId: string): JSX.Element {
         />
       </SectionCard>
 
-      <SectionCard title="Invoice items">
+      <SectionCard title="Chi tiết hóa đơn">
         <DataTable
-          headers={["Product", "Qty", "Unit price", "Unit cost", "Line total"]}
+          headers={["Sản phẩm", "SL", "Đơn giá", "Đơn giá vốn", "Thành tiền"]}
           rows={invoice.items.map((item) => [
             getProductName(snapshot, item.productId),
             `${item.quantity}`,
@@ -2485,45 +2570,44 @@ function buildExpensesPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Operating expenses"
-        title="Expense requests"
-        description="Theo doi phi cleaning, maintenance, repair va utility theo vong doi approval."
+        eyebrow="Chi phí vận hành"
+        title="Phiếu đề nghị chi"
       />
       <StatsGrid
         items={[
           {
-            label: "Counted expense",
+            label: "Chi phí được tính",
             value: formatCurrency(snapshot.expenseReport.totalExpense),
-            note: "Chi tinh APPROVED va PAID.",
+            note: "Chỉ tính các phiếu đã duyệt và đã chi.",
           },
           {
-            label: "Pending approval",
+            label: "Chờ duyệt",
             value: `${snapshot.expenseReport.pendingApprovalCount}`,
-            note: "Can Admin review.",
+            note: "Cần quản trị viên rà soát.",
           },
           {
-            label: "Paid slips",
+            label: "Phiếu đã chi",
             value: `${snapshot.expenseReport.paidCount}`,
-            note: "Da thanh toan xong.",
+            note: "Đã thanh toán xong.",
           },
           {
-            label: "Largest category",
-            value: "Repair",
-            note: "Chi phi repair dang chiem ty trong lon nhat trong ky.",
+            label: "Danh mục lớn nhất",
+            value: "Sửa chữa",
+            note: "Chi phí sửa chữa đang chiếm tỷ trọng lớn nhất trong kỳ.",
           },
         ]}
       />
 
-      <SectionCard title="Expense slips">
+      <SectionCard title="Phiếu chi">
         <DataTable
           headers={[
-            "Code",
-            "Date",
-            "Category",
-            "Equipment",
-            "Amount",
-            "Status",
-            "Detail",
+            "Mã",
+            "Ngày",
+            "Danh mục",
+            "Thiết bị",
+            "Số tiền",
+            "Trạng thái",
+            "Chi tiết",
           ]}
           rows={snapshot.dataset.operatingExpenses.map((expense) => [
             expense.code,
@@ -2538,7 +2622,7 @@ function buildExpensesPage(): JSX.Element {
               key={`${expense.id}-detail`}
               href={`/expenses/${expense.id}`}
             >
-              Open slip
+              Mở phiếu
             </ActionLink>,
           ])}
         />
@@ -2560,27 +2644,26 @@ function buildExpenseDetailPage(expenseId: string): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Expense detail"
+        eyebrow="Chi tiết phiếu chi"
         title={expense.code}
-        description={`${expense.category} | ${expense.vendorName}`}
-        actions={<ActionLink href="/expenses">Back to expenses</ActionLink>}
+        actions={<ActionLink href="/expenses">Quay lại danh sách phiếu chi</ActionLink>}
       />
-      <SectionCard title="Expense summary">
+      <SectionCard title="Tóm tắt chi phí">
         <KeyValueList
           items={[
-            { label: "Expense date", value: formatDate(expense.expenseDate) },
-            { label: "Vendor", value: expense.vendorName },
+            { label: "Ngày chi", value: formatDate(expense.expenseDate) },
+            { label: "Nhà cung cấp", value: expense.vendorName },
             {
-              label: "Equipment",
+              label: "Thiết bị",
               value: getEquipmentName(
                 snapshot,
                 expense.equipmentAssetId ?? undefined,
               ),
             },
-            { label: "Amount", value: formatCurrency(expense.amount) },
-            { label: "Description", value: expense.description },
+            { label: "Số tiền", value: formatCurrency(expense.amount) },
+            { label: "Mô tả", value: expense.description },
             {
-              label: "Status",
+              label: "Trạng thái",
               value: (
                 <Badge tone={getStatusTone(expense.status)}>
                   {humanizeStatus(expense.status)}
@@ -2600,44 +2683,43 @@ function buildEquipmentPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Assets"
-        title="Equipment register"
-        description="Danh muc thiet bi, tinh trang su dung va lich bao tri ke tiep."
+        eyebrow="Tài sản"
+        title="Danh mục thiết bị"
       />
       <StatsGrid
         items={[
           {
-            label: "Assets tracked",
+            label: "Thiết bị đang theo dõi",
             value: `${snapshot.dataset.equipmentAssets.length}`,
-            note: "Tong so thiet bi trong registry.",
+            note: "Tổng số thiết bị trong danh mục.",
           },
           {
-            label: "Need attention",
+            label: "Cần chú ý",
             value: `${snapshot.dataset.equipmentAssets.filter((asset) => asset.condition !== "GOOD").length}`,
-            note: "Asset can bao tri hoac thay the.",
+            note: "Thiết bị cần bảo trì hoặc thay thế.",
           },
           {
-            label: "Maintenance records",
+            label: "Bản ghi bảo trì",
             value: `${snapshot.dataset.maintenanceRecords.length}`,
-            note: "Tong event bao tri da ghi nhan.",
+            note: "Tổng sự kiện bảo trì đã ghi nhận.",
           },
           {
-            label: "Open alerts",
+            label: "Cảnh báo mở",
             value: `${snapshot.dashboard.maintenanceAlerts.length}`,
-            note: "Can xu ly trong 14 ngay.",
+            note: "Cần xử lý trong 14 ngày.",
           },
         ]}
       />
 
-      <SectionCard title="Equipment list">
+      <SectionCard title="Danh sách thiết bị">
         <DataTable
           headers={[
-            "Equipment",
-            "Purchased",
-            "Value",
-            "Condition",
-            "Next maintenance",
-            "Detail",
+            "Thiết bị",
+            "Ngày mua",
+            "Giá trị",
+            "Tình trạng",
+            "Bảo trì tiếp theo",
+            "Chi tiết",
           ]}
           rows={sortEquipmentByMaintenance(
             snapshot.dataset.equipmentAssets,
@@ -2656,7 +2738,7 @@ function buildEquipmentPage(): JSX.Element {
               key={`${equipmentAsset.id}-detail`}
               href={`/equipment/${equipmentAsset.id}`}
             >
-              Open asset
+              Mở tài sản
             </ActionLink>,
           ])}
         />
@@ -2682,25 +2764,24 @@ function buildEquipmentDetailPage(equipmentId: string): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Equipment detail"
+        eyebrow="Chi tiết thiết bị"
         title={equipmentAsset.name}
-        description={equipmentAsset.note}
-        actions={<ActionLink href="/equipment">Back to equipment</ActionLink>}
+        actions={<ActionLink href="/equipment">Quay lại danh sách thiết bị</ActionLink>}
       />
-      <SectionCard title="Asset summary">
+      <SectionCard title="Tóm tắt tài sản">
         <KeyValueList
           items={[
-            { label: "Code", value: equipmentAsset.code },
+            { label: "Mã", value: equipmentAsset.code },
             {
-              label: "Purchased at",
+              label: "Ngày mua",
               value: formatDate(equipmentAsset.purchasedAt),
             },
             {
-              label: "Purchase value",
+              label: "Giá trị mua",
               value: formatCurrency(equipmentAsset.purchaseValue),
             },
             {
-              label: "Condition",
+              label: "Tình trạng",
               value: (
                 <Badge tone={getStatusTone(equipmentAsset.condition)}>
                   {humanizeStatus(equipmentAsset.condition)}
@@ -2708,17 +2789,17 @@ function buildEquipmentDetailPage(equipmentId: string): JSX.Element {
               ),
             },
             {
-              label: "Next maintenance",
+              label: "Bảo trì tiếp theo",
               value: formatDate(equipmentAsset.nextMaintenanceAt),
             },
-            { label: "Note", value: equipmentAsset.note },
+            { label: "Ghi chú", value: equipmentAsset.note },
           ]}
         />
       </SectionCard>
 
-      <SectionCard title="Maintenance history">
+      <SectionCard title="Lịch sử bảo trì">
         <DataTable
-          headers={["Date", "Vendor", "Description", "Amount"]}
+          headers={["Ngày", "Nhà cung cấp", "Mô tả", "Số tiền"]}
           rows={maintenanceRecords.map((record) => [
             formatDate(record.maintenanceDate),
             record.vendorName,
@@ -2738,21 +2819,19 @@ function buildMaintenancePage(options?: RenderGymRouteOptions): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Maintenance log"
-        title="Maintenance history"
-        description="Tat ca event bao tri, repair va recommendation replacement cho thiet bi."
+        eyebrow="Nhật ký bảo trì"
+        title="Lịch sử bảo trì"
       />
 
       {canManageGym(options) ? (
         <SectionCard
-          title="Log maintenance"
-          description="Ghi nhan mot lan bao tri moi va cap nhat ngay bao tri tiep theo neu can."
+          title="Ghi nhận bảo trì"
         >
           <form action={createMaintenanceAction} className="space-y-4">
             <input type="hidden" name="locale" value={locale} />
             <FormGrid>
               <FormSelect
-                label="Equipment"
+                label="Thiết bị"
                 name="equipmentAssetId"
                 required
                 options={snapshot.dataset.equipmentAssets.map((equipmentAsset) => ({
@@ -2761,29 +2840,29 @@ function buildMaintenancePage(options?: RenderGymRouteOptions): JSX.Element {
                 }))}
               />
               <FormSelect
-                label="Maintenance type"
+                label="Loại bảo trì"
                 name="maintenanceType"
                 defaultValue="PREVENTIVE"
                 options={[
-                  { value: "PREVENTIVE", label: "Preventive" },
-                  { value: "CORRECTIVE", label: "Corrective" },
-                  { value: "INSPECTION", label: "Inspection" },
+                  { value: "PREVENTIVE", label: "Phòng ngừa" },
+                  { value: "CORRECTIVE", label: "Khắc phục" },
+                  { value: "INSPECTION", label: "Kiểm tra" },
                 ]}
               />
               <FormField
-                label="Maintenance date"
+                label="Ngày bảo trì"
                 name="maintenanceDate"
                 type="date"
                 required
               />
               <FormField
-                label="Vendor name"
+                label="Tên nhà cung cấp"
                 name="vendorName"
-                placeholder="Fit Service Co."
+                placeholder="Công ty Dịch vụ Fit"
                 required
               />
               <FormField
-                label="Amount"
+                label="Số tiền"
                 name="amount"
                 type="number"
                 min={0}
@@ -2791,41 +2870,41 @@ function buildMaintenancePage(options?: RenderGymRouteOptions): JSX.Element {
                 required
               />
               <FormSelect
-                label="Result status"
+                label="Kết quả"
                 name="resultStatus"
                 defaultValue="COMPLETED"
                 options={[
-                  { value: "COMPLETED", label: "Completed" },
-                  { value: "FOLLOW_UP_REQUIRED", label: "Follow-up required" },
-                  { value: "REPLACEMENT_RECOMMENDED", label: "Replacement recommended" },
+                  { value: "COMPLETED", label: "Hoàn tất" },
+                  { value: "FOLLOW_UP_REQUIRED", label: "Cần theo dõi thêm" },
+                  { value: "REPLACEMENT_RECOMMENDED", label: "Khuyến nghị thay thế" },
                 ]}
               />
               <FormField
-                label="Next maintenance"
+                label="Bảo trì tiếp theo"
                 name="nextMaintenanceAt"
                 type="date"
               />
             </FormGrid>
             <FormTextArea
-              label="Description"
+              label="Mô tả"
               name="description"
-              placeholder="Mo ta cong viec da thuc hien"
+              placeholder="Mô tả công việc đã thực hiện"
               rows={3}
             />
-            <SubmitButton label="Create maintenance record" />
+            <SubmitButton label="Tạo bản ghi bảo trì" />
           </form>
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Maintenance records">
+      <SectionCard title="Bản ghi bảo trì">
         <DataTable
           headers={[
-            "Date",
-            "Equipment",
-            "Type",
-            "Vendor",
+            "Ngày",
+            "Thiết bị",
+            "Loại",
+            "Nhà cung cấp",
             "Result",
-            "Amount",
+            "Số tiền",
           ]}
           rows={snapshot.dataset.maintenanceRecords.map((record) => [
             formatDate(record.maintenanceDate),
@@ -2847,39 +2926,38 @@ function buildRevenueReportPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Reports"
-        title="Revenue report"
-        description="Tong hop doanh thu membership va doanh thu retail tren cung mot dashboard."
+        eyebrow="Báo cáo"
+        title="Báo cáo doanh thu"
       />
       <StatsGrid
         items={[
           {
-            label: "Total revenue",
+            label: "Tổng doanh thu",
             value: formatCurrency(snapshot.revenueReport.totalRevenue),
-            note: "Membership + retail confirmed.",
+            note: "Gói tập và bán lẻ đã xác nhận.",
           },
           {
-            label: "Membership revenue",
+            label: "Doanh thu gói tập",
             value: formatCurrency(snapshot.revenueReport.membershipRevenue),
-            note: "Thu tu membership invoices.",
+            note: "Thứ tự hóa đơn gói tập.",
           },
           {
-            label: "Service revenue",
+            label: "Doanh thu dịch vụ",
             value: formatCurrency(snapshot.revenueReport.servicesRevenue),
-            note: "Thu tu sales invoices.",
+            note: "Thứ tự hóa đơn bán hàng.",
           },
           {
-            label: "Invoice count",
+            label: "Số lượng hóa đơn",
             value: `${snapshot.revenueReport.membershipInvoiceCount + snapshot.revenueReport.salesInvoiceCount}`,
-            note: "Tong invoice da confirm.",
+            note: "Tổng hóa đơn đã xác nhận.",
           },
         ]}
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionCard title="Membership invoices">
+        <SectionCard title="Hóa đơn gói tập">
           <DataTable
-            headers={["Code", "Member", "Date", "Amount"]}
+            headers={["Mã", "Hội viên", "Ngày", "Số tiền"]}
             rows={snapshot.dataset.membershipInvoices.map((invoice) => [
               invoice.code,
               getMemberName(snapshot, invoice.memberId),
@@ -2888,9 +2966,9 @@ function buildRevenueReportPage(): JSX.Element {
             ])}
           />
         </SectionCard>
-        <SectionCard title="Retail invoices">
+        <SectionCard title="Hóa đơn bán lẻ">
           <DataTable
-            headers={["Code", "Customer", "Date", "Amount"]}
+            headers={["Mã", "Khách hàng", "Ngày", "Số tiền"]}
             rows={snapshot.dataset.salesInvoices
               .filter((invoice) => invoice.status === "CONFIRMED")
               .map((invoice) => [
@@ -2912,37 +2990,36 @@ function buildPayrollReportPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Reports"
-        title="Payroll report"
-        description="Tong chi luong PT, status approval va phan bo net pay theo trainer."
+        eyebrow="Báo cáo"
+        title="Báo cáo lương"
       />
       <StatsGrid
         items={[
           {
-            label: "Total payroll",
+            label: "Tổng lương",
             value: formatCurrency(snapshot.payrollReport.totalPayroll),
-            note: "Tong net pay toan bo history.",
+            note: "Tổng thực lĩnh toàn bộ lịch sử.",
           },
           {
-            label: "Approved",
+            label: "Đã duyệt",
             value: formatCurrency(snapshot.payrollReport.approvedPayroll),
-            note: "Da approved hoac paid.",
+            note: "Đã duyệt hoặc đã chi.",
           },
           {
-            label: "Pending",
+            label: "Đang chờ",
             value: formatCurrency(snapshot.payrollReport.pendingPayroll),
-            note: "Dang cho duyet.",
+            note: "Đang chờ duyệt.",
           },
           {
-            label: "Entries",
+            label: "Bản ghi",
             value: `${snapshot.payrollReport.byTrainer.length}`,
-            note: "So dong payroll trong dataset.",
+            note: "Số dòng bảng lương trong dữ liệu mẫu.",
           },
         ]}
       />
-      <SectionCard title="Payroll by trainer">
+      <SectionCard title="Bảng lương theo PT">
         <DataTable
-          headers={["PT", "Period", "Net pay", "Status"]}
+          headers={["PT", "Kỳ", "Thực lĩnh", "Trạng thái"]}
           rows={snapshot.payrollReport.byTrainer.map((item) => [
             item.ptName,
             item.payrollPeriodCode,
@@ -2966,38 +3043,37 @@ function buildInventoryReportPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Reports"
-        title="Inventory report"
-        description="Ton kho hien tai, top sellers va transaction flow trong ky."
+        eyebrow="Báo cáo"
+        title="Báo cáo tồn kho"
       />
       <StatsGrid
         items={[
           {
-            label: "Stock value",
+            label: "Giá trị tồn kho",
             value: formatCurrency(snapshot.inventoryOverview.stockValue),
-            note: "Ton kho theo cost.",
+            note: "Tồn kho theo giá vốn.",
           },
           {
-            label: "Low stock count",
+            label: "Số SKU tồn thấp",
             value: `${snapshot.inventoryOverview.lowStockCount}`,
-            note: "SKU dang can canh bao.",
+            note: "SKU đang cần cảnh báo.",
           },
           {
-            label: "Products tracked",
+            label: "Sản phẩm đang theo dõi",
             value: `${snapshot.inventoryOverview.totalProducts}`,
-            note: "Tong SKU dang active.",
+            note: "Tổng SKU đang hoạt động.",
           },
           {
-            label: "Recent moves",
+            label: "Biến động gần đây",
             value: `${snapshot.inventoryOverview.recentTransactions.length}`,
-            note: "6 giao dich gan nhat.",
+            note: "6 giao dịch gần nhất.",
           },
         ]}
       />
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Top sellers">
+        <SectionCard title="Sản phẩm bán chạy">
           <DataTable
-            headers={["Product", "Sold qty", "Current stock"]}
+            headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
             rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
               entry.product.name,
               `${entry.soldQuantity}`,
@@ -3005,9 +3081,9 @@ function buildInventoryReportPage(): JSX.Element {
             ])}
           />
         </SectionCard>
-        <SectionCard title="Recent inventory transactions">
+        <SectionCard title="Giao dịch kho gần đây">
           <DataTable
-            headers={["Date", "Product", "Type", "Qty"]}
+            headers={["Ngày", "Sản phẩm", "Loại", "SL"]}
             rows={snapshot.inventoryOverview.recentTransactions.map(
               (transaction) => [
                 formatDateTime(transaction.transactionDate),
@@ -3029,37 +3105,36 @@ function buildExpenseReportPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Reports"
-        title="Expense report"
-        description="Chi phi van hanh theo category va trang thai approval."
+        eyebrow="Báo cáo"
+        title="Báo cáo chi phí"
       />
       <StatsGrid
         items={[
           {
-            label: "Counted expense",
+            label: "Chi phí được tính",
             value: formatCurrency(snapshot.expenseReport.totalExpense),
-            note: "Chi APPROVED + PAID.",
+            note: "Chỉ tính các phiếu đã duyệt và đã chi.",
           },
           {
-            label: "Pending approval",
+            label: "Chờ duyệt",
             value: `${snapshot.expenseReport.pendingApprovalCount}`,
-            note: "Can duyet bo sung.",
+            note: "Cần duyệt bổ sung.",
           },
           {
-            label: "Paid expense count",
+            label: "Số phiếu đã chi",
             value: `${snapshot.expenseReport.paidCount}`,
-            note: "Da mark paid.",
+            note: "Đã đánh dấu đã chi.",
           },
           {
-            label: "Top category",
-            value: "Repair",
-            note: "Category co tong amount lon nhat hien tai.",
+            label: "Danh mục cao nhất",
+            value: "Sửa chữa",
+            note: "Danh mục có tổng số tiền lớn nhất hiện tại.",
           },
         ]}
       />
-      <SectionCard title="Expense by category">
+      <SectionCard title="Chi phí theo danh mục">
         <DataTable
-          headers={["Category", "Amount"]}
+          headers={["Danh mục", "Số tiền"]}
           rows={Object.entries(snapshot.expenseReport.byCategory).map(
             ([category, amount]) => [category, formatCurrency(amount)],
           )}
@@ -3075,55 +3150,54 @@ function buildProfitReportPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="Reports"
-        title="Profit report"
-        description="Cong thuc: revenue - COGS - PT payroll - operating expense."
+        eyebrow="Báo cáo"
+        title="Báo cáo lợi nhuận"
       />
       <StatsGrid
         items={[
           {
-            label: "Revenue",
+            label: "Doanh thu",
             value: formatCurrency(snapshot.profitReport.totalRevenue),
-            note: "Tong doanh thu confirmed.",
+            note: "Tổng doanh thu đã xác nhận.",
           },
           {
-            label: "COGS",
+            label: "Giá vốn",
             value: formatCurrency(snapshot.profitReport.cogs),
-            note: "Gia von tu retail items da ban.",
+            note: "Giá vốn từ các mặt hàng bán lẻ đã bán.",
           },
           {
-            label: "PT payroll",
+            label: "Lương PT",
             value: formatCurrency(snapshot.profitReport.ptPayroll),
-            note: "Ky payroll hien tai.",
+            note: "Kỳ lương hiện tại.",
           },
           {
-            label: "Net profit",
+            label: "Lợi nhuận ròng",
             value: formatCurrency(snapshot.profitReport.netProfit),
-            note: "Ket qua sau khi tru chi phi va payroll.",
+            note: "Kết quả sau khi trừ chi phí và lương.",
           },
         ]}
       />
-      <SectionCard title="Profit formula">
+      <SectionCard title="Công thức lợi nhuận">
         <KeyValueList
           items={[
             {
-              label: "Total revenue",
+              label: "Tổng doanh thu",
               value: formatCurrency(snapshot.profitReport.totalRevenue),
             },
             {
-              label: "Minus COGS",
+              label: "Trừ giá vốn",
               value: formatCurrency(snapshot.profitReport.cogs),
             },
             {
-              label: "Minus PT payroll",
+              label: "Trừ lương PT",
               value: formatCurrency(snapshot.profitReport.ptPayroll),
             },
             {
-              label: "Minus operating expense",
+              label: "Trừ chi phí vận hành",
               value: formatCurrency(snapshot.profitReport.operatingExpense),
             },
             {
-              label: "Net result",
+              label: "Kết quả ròng",
               value: (
                 <span className="font-semibold text-slate-950">
                   {formatCurrency(snapshot.profitReport.netProfit)}
@@ -3143,13 +3217,12 @@ function buildSettingsPage(): JSX.Element {
   return (
     <>
       <PageHeader
-        eyebrow="System config"
-        title="Settings"
-        description="Cac tham so policy can Admin co the chinh sua trong he thong."
+        eyebrow="Cấu hình hệ thống"
+        title="Cấu hình"
       />
-      <SectionCard title="System configs">
+      <SectionCard title="Cấu hình hệ thống">
         <DataTable
-          headers={["Key", "Label", "Value", "Description"]}
+          headers={["Khóa", "Nhãn", "Giá trị", "Mô tả"]}
           rows={snapshot.dataset.systemConfigs.map((config) => [
             config.key,
             config.label,
@@ -3163,85 +3236,44 @@ function buildSettingsPage(): JSX.Element {
 }
 
 function buildLoginPage(options?: RenderGymRouteOptions): JSX.Element {
-  const snapshot = getGymSnapshot();
   const locale = getLocale(options);
-  const backendUrl =
-    process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:4000";
   const hasInvalidCredentials =
     getSearchParam(options?.searchParams, "error") === "invalid";
 
   return (
     <>
       <PageHeader
-        eyebrow="Secure access"
-        title="Sign in"
-        description="Frontend hien dang dung session that voi access token short-lived va refresh token cookie de goi backend Gym Manager."
-        actions={
-          <a
-            href={`${backendUrl}/api/docs`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            Open auth docs
-          </a>
-        }
+        eyebrow="Đăng nhập an toàn"
+        title="Đăng nhập"
       />
 
-      <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+      <div className="mx-auto grid w-full max-w-2xl gap-6">
         <SectionCard
-          title="Login form"
-          description="Dang nhap vao admin/staff portal hoac PT self-service view."
+          title="Biểu mẫu đăng nhập"
         >
           {hasInvalidCredentials ? (
             <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              Email hoac mat khau khong dung. Thu lai bang mot tai khoan demo ben canh.
+              Email hoặc mật khẩu không đúng. Vui lòng thử lại.
             </div>
           ) : null}
 
           <form action={loginAction} className="space-y-4">
             <input type="hidden" name="locale" value={locale} />
             <FormField
-              label="Email"
+              label="Thư điện tử"
               name="email"
               type="email"
-              defaultValue="admin@gymmanager.local"
               required
             />
             <FormField
-              label="Password"
+              label="Mật khẩu"
               name="password"
               type="password"
-              defaultValue="demo123"
               required
             />
-            <SubmitButton label="Sign in" />
+            <SubmitButton label="Đăng nhập" />
           </form>
         </SectionCard>
-
-        <div className="space-y-6">
-          <SectionCard title="Demo accounts">
-            <DataTable
-              headers={["Role", "Name", "Email", "Password"]}
-              rows={snapshot.dataset.users.map((user) => [
-                user.role,
-                user.fullName,
-                user.email,
-                "demo123",
-              ])}
-            />
-          </SectionCard>
-
-          <SectionCard title="Quick API test">
-            <pre className="overflow-x-auto rounded-[1.25rem] bg-slate-950 p-4 text-sm leading-7 text-slate-100">
-              {`POST ${backendUrl}/api/auth/login
-{
-  "email": "admin@gymmanager.local",
-  "password": "demo123"
-}`}
-            </pre>
-          </SectionCard>
-        </div>
       </div>
     </>
   );
@@ -3254,141 +3286,151 @@ export function renderGymRoute(
   const section = slug[0];
   const entityId = slug[1];
   const nestedSection = slug[2];
+  const locale: UiLocale = getLocale(options) === "vi" ? "vi" : "en";
+  let content: JSX.Element | undefined;
+
+  setActiveUiLocale(locale);
 
   if (options?.currentUser?.role === "PT") {
     if (section === "pts" && entityId === "attendance") {
-      return buildPtSelfAttendancePage(options);
+      content = buildPtSelfAttendancePage(options);
     }
 
-    if (section === "payroll" && slug.length === 1) {
-      return buildPtSelfPayrollPage(options);
+    if (!content && section === "payroll" && slug.length === 1) {
+      content = buildPtSelfPayrollPage(options);
     }
   }
 
-  if (slug.length === 0 || section === "dashboard") {
-    return buildDashboardPage();
+  if (!content && (slug.length === 0 || section === "dashboard")) {
+    content = buildDashboardPage();
   }
 
-  if (section === "login") {
-    return buildLoginPage(options);
+  if (!content && section === "login") {
+    content = buildLoginPage(options);
   }
 
-  if (section === "pts" && slug.length === 1) {
-    return buildPtsPage();
+  if (!content && section === "pts" && slug.length === 1) {
+    content = buildPtsPage();
   }
 
-  if (section === "pts" && entityId === "attendance") {
-    return buildAttendancePage(options);
+  if (!content && section === "pts" && entityId === "attendance") {
+    content = buildAttendancePage(options);
   }
 
-  if (section === "pts" && slug.length === 2 && entityId) {
-    return buildPtDetailPage(entityId);
+  if (!content && section === "pts" && slug.length === 2 && entityId) {
+    content = buildPtDetailPage(entityId);
   }
 
   if (
+    !content &&
     section === "pts" &&
     slug.length === 3 &&
     entityId &&
     nestedSection === "contracts"
   ) {
-    return buildPtContractsPage(entityId, options);
+    content = buildPtContractsPage(entityId, options);
   }
 
-  if (section === "payroll" && slug.length === 1) {
-    return buildPayrollPage(options);
+  if (!content && section === "payroll" && slug.length === 1) {
+    content = buildPayrollPage(options);
   }
 
-  if (section === "payroll" && slug.length === 2 && entityId) {
-    return buildPayrollPeriodPage(entityId);
+  if (!content && section === "payroll" && slug.length === 2 && entityId) {
+    content = buildPayrollPeriodPage(entityId);
   }
 
-  if (section === "members" && slug.length === 1) {
-    return buildMembersPage();
+  if (!content && section === "members" && slug.length === 1) {
+    content = buildMembersPage();
   }
 
-  if (section === "members" && entityId === "memberships") {
-    return buildMembershipOverviewPage(options);
+  if (!content && section === "members" && entityId === "memberships") {
+    content = buildMembershipOverviewPage(options);
   }
 
-  if (section === "members" && slug.length === 2 && entityId) {
-    return buildMemberDetailPage(entityId);
+  if (!content && section === "members" && slug.length === 2 && entityId) {
+    content = buildMemberDetailPage(entityId);
   }
 
-  if (section === "member-assignments" && slug.length === 1) {
-    return buildMemberAssignmentsPage(options);
+  if (!content && section === "member-assignments" && slug.length === 1) {
+    content = buildMemberAssignmentsPage(options);
   }
 
-  if (section === "membership-plans") {
-    return buildMembershipPlansPage();
+  if (!content && section === "membership-plans") {
+    content = buildMembershipPlansPage();
   }
 
-  if (section === "membership-invoices") {
-    return buildMembershipInvoicesPage();
+  if (!content && section === "membership-invoices") {
+    content = buildMembershipInvoicesPage();
   }
 
-  if (section === "products") {
-    return buildProductsPage();
+  if (!content && section === "products") {
+    content = buildProductsPage();
   }
 
-  if (section === "inventory" && slug.length === 1) {
-    return buildInventoryPage(options);
+  if (!content && section === "inventory" && slug.length === 1) {
+    content = buildInventoryPage(options);
   }
 
-  if (section === "inventory" && entityId === "import") {
-    return buildInventoryImportPage();
+  if (!content && section === "inventory" && entityId === "import") {
+    content = buildInventoryImportPage();
   }
 
-  if (section === "invoices" && slug.length === 1) {
-    return buildInvoicesPage(options);
+  if (!content && section === "invoices" && slug.length === 1) {
+    content = buildInvoicesPage(options);
   }
 
-  if (section === "invoices" && slug.length === 2 && entityId) {
-    return buildInvoiceDetailPage(entityId);
+  if (!content && section === "invoices" && slug.length === 2 && entityId) {
+    content = buildInvoiceDetailPage(entityId);
   }
 
-  if (section === "expenses" && slug.length === 1) {
-    return buildExpensesPage();
+  if (!content && section === "expenses" && slug.length === 1) {
+    content = buildExpensesPage();
   }
 
-  if (section === "expenses" && slug.length === 2 && entityId) {
-    return buildExpenseDetailPage(entityId);
+  if (!content && section === "expenses" && slug.length === 2 && entityId) {
+    content = buildExpenseDetailPage(entityId);
   }
 
-  if (section === "equipment" && slug.length === 1) {
-    return buildEquipmentPage();
+  if (!content && section === "equipment" && slug.length === 1) {
+    content = buildEquipmentPage();
   }
 
-  if (section === "equipment" && slug.length === 2 && entityId) {
-    return buildEquipmentDetailPage(entityId);
+  if (!content && section === "equipment" && slug.length === 2 && entityId) {
+    content = buildEquipmentDetailPage(entityId);
   }
 
-  if (section === "maintenance") {
-    return buildMaintenancePage(options);
+  if (!content && section === "maintenance") {
+    content = buildMaintenancePage(options);
   }
 
-  if (section === "reports" && entityId === "revenue") {
-    return buildRevenueReportPage();
+  if (!content && section === "reports" && entityId === "revenue") {
+    content = buildRevenueReportPage();
   }
 
-  if (section === "reports" && entityId === "payroll") {
-    return buildPayrollReportPage();
+  if (!content && section === "reports" && entityId === "payroll") {
+    content = buildPayrollReportPage();
   }
 
-  if (section === "reports" && entityId === "inventory") {
-    return buildInventoryReportPage();
+  if (!content && section === "reports" && entityId === "inventory") {
+    content = buildInventoryReportPage();
   }
 
-  if (section === "reports" && entityId === "expenses") {
-    return buildExpenseReportPage();
+  if (!content && section === "reports" && entityId === "expenses") {
+    content = buildExpenseReportPage();
   }
 
-  if (section === "reports" && entityId === "profit") {
-    return buildProfitReportPage();
+  if (!content && section === "reports" && entityId === "profit") {
+    content = buildProfitReportPage();
   }
 
-  if (section === "settings") {
-    return buildSettingsPage();
+  if (!content && section === "settings") {
+    content = buildSettingsPage();
   }
 
-  notFound();
+  if (!content) {
+    notFound();
+  }
+
+  return content;
 }
+

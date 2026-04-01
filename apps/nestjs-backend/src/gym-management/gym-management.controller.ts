@@ -155,7 +155,7 @@ function createResponse<ResponsePayload>(
 @UseInterceptors(AuditLogInterceptor)
 @Roles("ADMIN", "STAFF")
 export class GymManagementController {
-  constructor(private readonly gymManagementService: GymManagementService) {}
+  constructor(private readonly gymManagementService: GymManagementService) { }
 
   @Public()
   @Post("auth/login")
@@ -224,6 +224,7 @@ export class GymManagementController {
   }
 
   @Post("pts")
+  @Roles("ADMIN")
   async createPt(
     @Body() createPersonalTrainerDto: CreatePersonalTrainerDto,
   ): Promise<ApiResponse<PersonalTrainerRecord>> {
@@ -281,6 +282,7 @@ export class GymManagementController {
   }
 
   @Patch("pts/:id")
+  @Roles("ADMIN")
   async updatePt(
     @Param("id") ptId: string,
     @Body() updatePersonalTrainerDto: UpdatePersonalTrainerDto,
@@ -294,6 +296,7 @@ export class GymManagementController {
   }
 
   @Delete("pts/:id")
+  @Roles("ADMIN")
   async deletePt(
     @Param("id") ptId: string,
   ): Promise<ApiResponse<PersonalTrainerRecord>> {
@@ -312,7 +315,7 @@ export class GymManagementController {
   }
 
   @Post("attendance/check-in")
-  @Roles("ADMIN", "STAFF", "PT")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("ATTENDANCE_CHECK_IN", "attendance_logs")
   async checkInAttendance(
     @Body() attendanceCheckInDto: AttendanceCheckInDto,
@@ -329,7 +332,7 @@ export class GymManagementController {
   }
 
   @Post("attendance/check-out")
-  @Roles("ADMIN", "STAFF", "PT")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("ATTENDANCE_CHECK_OUT", "attendance_logs")
   async checkOutAttendance(
     @Body() attendanceCheckOutDto: AttendanceCheckOutDto,
@@ -542,6 +545,7 @@ export class GymManagementController {
   }
 
   @Post("membership-plans")
+  @Roles("ADMIN")
   async createMembershipPlan(
     @Body() createMembershipPlanDto: CreateMembershipPlanDto,
   ): Promise<ApiResponse<MembershipPlanRecord>> {
@@ -553,6 +557,7 @@ export class GymManagementController {
   }
 
   @Patch("membership-plans/:id")
+  @Roles("ADMIN")
   async updateMembershipPlan(
     @Param("id") membershipPlanId: string,
     @Body() updateMembershipPlanDto: UpdateMembershipPlanDto,
@@ -566,6 +571,7 @@ export class GymManagementController {
   }
 
   @Delete("membership-plans/:id")
+  @Roles("ADMIN")
   async deleteMembershipPlan(
     @Param("id") membershipPlanId: string,
   ): Promise<ApiResponse<MembershipPlanRecord>> {
@@ -675,6 +681,7 @@ export class GymManagementController {
   }
 
   @Post("products")
+  @Roles("ADMIN")
   async createProduct(
     @Body() createProductDto: CreateProductDto,
   ): Promise<ApiResponse<ProductRecord>> {
@@ -684,6 +691,7 @@ export class GymManagementController {
   }
 
   @Patch("products/:id")
+  @Roles("ADMIN")
   async updateProduct(
     @Param("id") productId: string,
     @Body() updateProductDto: UpdateProductDto,
@@ -697,6 +705,7 @@ export class GymManagementController {
   }
 
   @Delete("products/:id")
+  @Roles("ADMIN")
   async deleteProduct(
     @Param("id") productId: string,
   ): Promise<ApiResponse<ProductRecord>> {
@@ -887,6 +896,7 @@ export class GymManagementController {
   }
 
   @Post("equipment")
+  @Roles("ADMIN")
   async createEquipment(
     @Body() createEquipmentDto: CreateEquipmentDto,
   ): Promise<ApiResponse<EquipmentRecord>> {
@@ -905,6 +915,7 @@ export class GymManagementController {
   }
 
   @Patch("equipment/:id")
+  @Roles("ADMIN")
   async updateEquipment(
     @Param("id") equipmentAssetId: string,
     @Body() updateEquipmentDto: UpdateEquipmentDto,
@@ -1009,6 +1020,7 @@ export class GymManagementController {
   }
 
   @Patch("settings/:key")
+  @Roles("ADMIN")
   async patchSettings(
     @Param("key") configKey: string,
     @Body() patchSystemConfigDto: PatchSystemConfigDto,

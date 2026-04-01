@@ -195,7 +195,7 @@ export class GymManagementService {
   constructor(
     private readonly orm: MikroORM,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   async getSnapshot(): Promise<GymManagementSnapshot> {
     return createGymManagementSnapshot(await this.loadDataset());
@@ -390,6 +390,8 @@ export class GymManagementService {
       throw new BadRequestException("Invalid check in time");
     }
 
+    this.assertCurrentVietnamDate(checkInAt, "checkInAt");
+
     const allowMultipleShifts = await this.getBooleanSystemConfig(
       em,
       "allow_multiple_shifts_per_day",
@@ -468,6 +470,19 @@ export class GymManagementService {
       throw new BadRequestException("Invalid check out time");
     }
 
+    this.assertCurrentVietnamDate(attendanceLog.attendanceDate, "attendanceDate");
+    this.assertCurrentVietnamDate(checkOutAt, "checkOutAt");
+
+    const earliestCheckOutAt = new Date(
+      attendanceLog.checkInAt.getTime() + 5 * 36e5,
+    );
+
+    if (checkOutAt < earliestCheckOutAt) {
+      throw new BadRequestException(
+        "Check out is allowed only after 5 working hours from check in",
+      );
+    }
+
     if (checkOutAt <= attendanceLog.checkInAt) {
       throw new BadRequestException(
         "Check out time must be after check in time",
@@ -512,14 +527,14 @@ export class GymManagementService {
       workCredit = 0;
     }
 
-    const overtimeHours =
-      workedHours > standardShiftHours
-        ? Number((workedHours - standardShiftHours).toFixed(2))
-        : 0;
+    const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(
+      workedHours,
+      standardShiftHours,
+    );
 
     attendanceLog.checkOutAt = checkOutAt;
     attendanceLog.workedHours = workedHours.toString();
-    attendanceLog.paidHours = workedHours.toString();
+    attendanceLog.paidHours = paidHours.toString();
     attendanceLog.overtimeHours = overtimeHours.toString();
     attendanceLog.status = status;
     attendanceLog.workCredit = workCredit.toString();
@@ -532,8 +547,8 @@ export class GymManagementService {
   async getPtDetail(ptId: string): Promise<{
     trainer: TrainerRecord;
     contract:
-      | GymManagementSnapshot["dataset"]["ptContracts"][number]
-      | undefined;
+    | GymManagementSnapshot["dataset"]["ptContracts"][number]
+    | undefined;
     attendance: GymManagementSnapshot["dataset"]["attendanceLogs"];
     payrollEntries: GymManagementSnapshot["dataset"]["payrollEntries"];
     assignedMembers: GymManagementSnapshot["dataset"]["members"];
@@ -787,9 +802,9 @@ export class GymManagementService {
   async createMemberMembership(
     createMemberMembershipDto: CreateMemberMembershipDto,
   ): Promise<{
-      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-    }> {
+    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+  }> {
     const em = this.createEntityManager();
     const member = await this.getRequiredMemberEntity(
       em,
@@ -827,9 +842,9 @@ export class GymManagementService {
     membershipId: string,
     renewMemberMembershipDto: RenewMemberMembershipDto,
   ): Promise<{
-      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-    }> {
+    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+  }> {
     const em = this.createEntityManager();
     const membership = await em.findOne(
       MemberMembershipEntity,
@@ -1342,12 +1357,16 @@ export class GymManagementService {
       throw new NotFoundException(`Attendance log ${attendanceLogId} not found`);
     }
 
+    this.assertCurrentVietnamDate(attendanceLog.attendanceDate, "attendanceDate");
+
     if (patchAttendanceDto.checkInAt !== undefined) {
       const checkInAt = new Date(patchAttendanceDto.checkInAt);
 
       if (Number.isNaN(checkInAt.getTime())) {
         throw new BadRequestException("Invalid check in time");
       }
+
+      this.assertCurrentVietnamDate(checkInAt, "checkInAt");
 
       attendanceLog.checkInAt = checkInAt;
       attendanceLog.attendanceDate = this.toVietnamDate(checkInAt);
@@ -1359,6 +1378,8 @@ export class GymManagementService {
       if (Number.isNaN(checkOutAt.getTime())) {
         throw new BadRequestException("Invalid check out time");
       }
+
+      this.assertCurrentVietnamDate(checkOutAt, "checkOutAt");
 
       attendanceLog.checkOutAt = checkOutAt;
     }
@@ -1381,9 +1402,9 @@ export class GymManagementService {
     paymentMethod: string,
     totalAmount?: number,
   ): Promise<{
-      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-    }> {
+    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+  }> {
     const endDate = this.addDays(startDate, membershipPlan.durationDays - 1);
     const remainingSessions =
       membershipPlan.usageLimit ??
@@ -1598,6 +1619,16 @@ export class GymManagementService {
       );
     }
 
+    const earliestCheckOutAt = new Date(
+      attendanceLog.checkInAt.getTime() + 5 * 36e5,
+    );
+
+    if (attendanceLog.checkOutAt < earliestCheckOutAt) {
+      throw new BadRequestException(
+        "Check out is allowed only after 5 working hours from check in",
+      );
+    }
+
     const workedHours = Number(
       (
         (attendanceLog.checkOutAt.getTime() - attendanceLog.checkInAt.getTime()) /
@@ -1635,16 +1666,35 @@ export class GymManagementService {
       workCredit = 0;
     }
 
-    const overtimeHours =
-      workedHours > standardShiftHours
-        ? Number((workedHours - standardShiftHours).toFixed(2))
-        : 0;
+    const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(
+      workedHours,
+      standardShiftHours,
+    );
 
     attendanceLog.workedHours = toDecimalString(workedHours);
-    attendanceLog.paidHours = toDecimalString(workedHours);
+    attendanceLog.paidHours = toDecimalString(paidHours);
     attendanceLog.overtimeHours = toDecimalString(overtimeHours);
     attendanceLog.status = status;
     attendanceLog.workCredit = toDecimalString(workCredit);
+  }
+
+  private calculateAttendanceCompensation(
+    workedHours: number,
+    standardShiftHours: number,
+  ): { paidHours: number; overtimeHours: number } {
+    if (workedHours <= standardShiftHours) {
+      return {
+        paidHours: workedHours,
+        overtimeHours: 0,
+      };
+    }
+
+    const overtimeHours = Math.floor(workedHours - standardShiftHours);
+
+    return {
+      paidHours: standardShiftHours,
+      overtimeHours,
+    };
   }
 
   private generateReferenceCode(prefix: string): string {
@@ -2480,6 +2530,17 @@ export class GymManagementService {
     const [year, month, day] = formatter.format(value).split("-");
 
     return parseDateOnly(`${year}-${month}-${day}`);
+  }
+
+  private assertCurrentVietnamDate(value: Date, fieldName: string): void {
+    const targetDate = this.toVietnamDate(value).getTime();
+    const currentDate = this.toVietnamDate(new Date()).getTime();
+
+    if (targetDate !== currentDate) {
+      throw new BadRequestException(
+        `${fieldName} must be on current Vietnam date`,
+      );
+    }
   }
 
   private async findActivePtContractEntity(

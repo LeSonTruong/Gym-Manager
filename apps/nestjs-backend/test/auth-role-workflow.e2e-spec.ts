@@ -66,6 +66,23 @@ class InMemoryRedisService {
   }
 }
 
+function toVietnamIsoAtHour(offsetDays: number, hour: number): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const [year, month, day] = formatter.format(new Date()).split("-");
+  const base = new Date(
+    `${year}-${month}-${day}T${String(hour).padStart(2, "0")}:00:00+07:00`,
+  );
+
+  base.setUTCDate(base.getUTCDate() + offsetDays);
+
+  return base.toISOString();
+}
+
 describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   let app: INestApplication;
   let orm: MikroORM;
@@ -255,20 +272,103 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .expect(401);
   });
 
-  it("enforces PT self-scope", async () => {
+  it("blocks PT from check-in/check-out operations", async () => {
     await request(app.getHttpServer())
       .post("/attendance/check-in")
       .set("Authorization", `Bearer ${ptToken}`)
       .send({ ptId: "different-pt-id" })
       .expect(403);
 
-    const response = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post("/attendance/check-in")
       .set("Authorization", `Bearer ${ptToken}`)
       .send({})
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post("/attendance/check-out")
+      .set("Authorization", `Bearer ${ptToken}`)
+      .send({ ptId })
+      .expect(403);
+  });
+
+  it("blocks attendance check-in/check-out for past or future dates", async () => {
+    const relogin = await request(app.getHttpServer())
+      .post("/auth/login")
+      .send({ email: "admin@gym.local", password: "password" })
+      .expect(201);
+    const activeAdminToken = relogin.body.data.accessToken as string;
+
+    const tempPtResponse = await request(app.getHttpServer())
+      .post("/pts")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        code: `PT-TEMP-${Date.now()}`,
+        fullName: "Temp Attendance PT",
+        gender: "MALE",
+        birthDate: "1995-01-01",
+        email: `temp-attendance-${Date.now()}@gym.local`,
+        phone: "0900000001",
+        address: "HCMC",
+        status: "ACTIVE",
+        specialties: ["Yoga"],
+        experienceYears: 2,
+        avatarUrl: "https://example.com/avatar-temp-attendance.png",
+        startDate: "2026-01-01",
+      })
+      .expect(201);
+    const tempPtId = tempPtResponse.body.data.id as string;
+
+    const yesterday = toVietnamIsoAtHour(-1, 9);
+    const tomorrow = toVietnamIsoAtHour(1, 9);
+
+    await request(app.getHttpServer())
+      .post("/attendance/check-in")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({ ptId: tempPtId, checkInAt: yesterday })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post("/attendance/check-in")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({ ptId: tempPtId, checkInAt: tomorrow })
+      .expect(400);
+
+    const checkInResponse = await request(app.getHttpServer())
+      .post("/attendance/check-in")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({ ptId: tempPtId, checkInAt: toVietnamIsoAtHour(0, 9) })
       .expect(201);
 
-    expect(response.body.data.ptId).toBe(ptId);
+    await request(app.getHttpServer())
+      .post("/attendance/check-out")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        ptId: tempPtId,
+        attendanceLogId: checkInResponse.body.data.id,
+        checkOutAt: tomorrow,
+      })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post("/attendance/check-out")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        ptId: tempPtId,
+        attendanceLogId: checkInResponse.body.data.id,
+        checkOutAt: toVietnamIsoAtHour(0, 12),
+      })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post("/attendance/check-out")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        ptId: tempPtId,
+        attendanceLogId: checkInResponse.body.data.id,
+        checkOutAt: toVietnamIsoAtHour(0, 15),
+      })
+      .expect(201);
   });
 
   it("applies payroll field invariants across transitions", async () => {
@@ -633,24 +733,39 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
 
     expect(generatedResponse.body.data.entries.length).toBeGreaterThan(0);
 
-    const em = orm.em.fork();
-    const openAttendanceLog = await em.findOne(AttendanceLogEntity, {
-      personalTrainer: ptId,
-      checkOutAt: null,
-    });
-
-    expect(openAttendanceLog).toBeDefined();
-
-    if (!openAttendanceLog) {
-      throw new Error("Expected an open attendance log for patching");
-    }
-
-    const patchedAttendanceResponse = await request(app.getHttpServer())
-      .patch(`/attendance/${openAttendanceLog.id}`)
+    const patchPtResponse = await request(app.getHttpServer())
+      .post("/pts")
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
-        checkInAt: "2026-03-25T01:00:00.000Z",
-        checkOutAt: "2026-03-25T10:00:00.000Z",
+        code: `PT-PATCH-${Date.now()}`,
+        fullName: "Temp Patch PT",
+        gender: "MALE",
+        birthDate: "1993-01-01",
+        email: `temp-patch-${Date.now()}@gym.local`,
+        phone: "0900000002",
+        address: "HCMC",
+        status: "ACTIVE",
+        specialties: ["Cardio"],
+        experienceYears: 3,
+        avatarUrl: "https://example.com/avatar-temp-patch.png",
+        startDate: "2026-01-01",
+      })
+      .expect(201);
+
+    const patchPtId = patchPtResponse.body.data.id as string;
+
+    const checkInForPatchResponse = await request(app.getHttpServer())
+      .post("/attendance/check-in")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({ ptId: patchPtId })
+      .expect(201);
+
+    const patchedAttendanceResponse = await request(app.getHttpServer())
+      .patch(`/attendance/${checkInForPatchResponse.body.data.id as string}`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        checkInAt: toVietnamIsoAtHour(0, 8),
+        checkOutAt: toVietnamIsoAtHour(0, 17),
         note: "Adjusted by admin",
       })
       .expect(200);
