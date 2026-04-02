@@ -274,7 +274,7 @@ export function mapMemberPtAssignmentEntity(entity: MemberPtAssignmentEntity): M
     assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
     commissionType:
       typeof entity.commissionType === "string" &&
-        isOneOf(entity.commissionType, commissionTypes)
+      isOneOf(entity.commissionType, commissionTypes)
         ? entity.commissionType
         : undefined,
     commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,

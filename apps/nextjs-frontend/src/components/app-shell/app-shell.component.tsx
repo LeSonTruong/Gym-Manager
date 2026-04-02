@@ -112,7 +112,7 @@ function NavigationGroup({
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${active
                 ? 'bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
                 : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'
-                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
             >
               <span className={`text-sm ${item.iconClassName}`} />
               <span className="font-medium">{item.label}</span>
@@ -244,7 +244,7 @@ export function AppShell({
                     className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition ${active
                       ? 'border-slate-900 bg-slate-900 text-white'
                       : 'border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50'
-                      }`}
+                    }`}
                   >
                     {item.label}
                   </Link>
