@@ -1,10 +1,10 @@
-import {join} from 'node:path';
-import {Module} from '@nestjs/common';
-import {MailerModule} from '@nestjs-modules/mailer';
-import {HandlebarsAdapter} from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import {ConfigService} from '@nestjs/config';
-import {ConfigKey} from 'src/config/config-key.enum';
-import {EmailService} from './email.service';
+import { join } from 'node:path';
+import { Module } from '@nestjs/common';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { ConfigService } from '@nestjs/config';
+import { ConfigKey } from '../config/config-key.enum';
+import { EmailService } from './email.service';
 
 @Module({
   imports: [
@@ -36,4 +36,4 @@ import {EmailService} from './email.service';
   providers: [EmailService],
   exports: [EmailService],
 })
-export class EmailModule {}
+export class EmailModule { }

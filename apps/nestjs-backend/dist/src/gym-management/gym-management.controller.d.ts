@@ -1,7 +1,7 @@
 import { type ApiResponse } from "@next-nest-turbo-boilerplate/shared";
 import { StreamableFile } from "@nestjs/common";
 import type { Response } from "express";
-import { AttendanceCheckInDto, AttendanceCheckOutDto, CancelMemberMembershipDto, CancelSalesInvoiceDto, CreateMaintenanceDto, CreateEquipmentDto, CreateMemberDto, CreateMemberAssignmentDto, CreateMemberMembershipDto, CreateMembershipPlanDto, CreateOperatingExpenseDto, CreatePayrollPeriodDto, CreatePersonalTrainerDto, CreateProductDto, CreatePtContractDto, CreateSalesInvoiceDto, EndMemberAssignmentDto, GeneratePayrollDto, InventoryImportDto, PatchSystemConfigDto, PatchAttendanceDto, RejectExpenseDto, RenewMemberMembershipDto, UpdateEquipmentDto, UpdateMemberDto, UpdateMembershipPlanDto, UpdateOperatingExpenseDto, UpdatePersonalTrainerDto, UpdatePtContractDto, UpdateProductDto } from "./dto/gym-management.dto";
+import { AttendanceCheckInDto, AttendanceCheckOutDto, CancelMemberMembershipDto, CancelSalesInvoiceDto, CreateMemberDto, CreateMemberAssignmentDto, CreateMemberMembershipDto, CreateMembershipPlanDto, CreateOperatingExpenseDto, CreatePayrollPeriodDto, CreatePersonalTrainerDto, CreateProductDto, CreatePtContractDto, CreateSalesInvoiceDto, EndMemberAssignmentDto, GeneratePayrollDto, InventoryImportDto, PatchSystemConfigDto, PatchAttendanceDto, RejectExpenseDto, RenewMemberMembershipDto, UpdateMemberDto, UpdateMembershipPlanDto, UpdateOperatingExpenseDto, UpdatePersonalTrainerDto, UpdatePtContractDto, UpdateProductDto } from "./dto/gym-management.dto";
 import type { AuthenticatedUser } from "./auth/authenticated-user.type";
 import { GymManagementService } from "./gym-management.service";
 declare class LoginDto {
@@ -22,12 +22,10 @@ type MemberDetail = Awaited<ReturnType<GymManagementService["getMemberDetail"]>>
 type PayrollPeriodDetail = Awaited<ReturnType<GymManagementService["getPayrollPeriodDetail"]>>;
 type SalesInvoiceDetail = Awaited<ReturnType<GymManagementService["getSalesInvoiceDetail"]>>;
 type ExpenseDetail = Awaited<ReturnType<GymManagementService["getExpenseDetail"]>>;
-type EquipmentDetail = Awaited<ReturnType<GymManagementService["getEquipmentDetail"]>>;
 type PersonalTrainerRecord = Awaited<ReturnType<GymManagementService["createPersonalTrainer"]>>;
 type MemberRecord = Awaited<ReturnType<GymManagementService["createMember"]>>;
 type MembershipPlanRecord = Awaited<ReturnType<GymManagementService["createMembershipPlan"]>>;
 type ProductRecord = Awaited<ReturnType<GymManagementService["createProduct"]>>;
-type EquipmentRecord = Awaited<ReturnType<GymManagementService["createEquipment"]>>;
 type ExpenseRecord = Awaited<ReturnType<GymManagementService["createOperatingExpense"]>>;
 type SystemConfigRecord = Awaited<ReturnType<GymManagementService["patchSystemConfig"]>>;
 type AttendanceRecord = Awaited<ReturnType<GymManagementService["checkInAttendance"]>>;
@@ -39,7 +37,6 @@ type PayrollPeriodRecord = Awaited<ReturnType<GymManagementService["createPayrol
 type PayrollMeRecord = Awaited<ReturnType<GymManagementService["getPayrollMe"]>>;
 type SalesInvoiceRecord = Awaited<ReturnType<GymManagementService["createSalesInvoice"]>>;
 type InventoryImportRecord = Awaited<ReturnType<GymManagementService["importInventory"]>>;
-type MaintenanceRecordResponse = Awaited<ReturnType<GymManagementService["createMaintenance"]>>;
 export declare class GymManagementController {
     private readonly gymManagementService;
     constructor(gymManagementService: GymManagementService);
@@ -110,12 +107,6 @@ export declare class GymManagementController {
     approveExpense(expenseId: string, currentUser: AuthenticatedUser): Promise<ApiResponse<ExpenseRecord>>;
     rejectExpense(expenseId: string, rejectExpenseDto: RejectExpenseDto): Promise<ApiResponse<ExpenseRecord>>;
     markExpensePaid(expenseId: string): Promise<ApiResponse<ExpenseRecord>>;
-    getEquipment(): Promise<ApiResponse<Snapshot["dataset"]["equipmentAssets"]>>;
-    createEquipment(createEquipmentDto: CreateEquipmentDto): Promise<ApiResponse<EquipmentRecord>>;
-    getEquipmentDetail(equipmentAssetId: string): Promise<ApiResponse<EquipmentDetail>>;
-    updateEquipment(equipmentAssetId: string, updateEquipmentDto: UpdateEquipmentDto): Promise<ApiResponse<EquipmentRecord>>;
-    getMaintenance(): Promise<ApiResponse<Snapshot["dataset"]["maintenanceRecords"]>>;
-    createMaintenance(createMaintenanceDto: CreateMaintenanceDto, currentUser: AuthenticatedUser): Promise<ApiResponse<MaintenanceRecordResponse>>;
     getRevenueReport(): Promise<ApiResponse<Snapshot["revenueReport"]>>;
     getPayrollReport(): Promise<ApiResponse<Snapshot["payrollReport"]>>;
     exportReport(reportType: "payroll" | "revenue" | "expenses" | "profit", format: "pdf" | "xlsx", response: Response): Promise<StreamableFile>;

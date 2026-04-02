@@ -22,9 +22,6 @@ function toDateOnly(value) {
 function toDateTime(value) {
     return new Date(value);
 }
-function toOptionalDateOnly(value) {
-    return value ? toDateOnly(value) : null;
-}
 function toOptionalDateTime(value) {
     return value ? toDateTime(value) : null;
 }
@@ -83,7 +80,6 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             type: plan.type,
             price: toDecimal(plan.price),
             durationDays: plan.durationDays,
-            usageLimit: plan.usageLimit,
             includesPt: plan.includesPt,
             includedPtSessions: plan.includedPtSessions,
             perks: plan.perks,
@@ -100,20 +96,6 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             minimumStockLevel: product.minimumStockLevel,
             status: product.status,
             deletedAt: toOptionalDateTime(product.deletedAt),
-        })));
-        em.persist(dataset.equipmentAssets.map((equipmentAsset) => em.create(gym_management_entity_1.EquipmentAssetEntity, {
-            id: equipmentAsset.id,
-            code: equipmentAsset.code,
-            name: equipmentAsset.name,
-            category: equipmentAsset.category ?? 'Strength',
-            purchasedAt: toDateOnly(equipmentAsset.purchasedAt),
-            purchaseValue: toDecimal(equipmentAsset.purchaseValue),
-            status: equipmentAsset.status ?? 'IN_USE',
-            condition: equipmentAsset.condition,
-            location: equipmentAsset.location ?? 'Main floor',
-            nextMaintenanceAt: toOptionalDateOnly(equipmentAsset.nextMaintenanceAt),
-            note: equipmentAsset.note,
-            deletedAt: toOptionalDateTime(equipmentAsset.deletedAt),
         })));
         em.persist(dataset.systemConfigs.map((config) => em.create(gym_management_entity_1.SystemConfigEntity, {
             key: config.key,
@@ -163,9 +145,9 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             packageCommissionRate: toDecimal(contract.packageCommissionRate),
             salesCommissionRate: toDecimal(contract.salesCommissionRate),
             allowances: toDecimal(contract.allowances),
-            penaltyRules: contract.penaltyRules,
+            penaltyRules: [],
             effectiveFrom: toDateOnly(contract.effectiveFrom),
-            effectiveTo: toOptionalDateOnly(contract.effectiveTo),
+            effectiveTo: contract.effectiveTo ? toDateOnly(contract.effectiveTo) : null,
         })));
         em.persist(dataset.attendanceLogs.map((attendanceLog) => em.create(gym_management_entity_1.AttendanceLogEntity, {
             id: attendanceLog.id,
@@ -199,23 +181,8 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             membershipPlan: em.getReference(gym_management_entity_1.MembershipPlanEntity, membership.membershipPlanId),
             startDate: toDateOnly(membership.startDate),
             endDate: toDateOnly(membership.endDate),
-            remainingSessions: membership.remainingSessions,
             status: membership.status,
             deletedAt: toOptionalDateTime(membership.deletedAt),
-        })));
-        em.persist(dataset.maintenanceRecords.map((maintenanceRecord) => em.create(gym_management_entity_1.MaintenanceRecordEntity, {
-            id: maintenanceRecord.id,
-            equipmentAsset: em.getReference(gym_management_entity_1.EquipmentAssetEntity, maintenanceRecord.equipmentAssetId),
-            maintenanceType: maintenanceRecord.maintenanceType ?? 'PREVENTIVE',
-            maintenanceDate: toDateOnly(maintenanceRecord.maintenanceDate),
-            description: maintenanceRecord.description,
-            vendorName: maintenanceRecord.vendorName,
-            amount: toDecimal(maintenanceRecord.amount),
-            resultStatus: maintenanceRecord.resultStatus ?? 'RESOLVED',
-            note: maintenanceRecord.note ?? null,
-            createdByUser: maintenanceRecord.createdByUserId
-                ? em.getReference(gym_management_entity_1.UserEntity, maintenanceRecord.createdByUserId)
-                : null,
         })));
         await em.flush();
         const periodLookup = new Map(dataset.payrollPeriods.map((period) => [period.id, period]));
@@ -307,9 +274,6 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             code: expense.code,
             expenseDate: toDateOnly(expense.expenseDate),
             category: expense.category,
-            equipmentAsset: expense.equipmentAssetId
-                ? em.getReference(gym_management_entity_1.EquipmentAssetEntity, expense.equipmentAssetId)
-                : null,
             vendorName: expense.vendorName,
             amount: toDecimal(expense.amount),
             description: expense.description,

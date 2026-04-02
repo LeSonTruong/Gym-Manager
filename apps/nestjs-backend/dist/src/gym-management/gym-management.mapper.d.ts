@@ -1,4 +1,4 @@
-import type { AttendanceLog, DemoUser, EquipmentAsset, GymManagementDataset, InventoryTransaction, MaintenanceRecord, Member, MemberMembership, MemberPtAssignment, MembershipInvoice, MembershipPlan, OperatingExpense, PayrollEntry, PayrollPeriod, PersonalTrainer, Product, PtContract, SalesInvoice, SalesInvoiceItem, SystemConfig } from '@next-nest-turbo-boilerplate/shared';
+import type { AttendanceLog, DemoUser, GymManagementDataset, InventoryTransaction, Member, MemberMembership, MemberPtAssignment, MembershipInvoice, MembershipPlan, OperatingExpense, PayrollEntry, PayrollPeriod, PersonalTrainer, Product, PtContract, SalesInvoice, SalesInvoiceItem, SystemConfig } from '@next-nest-turbo-boilerplate/shared';
 import { AttendanceLogEntity, EquipmentAssetEntity, InventoryTransactionEntity, MaintenanceRecordEntity, MemberEntity, MemberMembershipEntity, MemberPtAssignmentEntity, MembershipInvoiceEntity, MembershipPlanEntity, OperatingExpenseEntity, PayrollEntryEntity, PayrollPeriodEntity, PersonalTrainerEntity, ProductEntity, PtContractEntity, SalesInvoiceEntity, SalesInvoiceItemEntity, SystemConfigEntity, UserEntity } from './entities/gym-management.entity';
 export declare function parseDateOnly(value: string): Date;
 export declare function parseDateTime(value: string): Date;
@@ -18,9 +18,9 @@ export declare function mapProductEntity(entity: ProductEntity): Product;
 export declare function mapInventoryTransactionEntity(entity: InventoryTransactionEntity): InventoryTransaction;
 export declare function mapSalesInvoiceItemEntity(entity: SalesInvoiceItemEntity): SalesInvoiceItem;
 export declare function mapSalesInvoiceEntity(entity: SalesInvoiceEntity, items: SalesInvoiceItem[]): SalesInvoice;
-export declare function mapEquipmentAssetEntity(entity: EquipmentAssetEntity): EquipmentAsset;
 export declare function mapOperatingExpenseEntity(entity: OperatingExpenseEntity): OperatingExpense;
-export declare function mapMaintenanceRecordEntity(entity: MaintenanceRecordEntity): MaintenanceRecord;
+export declare function mapEquipmentAssetEntity(entity: EquipmentAssetEntity): Record<string, unknown>;
+export declare function mapMaintenanceRecordEntity(entity: MaintenanceRecordEntity): Record<string, unknown>;
 export declare function mapSystemConfigEntity(entity: SystemConfigEntity): SystemConfig;
 export type GymManagementEntityCollections = {
     users: UserEntity[];
@@ -39,8 +39,6 @@ export type GymManagementEntityCollections = {
     salesInvoices: SalesInvoiceEntity[];
     salesInvoiceItems: SalesInvoiceItemEntity[];
     operatingExpenses: OperatingExpenseEntity[];
-    equipmentAssets: EquipmentAssetEntity[];
-    maintenanceRecords: MaintenanceRecordEntity[];
     systemConfigs: SystemConfigEntity[];
 };
 export declare function mapDatasetFromEntities(collections: GymManagementEntityCollections, generatedAt?: string): GymManagementDataset;

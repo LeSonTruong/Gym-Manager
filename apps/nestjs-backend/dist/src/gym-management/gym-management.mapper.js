@@ -18,8 +18,8 @@ exports.mapProductEntity = mapProductEntity;
 exports.mapInventoryTransactionEntity = mapInventoryTransactionEntity;
 exports.mapSalesInvoiceItemEntity = mapSalesInvoiceItemEntity;
 exports.mapSalesInvoiceEntity = mapSalesInvoiceEntity;
-exports.mapEquipmentAssetEntity = mapEquipmentAssetEntity;
 exports.mapOperatingExpenseEntity = mapOperatingExpenseEntity;
+exports.mapEquipmentAssetEntity = mapEquipmentAssetEntity;
 exports.mapMaintenanceRecordEntity = mapMaintenanceRecordEntity;
 exports.mapSystemConfigEntity = mapSystemConfigEntity;
 exports.mapDatasetFromEntities = mapDatasetFromEntities;
@@ -95,7 +95,6 @@ function mapPtContractEntity(entity) {
         packageCommissionRate: Number(entity.packageCommissionRate),
         salesCommissionRate: Number(entity.salesCommissionRate),
         allowances: Number(entity.allowances),
-        penaltyRules: entity.penaltyRules,
         effectiveFrom: toDateOnlyString(entity.effectiveFrom),
         effectiveTo: entity.effectiveTo ? toDateOnlyString(entity.effectiveTo) : undefined,
     };
@@ -178,7 +177,6 @@ function mapMembershipPlanEntity(entity) {
         type: entity.type,
         price: Number(entity.price),
         durationDays: entity.durationDays,
-        usageLimit: entity.usageLimit ?? undefined,
         includesPt: entity.includesPt,
         includedPtSessions: entity.includedPtSessions,
         perks: entity.perks,
@@ -192,7 +190,6 @@ function mapMemberMembershipEntity(entity) {
         membershipPlanId: entity.membershipPlan.id,
         startDate: toDateOnlyString(entity.startDate),
         endDate: toDateOnlyString(entity.endDate),
-        remainingSessions: entity.remainingSessions ?? undefined,
         status: entity.status,
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
@@ -278,6 +275,25 @@ function mapSalesInvoiceEntity(entity, items) {
         cancellationReason: entity.cancellationReason ?? undefined,
     };
 }
+function mapOperatingExpenseEntity(entity) {
+    return {
+        id: entity.id,
+        code: entity.code,
+        expenseDate: toDateOnlyString(entity.expenseDate),
+        category: entity.category,
+        vendorName: entity.vendorName,
+        amount: Number(entity.amount),
+        description: entity.description,
+        approvedByUserId: entity.approvedByUser?.id ?? undefined,
+        attachmentUrl: entity.attachmentUrl ?? undefined,
+        status: entity.status,
+        submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
+        approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
+        rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : undefined,
+        rejectionReason: entity.rejectionReason ?? undefined,
+        paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : undefined,
+    };
+}
 function mapEquipmentAssetEntity(entity) {
     return {
         id: entity.id,
@@ -294,26 +310,6 @@ function mapEquipmentAssetEntity(entity) {
             : undefined,
         note: entity.note,
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
-    };
-}
-function mapOperatingExpenseEntity(entity) {
-    return {
-        id: entity.id,
-        code: entity.code,
-        expenseDate: toDateOnlyString(entity.expenseDate),
-        category: entity.category,
-        equipmentAssetId: entity.equipmentAsset?.id ?? undefined,
-        vendorName: entity.vendorName,
-        amount: Number(entity.amount),
-        description: entity.description,
-        approvedByUserId: entity.approvedByUser?.id ?? undefined,
-        attachmentUrl: entity.attachmentUrl ?? undefined,
-        status: entity.status,
-        submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
-        approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
-        rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : undefined,
-        rejectionReason: entity.rejectionReason ?? undefined,
-        paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : undefined,
     };
 }
 function mapMaintenanceRecordEntity(entity) {
@@ -365,8 +361,11 @@ function mapDatasetFromEntities(collections, generatedAt = new Date().toISOStrin
         inventoryTransactions: collections.inventoryTransactions.map((entity) => mapInventoryTransactionEntity(entity)),
         salesInvoices: collections.salesInvoices.map((invoice) => mapSalesInvoiceEntity(invoice, salesInvoiceItemsByInvoiceId.get(invoice.id) ?? [])),
         operatingExpenses: collections.operatingExpenses.map((entity) => mapOperatingExpenseEntity(entity)),
-        equipmentAssets: collections.equipmentAssets.map((entity) => mapEquipmentAssetEntity(entity)),
-        maintenanceRecords: collections.maintenanceRecords.map((entity) => mapMaintenanceRecordEntity(entity)),
+        memberCheckIns: [],
+        ptBookingSessions: [],
+        paymentTransactions: [],
+        equipmentAssets: [],
+        maintenanceRecords: [],
         systemConfigs: collections.systemConfigs.map((entity) => mapSystemConfigEntity(entity)),
     };
 }

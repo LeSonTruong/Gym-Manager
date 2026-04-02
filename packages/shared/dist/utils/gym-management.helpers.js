@@ -18,12 +18,8 @@ exports.getSalesInvoicesByMemberId = getSalesInvoicesByMemberId;
 exports.getMembershipInvoicesByMemberId = getMembershipInvoicesByMemberId;
 exports.getInventoryTransactionsByProductId = getInventoryTransactionsByProductId;
 exports.createGymManagementSnapshot = createGymManagementSnapshot;
-const dayInMilliseconds = 24 * 60 * 60 * 1000;
 function sumValues(values) {
     return values.reduce((total, value) => total + value, 0);
-}
-function toTimeValue(value) {
-    return new Date(value).getTime();
 }
 function isSameUtcDay(dateValue, compareValue) {
     return dateValue.slice(0, 10) === compareValue.slice(0, 10);
@@ -88,16 +84,7 @@ function buildDashboardSummary(dataset) {
     const confirmedSalesInvoices = dataset.salesInvoices.filter((invoice) => isConfirmedSalesInvoice(invoice));
     const activeMemberships = dataset.memberMemberships.filter((membership) => membership.status === 'ACTIVE');
     const lowStockProducts = dataset.products.filter((product) => product.stockOnHand <= product.minimumStockLevel);
-    const maintenanceAlerts = dataset.equipmentAssets.filter((equipmentAsset) => {
-        if (equipmentAsset.condition !== 'GOOD') {
-            return true;
-        }
-        if (!equipmentAsset.nextMaintenanceAt) {
-            return false;
-        }
-        const daysUntilMaintenance = Math.floor((toTimeValue(equipmentAsset.nextMaintenanceAt) - toTimeValue(referenceDate)) / dayInMilliseconds);
-        return daysUntilMaintenance <= 14;
-    });
+    const maintenanceAlerts = [];
     const activeMembershipsByType = Object.fromEntries(['DAY', 'MONTH', 'YEAR'].map((membershipType) => [
         membershipType,
         activeMemberships.filter((membership) => {
@@ -227,7 +214,7 @@ function buildRevenueReport(dataset) {
     };
 }
 function buildExpenseReport(dataset) {
-    const byCategory = Object.fromEntries(['CLEANING', 'MAINTENANCE', 'REPAIR', 'REPLACEMENT', 'UTILITY'].map((category) => [category, 0]));
+    const byCategory = Object.fromEntries(['CLEANING', 'UTILITY', 'SALARY', 'RENT', 'OTHER'].map((category) => [category, 0]));
     for (const expense of dataset.operatingExpenses.filter((item) => isExpenseCounted(item))) {
         byCategory[expense.category] += expense.amount;
     }

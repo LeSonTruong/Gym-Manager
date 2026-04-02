@@ -276,26 +276,6 @@ let GymManagementController = class GymManagementController {
     async markExpensePaid(expenseId) {
         return createResponse(await this.gymManagementService.markExpensePaid(expenseId));
     }
-    async getEquipment() {
-        const snapshot = await this.gymManagementService.getSnapshot();
-        return createResponse(snapshot.dataset.equipmentAssets);
-    }
-    async createEquipment(createEquipmentDto) {
-        return createResponse(await this.gymManagementService.createEquipment(createEquipmentDto));
-    }
-    async getEquipmentDetail(equipmentAssetId) {
-        return createResponse(await this.gymManagementService.getEquipmentDetail(equipmentAssetId));
-    }
-    async updateEquipment(equipmentAssetId, updateEquipmentDto) {
-        return createResponse(await this.gymManagementService.updateEquipment(equipmentAssetId, updateEquipmentDto));
-    }
-    async getMaintenance() {
-        const snapshot = await this.gymManagementService.getSnapshot();
-        return createResponse(snapshot.dataset.maintenanceRecords);
-    }
-    async createMaintenance(createMaintenanceDto, currentUser) {
-        return createResponse(await this.gymManagementService.createMaintenance(createMaintenanceDto, currentUser.user.id));
-    }
     async getRevenueReport() {
         const snapshot = await this.gymManagementService.getSnapshot();
         return createResponse(snapshot.revenueReport);
@@ -868,51 +848,6 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "markExpensePaid", null);
-__decorate([
-    (0, common_1.Get)("equipment"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], GymManagementController.prototype, "getEquipment", null);
-__decorate([
-    (0, common_1.Post)("equipment"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [gym_management_dto_1.CreateEquipmentDto]),
-    __metadata("design:returntype", Promise)
-], GymManagementController.prototype, "createEquipment", null);
-__decorate([
-    (0, common_1.Get)("equipment/:id"),
-    __param(0, (0, common_1.Param)("id")),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", Promise)
-], GymManagementController.prototype, "getEquipmentDetail", null);
-__decorate([
-    (0, common_1.Patch)("equipment/:id"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
-    __param(0, (0, common_1.Param)("id")),
-    __param(1, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, gym_management_dto_1.UpdateEquipmentDto]),
-    __metadata("design:returntype", Promise)
-], GymManagementController.prototype, "updateEquipment", null);
-__decorate([
-    (0, common_1.Get)("maintenance"),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], GymManagementController.prototype, "getMaintenance", null);
-__decorate([
-    (0, common_1.Post)("maintenance"),
-    (0, audit_action_decorator_1.AuditAction)("MAINTENANCE_CREATE", "maintenance_records"),
-    __param(0, (0, common_1.Body)()),
-    __param(1, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [gym_management_dto_1.CreateMaintenanceDto, Object]),
-    __metadata("design:returntype", Promise)
-], GymManagementController.prototype, "createMaintenance", null);
 __decorate([
     (0, common_1.Get)("reports/revenue"),
     __metadata("design:type", Function),

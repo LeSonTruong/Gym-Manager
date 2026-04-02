@@ -14,7 +14,6 @@ type TrainerRecord = GymManagementDataset["personalTrainers"][number];
 type MemberRecord = GymManagementDataset["members"][number];
 type MembershipPlanRecord = GymManagementDataset["membershipPlans"][number];
 type ProductRecord = GymManagementDataset["products"][number];
-type EquipmentAssetRecord = GymManagementDataset["equipmentAssets"][number];
 type OperatingExpenseRecord = GymManagementDataset["operatingExpenses"][number];
 type SystemConfigRecord = GymManagementDataset["systemConfigs"][number];
 type AttendanceRecord = GymManagementDataset["attendanceLogs"][number];
@@ -62,7 +61,7 @@ export declare class GymManagementService {
     }>;
     getSalesInvoiceDetail(salesInvoiceId: string): Promise<GymManagementSnapshot["dataset"]["salesInvoices"][number]>;
     getExpenseDetail(expenseId: string): Promise<OperatingExpenseRecord>;
-    getEquipmentDetail(equipmentAssetId: string): Promise<EquipmentAssetRecord>;
+    getEquipmentDetail(equipmentAssetId: string): Promise<Record<string, unknown>>;
     createPtContract(ptId: string, createPtContractDto: CreatePtContractDto): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]>;
     updatePtContract(ptId: string, contractId: string, updatePtContractDto: UpdatePtContractDto): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]>;
     createMemberMembership(createMemberMembershipDto: CreateMemberMembershipDto): Promise<{
@@ -81,7 +80,7 @@ export declare class GymManagementService {
     getPayrollMe(userId: string): Promise<GymManagementSnapshot["dataset"]["payrollEntries"]>;
     createSalesInvoice(createSalesInvoiceDto: CreateSalesInvoiceDto, createdByUserId: string): Promise<GymManagementSnapshot["dataset"]["salesInvoices"][number]>;
     importInventory(inventoryImportDto: InventoryImportDto): Promise<GymManagementSnapshot["dataset"]["inventoryTransactions"][number]>;
-    createMaintenance(createMaintenanceDto: CreateMaintenanceDto, createdByUserId: string): Promise<GymManagementSnapshot["dataset"]["maintenanceRecords"][number]>;
+    createMaintenance(createMaintenanceDto: CreateMaintenanceDto, createdByUserId: string): Promise<Record<string, unknown>>;
     patchAttendance(attendanceLogId: string, patchAttendanceDto: PatchAttendanceDto): Promise<AttendanceRecord>;
     private createMembershipSale;
     private ensureValidDateRange;
@@ -118,8 +117,8 @@ export declare class GymManagementService {
     createProduct(createProductDto: CreateProductDto): Promise<ProductRecord>;
     updateProduct(productId: string, updateProductDto: UpdateProductDto): Promise<ProductRecord>;
     deleteProduct(productId: string): Promise<ProductRecord>;
-    createEquipment(createEquipmentDto: CreateEquipmentDto): Promise<EquipmentAssetRecord>;
-    updateEquipment(equipmentAssetId: string, updateEquipmentDto: UpdateEquipmentDto): Promise<EquipmentAssetRecord>;
+    createEquipment(createEquipmentDto: CreateEquipmentDto): Promise<Record<string, unknown>>;
+    updateEquipment(equipmentAssetId: string, updateEquipmentDto: UpdateEquipmentDto): Promise<Record<string, unknown>>;
     createOperatingExpense(createOperatingExpenseDto: CreateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
     updateOperatingExpense(expenseId: string, updateOperatingExpenseDto: UpdateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
     patchSystemConfig(configKey: string, patchSystemConfigDto: PatchSystemConfigDto, actorUserId?: string): Promise<SystemConfigRecord>;

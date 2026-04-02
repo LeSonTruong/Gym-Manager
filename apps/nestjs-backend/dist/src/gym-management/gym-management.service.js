@@ -339,12 +339,15 @@ let GymManagementService = class GymManagementService {
         return expense;
     }
     async getEquipmentDetail(equipmentAssetId) {
-        const dataset = await this.loadDataset();
-        const equipmentAsset = (0, shared_1.findEquipmentAssetById)(dataset, equipmentAssetId);
+        const em = this.createEntityManager();
+        const equipmentAsset = await em.findOne(gym_management_entity_1.EquipmentAssetEntity, {
+            id: equipmentAssetId,
+            deletedAt: null,
+        });
         if (!equipmentAsset) {
             throw new common_1.NotFoundException(`Equipment ${equipmentAssetId} not found`);
         }
-        return equipmentAsset;
+        return (0, gym_management_mapper_1.mapEquipmentAssetEntity)(equipmentAsset);
     }
     async createPtContract(ptId, createPtContractDto) {
         const em = this.createEntityManager();
@@ -1482,7 +1485,7 @@ let GymManagementService = class GymManagementService {
     }
     async loadDataset() {
         const em = this.createEntityManager();
-        const [users, personalTrainers, ptContracts, attendanceLogs, payrollPeriods, payrollEntries, members, membershipPlans, memberMemberships, memberPtAssignments, membershipInvoices, products, inventoryTransactions, salesInvoices, salesInvoiceItems, operatingExpenses, equipmentAssets, maintenanceRecords, systemConfigs,] = await Promise.all([
+        const [users, personalTrainers, ptContracts, attendanceLogs, payrollPeriods, payrollEntries, members, membershipPlans, memberMemberships, memberPtAssignments, membershipInvoices, products, inventoryTransactions, salesInvoices, salesInvoiceItems, operatingExpenses, systemConfigs,] = await Promise.all([
             em.find(gym_management_entity_1.UserEntity, { deletedAt: null }, { orderBy: { createdAt: "asc", id: "asc" } }),
             em.find(gym_management_entity_1.PersonalTrainerEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
             em.findAll(gym_management_entity_1.PtContractEntity, {
@@ -1519,10 +1522,6 @@ let GymManagementService = class GymManagementService {
             em.findAll(gym_management_entity_1.OperatingExpenseEntity, {
                 orderBy: { expenseDate: "asc", id: "asc" },
             }),
-            em.find(gym_management_entity_1.EquipmentAssetEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
-            em.findAll(gym_management_entity_1.MaintenanceRecordEntity, {
-                orderBy: { maintenanceDate: "asc", id: "asc" },
-            }),
             em.findAll(gym_management_entity_1.SystemConfigEntity, { orderBy: { key: "asc" } }),
         ]);
         return (0, gym_management_mapper_1.mapDatasetFromEntities)({
@@ -1542,8 +1541,6 @@ let GymManagementService = class GymManagementService {
             salesInvoices,
             salesInvoiceItems,
             operatingExpenses,
-            equipmentAssets,
-            maintenanceRecords,
             systemConfigs,
         });
     }

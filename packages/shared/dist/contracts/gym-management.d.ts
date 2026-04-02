@@ -2,6 +2,8 @@ export type UserRole = 'ADMIN' | 'PT' | 'STAFF';
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CARD';
+export type PaymentProvider = 'MANUAL' | 'VNPAY' | 'MOMO' | 'STRIPE';
+export type PaymentTransactionStatus = 'PENDING' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' | 'REFUNDED';
 export type MembershipPlanType = 'DAY' | 'MONTH' | 'YEAR';
 export type MembershipStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
 export type SalesInvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
@@ -11,13 +13,11 @@ export type PayrollEntryStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
 export type SalaryType = 'MONTHLY' | 'DAILY' | 'HOURLY';
 export type HalfShiftPolicy = 'NO_COUNT' | 'HALF_COUNT';
 export type PtAssignmentStatus = 'ACTIVE' | 'ENDED';
-export type InventoryTransactionType = 'IMPORT' | 'SALE' | 'DAMAGE' | 'INTERNAL_USE' | 'ADJUSTMENT';
+export type MemberCheckInSource = 'QR' | 'STAFF' | 'MANUAL';
+export type PtBookingStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+export type InventoryTransactionType = 'IMPORT' | 'SALE';
 export type ExpenseStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PAID';
-export type OperatingExpenseCategory = 'CLEANING' | 'MAINTENANCE' | 'REPAIR' | 'REPLACEMENT' | 'UTILITY' | 'OTHER';
-export type EquipmentStatus = 'IN_USE' | 'UNDER_MAINTENANCE' | 'REPLACED' | 'DISPOSED';
-export type EquipmentCondition = 'GOOD' | 'FAIR' | 'POOR' | 'MAINTENANCE_DUE' | 'NEEDS_REPLACEMENT';
-export type MaintenanceType = 'PREVENTIVE' | 'CORRECTIVE' | 'REPLACEMENT';
-export type MaintenanceResultStatus = 'RESOLVED' | 'UNRESOLVED' | 'REPLACED';
+export type OperatingExpenseCategory = 'CLEANING' | 'UTILITY' | 'SALARY' | 'RENT' | 'OTHER';
 export type CommissionType = 'PERCENT' | 'FIXED';
 export type DemoUser = {
     id: string;
@@ -60,7 +60,7 @@ export type PtContract = {
     packageCommissionRate: number;
     salesCommissionRate: number;
     allowances: number;
-    penaltyRules: string[];
+    penaltyRules?: string[];
     effectiveFrom: string;
     effectiveTo?: string | undefined;
 };
@@ -149,6 +149,25 @@ export type MemberMembership = {
     status: MembershipStatus;
     deletedAt?: string | undefined;
 };
+export type MemberCheckIn = {
+    id: string;
+    memberId: string;
+    checkedInAt: string;
+    source: MemberCheckInSource;
+    staffedByUserId?: string | undefined;
+    note?: string | undefined;
+};
+export type PtBookingSession = {
+    id: string;
+    memberId: string;
+    ptId: string;
+    memberMembershipId?: string | undefined;
+    scheduledStartAt: string;
+    scheduledEndAt: string;
+    status: PtBookingStatus;
+    note?: string | undefined;
+    createdByUserId: string;
+};
 export type MemberPtAssignment = {
     id: string;
     memberId: string;
@@ -218,6 +237,18 @@ export type SalesInvoice = {
     cancelledAt?: string | undefined;
     cancellationReason?: string | undefined;
 };
+export type PaymentTransaction = {
+    id: string;
+    targetType: 'MEMBERSHIP_INVOICE' | 'SALES_INVOICE' | 'OPERATING_EXPENSE';
+    targetId: string;
+    provider: PaymentProvider;
+    method: PaymentMethod;
+    amount: number;
+    status: PaymentTransactionStatus;
+    externalRef?: string | undefined;
+    paidAt?: string | undefined;
+    note?: string | undefined;
+};
 export type OperatingExpense = {
     id: string;
     code: string;
@@ -243,8 +274,8 @@ export type EquipmentAsset = {
     category?: string | undefined;
     purchasedAt: string;
     purchaseValue: number;
-    status?: EquipmentStatus | undefined;
-    condition: EquipmentCondition;
+    status?: string | undefined;
+    condition: string;
     location?: string | undefined;
     nextMaintenanceAt?: string | undefined;
     note: string;
@@ -254,11 +285,11 @@ export type MaintenanceRecord = {
     id: string;
     equipmentAssetId: string;
     maintenanceDate: string;
-    maintenanceType?: MaintenanceType | undefined;
+    maintenanceType?: string | undefined;
     description: string;
     vendorName: string;
     amount: number;
-    resultStatus?: MaintenanceResultStatus | undefined;
+    resultStatus?: string | undefined;
     note?: string | undefined;
     createdByUserId?: string | undefined;
 };
@@ -281,11 +312,14 @@ export type GymManagementDataset = {
     members: Member[];
     membershipPlans: MembershipPlan[];
     memberMemberships: MemberMembership[];
+    memberCheckIns: MemberCheckIn[];
+    ptBookingSessions: PtBookingSession[];
     memberPtAssignments: MemberPtAssignment[];
     membershipInvoices: MembershipInvoice[];
     products: Product[];
     inventoryTransactions: InventoryTransaction[];
     salesInvoices: SalesInvoice[];
+    paymentTransactions: PaymentTransaction[];
     operatingExpenses: OperatingExpense[];
     equipmentAssets: EquipmentAsset[];
     maintenanceRecords: MaintenanceRecord[];
