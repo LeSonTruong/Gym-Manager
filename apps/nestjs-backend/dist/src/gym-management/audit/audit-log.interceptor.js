@@ -43,7 +43,7 @@ let AuditLogInterceptor = class AuditLogInterceptor {
                 responseBody,
                 statusCode: response.statusCode ?? 200,
                 method: request.method,
-                path: request.route?.path ?? request.path,
+                path: request.originalUrl ?? request.path,
             });
         }));
     }

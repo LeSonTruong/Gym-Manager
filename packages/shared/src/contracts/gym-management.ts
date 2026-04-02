@@ -26,7 +26,7 @@ export type PtBookingStatus =
   | 'COMPLETED'
   | 'CANCELLED'
   | 'NO_SHOW';
-export type InventoryTransactionType = 'IMPORT' | 'SALE';
+export type InventoryTransactionType = 'IMPORT' | 'SALE' | 'ADJUSTMENT';
 export type ExpenseStatus =
   | 'DRAFT'
   | 'PENDING_APPROVAL'

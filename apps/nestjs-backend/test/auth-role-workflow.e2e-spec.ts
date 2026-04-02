@@ -37,32 +37,28 @@ import { GymManagementService } from "../src/gym-management/gym-management.servi
 import { RedisService } from "../src/redis/redis.service";
 
 class InMemoryRedisService {
-  private readonly storage = new Map<string, string>();
+  private readonly storage = new Map<string, unknown>();
 
   async setValue(key: string, value: string): Promise<void> {
     this.storage.set(key, value);
   }
 
   async getValue(key: string): Promise<string | undefined> {
-    return this.storage.get(key) ?? undefined;
+    const value = this.storage.get(key);
+
+    return typeof value === "string" ? value : undefined;
   }
 
   async deleteKey(key: string): Promise<void> {
     this.storage.delete(key);
   }
 
-  async setJson<T>(key: string, value: T): Promise<void> {
-    this.storage.set(key, JSON.stringify(value));
+  async setJson(key: string, value: unknown): Promise<void> {
+    this.storage.set(key, value);
   }
 
-  async getJson<T>(key: string): Promise<T | undefined> {
-    const value = this.storage.get(key);
-
-    if (!value) {
-      return undefined;
-    }
-
-    return JSON.parse(value) as T;
+  async getJson(key: string): Promise<unknown | undefined> {
+    return this.storage.get(key);
   }
 }
 
@@ -81,6 +77,96 @@ function toVietnamIsoAtHour(offsetDays: number, hour: number): string {
   base.setUTCDate(base.getUTCDate() + offsetDays);
 
   return base.toISOString();
+}
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function expectRecord(value: unknown, label: string): UnknownRecord {
+  if (!isRecord(value)) {
+    throw new TypeError(`${label} must be an object`);
+  }
+
+  return value;
+}
+
+function expectString(value: unknown, label: string): string {
+  if (typeof value !== "string") {
+    throw new TypeError(`${label} must be a string`);
+  }
+
+  return value;
+}
+
+function expectNumber(value: unknown, label: string): number {
+  if (typeof value !== "number") {
+    throw new TypeError(`${label} must be a number`);
+  }
+
+  return value;
+}
+
+function expectArray(value: unknown, label: string): unknown[] {
+  if (!Array.isArray(value)) {
+    throw new TypeError(`${label} must be an array`);
+  }
+
+  return value;
+}
+
+function getRecordField(
+  source: UnknownRecord,
+  field: string,
+  label: string,
+): UnknownRecord {
+  return expectRecord(source[field], `${label}.${field}`);
+}
+
+function getStringField(
+  source: UnknownRecord,
+  field: string,
+  label: string,
+): string {
+  return expectString(source[field], `${label}.${field}`);
+}
+
+function getNumberField(
+  source: UnknownRecord,
+  field: string,
+  label: string,
+): number {
+  return expectNumber(source[field], `${label}.${field}`);
+}
+
+function getArrayField(
+  source: UnknownRecord,
+  field: string,
+  label: string,
+): unknown[] {
+  return expectArray(source[field], `${label}.${field}`);
+}
+
+function getResponseBody(response: request.Response): UnknownRecord {
+  return expectRecord(response.body, "response.body");
+}
+
+function getResponseDataRecord(response: request.Response): UnknownRecord {
+  return getRecordField(getResponseBody(response), "data", "response.body");
+}
+
+function getResponseDataArray(response: request.Response): unknown[] {
+  return getArrayField(getResponseBody(response), "data", "response.body");
+}
+
+function getAccessToken(response: request.Response): string {
+  return getStringField(
+    getResponseDataRecord(response),
+    "accessToken",
+    "response.body.data",
+  );
 }
 
 describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
@@ -186,22 +272,31 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
 
-    adminToken = adminLogin.body.data.accessToken as string;
-    adminRefreshToken = adminLogin.body.data.refreshToken as string;
+    const adminLoginData = getResponseDataRecord(adminLogin);
+    adminToken = getStringField(
+      adminLoginData,
+      "accessToken",
+      "response.body.data",
+    );
+    adminRefreshToken = getStringField(
+      adminLoginData,
+      "refreshToken",
+      "response.body.data",
+    );
 
     const staffLogin = await request(app.getHttpServer())
       .post("/auth/login")
       .send({ email: "staff@gym.local", password: "password" })
       .expect(201);
 
-    staffToken = staffLogin.body.data.accessToken as string;
+    staffToken = getAccessToken(staffLogin);
 
     const ptLogin = await request(app.getHttpServer())
       .post("/auth/login")
       .send({ email: "pt@gym.local", password: "password" })
       .expect(201);
 
-    ptToken = ptLogin.body.data.accessToken as string;
+    ptToken = getAccessToken(ptLogin);
 
     const em = orm.em.fork();
 
@@ -297,7 +392,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/auth/login")
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
-    const activeAdminToken = relogin.body.data.accessToken as string;
+    const activeAdminToken = getAccessToken(relogin);
 
     const tempPtResponse = await request(app.getHttpServer())
       .post("/pts")
@@ -317,7 +412,11 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         startDate: "2026-01-01",
       })
       .expect(201);
-    const tempPtId = tempPtResponse.body.data.id as string;
+    const tempPtId = getStringField(
+      getResponseDataRecord(tempPtResponse),
+      "id",
+      "response.body.data",
+    );
 
     const yesterday = toVietnamIsoAtHour(-1, 9);
     const tomorrow = toVietnamIsoAtHour(1, 9);
@@ -339,13 +438,18 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({ ptId: tempPtId, checkInAt: toVietnamIsoAtHour(0, 9) })
       .expect(201);
+    const attendanceLogId = getStringField(
+      getResponseDataRecord(checkInResponse),
+      "id",
+      "response.body.data",
+    );
 
     await request(app.getHttpServer())
       .post("/attendance/check-out")
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
         ptId: tempPtId,
-        attendanceLogId: checkInResponse.body.data.id,
+        attendanceLogId,
         checkOutAt: tomorrow,
       })
       .expect(400);
@@ -355,7 +459,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
         ptId: tempPtId,
-        attendanceLogId: checkInResponse.body.data.id,
+        attendanceLogId,
         checkOutAt: toVietnamIsoAtHour(0, 12),
       })
       .expect(400);
@@ -365,7 +469,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
         ptId: tempPtId,
-        attendanceLogId: checkInResponse.body.data.id,
+        attendanceLogId,
         checkOutAt: toVietnamIsoAtHour(0, 15),
       })
       .expect(201);
@@ -376,7 +480,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/auth/login")
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
-    const activeAdminToken = relogin.body.data.accessToken as string;
+    const activeAdminToken = getAccessToken(relogin);
 
     await request(app.getHttpServer())
       .post(`/payroll/periods/${payrollPeriodId}/submit`)
@@ -433,7 +537,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/auth/login")
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
-    const activeAdminToken = relogin.body.data.accessToken as string;
+    const activeAdminToken = getAccessToken(relogin);
 
     await request(app.getHttpServer())
       .post(`/expenses/${expenseApproveFlowId}/submit`)
@@ -490,7 +594,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/auth/login")
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
-    const activeAdminToken = relogin.body.data.accessToken as string;
+    const activeAdminToken = getAccessToken(relogin);
 
     await request(app.getHttpServer())
       .post("/expenses")
@@ -525,7 +629,13 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(200);
 
-    expect(updateResponse.body.data.status).toBe("DRAFT");
+    expect(
+      getStringField(
+        getResponseDataRecord(updateResponse),
+        "status",
+        "response.body.data",
+      ),
+    ).toBe("DRAFT");
 
     const em = orm.em.fork();
     const reopenedExpense = await em.findOne(OperatingExpenseEntity, {
@@ -549,7 +659,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post(`/sales/invoices/${salesInvoiceId}/confirm`)
       .set("Authorization", `Bearer ${staffToken}`)
       .send({})
-      .expect(201);
+      .expect(403);
 
     await request(app.getHttpServer())
       .post(`/sales/invoices/${salesInvoiceId}/cancel`)
@@ -561,10 +671,17 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/auth/login")
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
+    const activeAdminToken = getAccessToken(relogin);
+
+    await request(app.getHttpServer())
+      .post(`/sales/invoices/${salesInvoiceId}/confirm`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({})
+      .expect(201);
 
     await request(app.getHttpServer())
       .post(`/sales/invoices/${salesInvoiceId}/cancel`)
-      .set("Authorization", `Bearer ${relogin.body.data.accessToken as string}`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({ cancellationReason: "Customer request" })
       .expect(201);
 
@@ -583,7 +700,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/auth/login")
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
-    const activeAdminToken = relogin.body.data.accessToken as string;
+    const activeAdminToken = getAccessToken(relogin);
 
     const pdfResponse = await request(app.getHttpServer())
       .get("/reports/payroll/export?format=pdf")
@@ -617,14 +734,33 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
 
     expect(loginAuditLog).toBeDefined();
 
-    const requestBody = loginAuditLog.requestBody as { password?: string };
-    const responseBody = loginAuditLog.responseBody as {
-      data?: { accessToken?: string; refreshToken?: string };
-    };
+    if (!loginAuditLog) {
+      throw new Error("Missing AUTH_LOGIN audit log record");
+    }
 
-    expect(requestBody.password).toBe("[REDACTED]");
-    expect(responseBody.data?.accessToken).toBe("[REDACTED]");
-    expect(responseBody.data?.refreshToken).toBe("[REDACTED]");
+    const requestBody = expectRecord(
+      loginAuditLog.requestBody,
+      "auditLog.requestBody",
+    );
+    const responseBody = expectRecord(
+      loginAuditLog.responseBody,
+      "auditLog.responseBody",
+    );
+    const responseData = getRecordField(
+      responseBody,
+      "data",
+      "auditLog.responseBody",
+    );
+
+    expect(getStringField(requestBody, "password", "auditLog.requestBody")).toBe(
+      "[REDACTED]",
+    );
+    expect(
+      getStringField(responseData, "accessToken", "auditLog.responseBody.data"),
+    ).toBe("[REDACTED]");
+    expect(
+      getStringField(responseData, "refreshToken", "auditLog.responseBody.data"),
+    ).toBe("[REDACTED]");
 
     const expenseAuditLogs = await em.find(AuditLogEntity, {
       resource: "operating_expenses",
@@ -638,7 +774,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/auth/login")
       .send({ email: "admin@gym.local", password: "password" })
       .expect(201);
-    const activeAdminToken = relogin.body.data.accessToken as string;
+    const activeAdminToken = getAccessToken(relogin);
 
     const membershipResponse = await request(app.getHttpServer())
       .post("/member-memberships")
@@ -651,8 +787,29 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(201);
 
-    const membershipId = membershipResponse.body.data.membership.id as string;
-    expect(membershipResponse.body.data.invoice.totalAmount).toBe(1_500_000);
+    const membershipData = getResponseDataRecord(membershipResponse);
+    const membership = getRecordField(
+      membershipData,
+      "membership",
+      "response.body.data",
+    );
+    const membershipInvoice = getRecordField(
+      membershipData,
+      "invoice",
+      "response.body.data",
+    );
+    const membershipId = getStringField(
+      membership,
+      "id",
+      "response.body.data.membership",
+    );
+    expect(
+      getNumberField(
+        membershipInvoice,
+        "totalAmount",
+        "response.body.data.invoice",
+      ),
+    ).toBe(1_500_000);
 
     const assignmentResponse = await request(app.getHttpServer())
       .post("/member-assignments")
@@ -667,7 +824,13 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(201);
 
-    expect(assignmentResponse.body.data.commissionAmount).toBe(150_000);
+    expect(
+      getNumberField(
+        getResponseDataRecord(assignmentResponse),
+        "commissionAmount",
+        "response.body.data",
+      ),
+    ).toBe(150_000);
 
     const salesResponse = await request(app.getHttpServer())
       .post("/sales/invoices")
@@ -681,8 +844,13 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(201);
 
-    expect(salesResponse.body.data.status).toBe("DRAFT");
-    expect(salesResponse.body.data.totalAmount).toBe(50);
+    const salesResponseData = getResponseDataRecord(salesResponse);
+    expect(
+      getStringField(salesResponseData, "status", "response.body.data"),
+    ).toBe("DRAFT");
+    expect(
+      getNumberField(salesResponseData, "totalAmount", "response.body.data"),
+    ).toBe(50);
 
     const importResponse = await request(app.getHttpServer())
       .post("/inventory/import")
@@ -694,7 +862,13 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(201);
 
-    expect(importResponse.body.data.type).toBe("IMPORT");
+    expect(
+      getStringField(
+        getResponseDataRecord(importResponse),
+        "type",
+        "response.body.data",
+      ),
+    ).toBe("IMPORT");
 
     const maintenanceResponse = await request(app.getHttpServer())
       .post("/maintenance")
@@ -711,7 +885,9 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(404);
 
-    expect(maintenanceResponse.body.error).toBe("Not Found");
+    expect(
+      getStringField(getResponseBody(maintenanceResponse), "error", "response.body"),
+    ).toBe("Not Found");
 
     const payrollPeriodResponse = await request(app.getHttpServer())
       .post("/payroll/periods")
@@ -727,11 +903,21 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/payroll/generate")
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
-        payrollPeriodId: payrollPeriodResponse.body.data.id,
+        payrollPeriodId: getStringField(
+          getResponseDataRecord(payrollPeriodResponse),
+          "id",
+          "response.body.data",
+        ),
       })
       .expect(201);
 
-    expect(generatedResponse.body.data.entries.length).toBeGreaterThan(0);
+    expect(
+      getArrayField(
+        getResponseDataRecord(generatedResponse),
+        "entries",
+        "response.body.data",
+      ).length,
+    ).toBeGreaterThan(0);
 
     const patchPtResponse = await request(app.getHttpServer())
       .post("/pts")
@@ -752,16 +938,25 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(201);
 
-    const patchPtId = patchPtResponse.body.data.id as string;
+    const patchPtId = getStringField(
+      getResponseDataRecord(patchPtResponse),
+      "id",
+      "response.body.data",
+    );
 
     const checkInForPatchResponse = await request(app.getHttpServer())
       .post("/attendance/check-in")
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({ ptId: patchPtId })
       .expect(201);
+    const patchedAttendanceId = getStringField(
+      getResponseDataRecord(checkInForPatchResponse),
+      "id",
+      "response.body.data",
+    );
 
     const patchedAttendanceResponse = await request(app.getHttpServer())
-      .patch(`/attendance/${checkInForPatchResponse.body.data.id as string}`)
+      .patch(`/attendance/${patchedAttendanceId}`)
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
         checkInAt: toVietnamIsoAtHour(0, 8),
@@ -770,7 +965,13 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(200);
 
-    expect(patchedAttendanceResponse.body.data.status).toBe("VALID");
+    expect(
+      getStringField(
+        getResponseDataRecord(patchedAttendanceResponse),
+        "status",
+        "response.body.data",
+      ),
+    ).toBe("VALID");
 
     const ptPayrollLogin = await request(app.getHttpServer())
       .post("/auth/login")
@@ -781,11 +982,11 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .get("/payroll/me")
       .set(
         "Authorization",
-        `Bearer ${ptPayrollLogin.body.data.accessToken as string}`,
+        `Bearer ${getAccessToken(ptPayrollLogin)}`,
       )
       .expect(200);
 
-    expect(payrollMeResponse.body.data.length).toBeGreaterThan(0);
+    expect(getResponseDataArray(payrollMeResponse).length).toBeGreaterThan(0);
   });
 });
 

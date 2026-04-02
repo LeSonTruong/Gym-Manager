@@ -99,7 +99,7 @@ const vietnameseToEnglishTranslations: Record<string, string> = {
 };
 
 function normalizeTranslationKey(value: string): string {
-  return value.trim().replaceAll(/\s+/g, ' ');
+  return value.trim().replaceAll(/\s+/gv, ' ');
 }
 
 export function translateFromText(value: string, locale: LocaleKey): string {

@@ -42,7 +42,9 @@ function toDecimal(value: number): string {
 export class GymManagementSeedService implements OnModuleInit {
   private readonly logger = new Logger(GymManagementSeedService.name);
 
-  constructor(private readonly orm: MikroORM) { }
+  constructor(private readonly orm: MikroORM) {
+ 
+  }
 
   async onModuleInit(): Promise<void> {
     await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'

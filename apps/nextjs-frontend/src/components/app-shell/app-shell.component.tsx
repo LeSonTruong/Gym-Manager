@@ -135,31 +135,35 @@ export function AppShell({
   readonly locale: string;
   readonly currentUserName?: string;
   readonly currentUserRole?: string;
-  readonly logoutAction: (formData: FormData) => void;
+  readonly logoutAction: (formData: FormData) => void | Promise<void>;
 }): JSX.Element {
   const pathname = usePathname();
   const tNav = useTranslations('Navigation');
   const tApp = useTranslations('AppShell');
   const navigation = getNavigationByRole(tNav, currentUserRole);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (globalThis.window === undefined) {
+      return 'light';
+    }
+
+    const savedTheme = globalThis.localStorage.getItem('gym-theme');
+
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+      return savedTheme;
+    }
+
+    return globalThis.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  });
 
   useEffect(() => {
-    const savedTheme = globalThis.localStorage.getItem('gym-theme');
-    const preferredDark = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
-    const resolvedTheme = savedTheme === 'dark' || savedTheme === 'light'
-      ? savedTheme
-      : (preferredDark ? 'dark' : 'light');
-
-    setTheme(resolvedTheme);
-    document.documentElement.dataset.theme = resolvedTheme;
-  }, []);
+    document.documentElement.dataset.theme = theme;
+    globalThis.localStorage.setItem('gym-theme', theme);
+  }, [theme]);
 
   const toggleTheme = (): void => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-
-    setTheme(nextTheme);
-    document.documentElement.dataset.theme = nextTheme;
-    globalThis.localStorage.setItem('gym-theme', nextTheme);
+    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'));
   };
 
   return (

@@ -46,6 +46,28 @@ const salesInvoiceTransitions = {
     CONFIRMED: ["CANCELLED"],
     CANCELLED: [],
 };
+const payrollPeriodStatuses = [
+    "OPEN",
+    "PENDING_APPROVAL",
+    "APPROVED",
+    "PAID",
+];
+const payrollEntryStatuses = ["PENDING_APPROVAL", "APPROVED", "PAID"];
+const operatingExpenseStatuses = [
+    "DRAFT",
+    "PENDING_APPROVAL",
+    "APPROVED",
+    "REJECTED",
+    "PAID",
+];
+const salesInvoiceStatuses = ["DRAFT", "CONFIRMED", "CANCELLED"];
+const authTokenRoles = ["ADMIN", "PT", "STAFF"];
+function isOneOf(value, acceptedValues) {
+    return acceptedValues.includes(value);
+}
+function coerceEnumValue(value, acceptedValues, fallback) {
+    return isOneOf(value, acceptedValues) ? value : fallback;
+}
 let GymManagementService = class GymManagementService {
     orm;
     redisService;
@@ -100,7 +122,7 @@ let GymManagementService = class GymManagementService {
             throw new common_1.UnauthorizedException("Refresh token is invalid or expired");
         }
         const userEntity = refreshTokenEntity.user;
-        if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
+        if (userEntity?.status !== "ACTIVE" || userEntity.deletedAt) {
             throw new common_1.UnauthorizedException("User account is inactive");
         }
         const user = (0, gym_management_mapper_1.mapUserEntity)(userEntity);
@@ -145,16 +167,19 @@ let GymManagementService = class GymManagementService {
         if (!payload) {
             throw new common_1.UnauthorizedException("Access token is invalid or expired");
         }
+        const authTokenPayload = this.toAuthTokenPayload(payload);
         const em = this.createEntityManager();
-        const userEntity = await em.findOne(gym_management_entity_1.UserEntity, { id: payload.userId });
-        if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
+        const userEntity = await em.findOne(gym_management_entity_1.UserEntity, {
+            id: authTokenPayload.userId,
+        });
+        if (userEntity?.status !== "ACTIVE" || userEntity.deletedAt) {
             throw new common_1.UnauthorizedException("User account is inactive");
         }
         return {
             user: (0, gym_management_mapper_1.mapUserEntity)(userEntity),
-            role: payload.role,
-            ptId: payload.ptId,
-            sessionId: payload.sessionId,
+            role: authTokenPayload.role,
+            ptId: authTokenPayload.ptId,
+            sessionId: authTokenPayload.sessionId,
             accessToken,
         };
     }
@@ -165,7 +190,7 @@ let GymManagementService = class GymManagementService {
     async getCurrentUserById(userId) {
         const em = this.createEntityManager();
         const currentUser = await em.findOne(gym_management_entity_1.UserEntity, { id: userId });
-        if (!currentUser || currentUser.status !== "ACTIVE" || currentUser.deletedAt) {
+        if (currentUser?.status !== "ACTIVE" || currentUser.deletedAt) {
             throw new common_1.UnauthorizedException("No demo users configured");
         }
         return (0, gym_management_mapper_1.mapUserEntity)(currentUser);
@@ -225,7 +250,7 @@ let GymManagementService = class GymManagementService {
         const pt = await this.getRequiredPersonalTrainerEntity(em, attendanceCheckOutDto.ptId);
         const attendanceLog = await this.findAttendanceLogForCheckOut(em, pt, attendanceCheckOutDto.attendanceLogId);
         if (!attendanceLog) {
-            throw new common_1.NotFoundException(`Open shift for PT ${attendanceCheckOutDto.ptId} not found`);
+            throw new common_1.BadRequestException(`PT ${attendanceCheckOutDto.ptId} does not have an open shift to check out`);
         }
         if (attendanceLog.checkOutAt) {
             throw new common_1.ConflictException(`Shift ${attendanceLog.id} is already checked out`);
@@ -575,9 +600,13 @@ let GymManagementService = class GymManagementService {
         const salesInvoices = await em.find(gym_management_entity_1.SalesInvoiceEntity, { status: "CONFIRMED" }, { populate: ["createdByUser", "member"] });
         for (const trainer of trainers) {
             const contract = await this.findPtContractForPeriod(em, trainer.id, payrollPeriod.fromDate, payrollPeriod.toDate);
-            if (!contract) {
-                continue;
-            }
+            const baseSalaryAmount = await this.getNumberSystemConfig(em, `pt_${trainer.id}_base_salary`, contract ? Number(contract.baseSalary) : 0);
+            const overtimeHourlyRate = await this.getNumberSystemConfig(em, `pt_${trainer.id}_overtime_hourly_rate`, contract ? Number(contract.overtimeHourlyRate) : 0);
+            const allowanceAmount = await this.getNumberSystemConfig(em, `pt_${trainer.id}_allowance`, contract ? Number(contract.allowances) : 0);
+            const packageCommissionRate = await this.getNumberSystemConfig(em, `pt_${trainer.id}_package_commission_rate`, contract ? Number(contract.packageCommissionRate) : 0);
+            const salesCommissionRate = await this.getNumberSystemConfig(em, `pt_${trainer.id}_sales_commission_rate`, contract ? Number(contract.salesCommissionRate) : 0);
+            const performanceBonusThreshold = await this.getNumberSystemConfig(em, `pt_${trainer.id}_performance_bonus_threshold`, contract ? contract.performanceBonusThreshold : 0);
+            const performanceBonusAmountValue = await this.getNumberSystemConfig(em, `pt_${trainer.id}_performance_bonus_amount`, contract ? Number(contract.performanceBonusAmount) : 0);
             const attendanceLogs = await em.find(gym_management_entity_1.AttendanceLogEntity, {
                 personalTrainer: trainer,
                 attendanceDate: {
@@ -596,7 +625,7 @@ let GymManagementService = class GymManagementService {
                 if (!assignment) {
                     return 0;
                 }
-                return this.calculateAssignmentCommissionAmount(Number(invoice.totalAmount), assignment.commissionType, assignment.commissionValue ? Number(assignment.commissionValue) : null, Number(assignment.commissionAmount), Number(contract.packageCommissionRate));
+                return this.calculateAssignmentCommissionAmount(Number(invoice.totalAmount), assignment.commissionType, assignment.commissionValue ? Number(assignment.commissionValue) : null, Number(assignment.commissionAmount), packageCommissionRate);
             }));
             const packageCount = assignmentInvoices.filter((invoice) => assignments.some((assignment) => assignment.personalTrainer.id === trainer.id &&
                 assignment.memberMembership.id === invoice.memberMembership.id &&
@@ -604,14 +633,12 @@ let GymManagementService = class GymManagementService {
             const salesCommission = this.sumNumbers(salesInvoices
                 .filter((invoice) => this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod) &&
                 invoice.createdByUser.id === trainer.user?.id)
-                .map((invoice) => Number(invoice.totalAmount) * Number(contract.salesCommissionRate)));
-            const performanceBonus = packageCount >= contract.performanceBonusThreshold
-                ? Number(contract.performanceBonusAmount)
+                .map((invoice) => Number(invoice.totalAmount) * salesCommissionRate));
+            const performanceBonus = packageCount >= performanceBonusThreshold
+                ? performanceBonusAmountValue
                 : 0;
-            const overtimeAmount = overtimeHours * Number(contract.overtimeHourlyRate);
-            const baseSalaryAmount = Number(contract.baseSalary);
+            const overtimeAmount = overtimeHours * overtimeHourlyRate;
             const attendanceBonusAmount = 0;
-            const allowanceAmount = Number(contract.allowances);
             const deductionAmount = 0;
             const penalties = 0;
             const grossPay = this.sumNumbers([
@@ -627,7 +654,7 @@ let GymManagementService = class GymManagementService {
             const payrollEntry = em.create(gym_management_entity_1.PayrollEntryEntity, {
                 payrollPeriod,
                 personalTrainer: trainer,
-                contract,
+                contract: contract ?? null,
                 validShiftCredits: (0, gym_management_mapper_1.toDecimalString)(validShiftCredits),
                 paidHours: (0, gym_management_mapper_1.toDecimalString)(paidHours),
                 overtimeHours: (0, gym_management_mapper_1.toDecimalString)(overtimeHours),
@@ -1127,7 +1154,7 @@ let GymManagementService = class GymManagementService {
     }
     async createOperatingExpense(createOperatingExpenseDto) {
         const em = this.createEntityManager();
-        const operatingExpenseData = (await this.toOperatingExpenseEntityData(em, createOperatingExpenseDto));
+        const operatingExpenseData = await this.toOperatingExpenseEntityData(em, createOperatingExpenseDto);
         const operatingExpense = em.create(gym_management_entity_1.OperatingExpenseEntity, operatingExpenseData);
         this.resetOperatingExpenseWorkflow(operatingExpense);
         em.persist(operatingExpense);
@@ -1149,7 +1176,21 @@ let GymManagementService = class GymManagementService {
     }
     async patchSystemConfig(configKey, patchSystemConfigDto, actorUserId) {
         const em = this.createEntityManager();
-        const systemConfig = await this.getRequiredSystemConfigEntity(em, configKey);
+        const normalizedKey = configKey.trim();
+        let systemConfig = await em.findOne(gym_management_entity_1.SystemConfigEntity, {
+            key: normalizedKey,
+        });
+        if (!systemConfig) {
+            const systemConfigData = {
+                key: normalizedKey,
+                label: this.toSystemConfigLabel(normalizedKey),
+                value: patchSystemConfigDto.value,
+                description: `Custom config for ${normalizedKey}`,
+                updatedByUser: null,
+            };
+            systemConfig = em.create(gym_management_entity_1.SystemConfigEntity, systemConfigData);
+            em.persist(systemConfig);
+        }
         systemConfig.value = patchSystemConfigDto.value;
         if (actorUserId) {
             systemConfig.updatedByUser = await this.getRequiredUserEntity(em, actorUserId);
@@ -1168,7 +1209,7 @@ let GymManagementService = class GymManagementService {
         if (!payrollPeriod) {
             throw new common_1.NotFoundException(`Payroll period ${payrollPeriodId} not found`);
         }
-        this.ensureAllowedTransition("Payroll period", payrollPeriod.status, nextStatus, payrollPeriodTransitions);
+        this.ensureAllowedTransition("Payroll period", coerceEnumValue(payrollPeriod.status, payrollPeriodStatuses, "OPEN"), nextStatus, payrollPeriodTransitions);
         const actor = await this.resolveApprovedByUser(em, actorUserId);
         if (!actor) {
             throw new common_1.NotFoundException(`User ${actorUserId} not found`);
@@ -1185,7 +1226,7 @@ let GymManagementService = class GymManagementService {
                 throw new common_1.BadRequestException("Payroll period must be submitted before approval");
             }
             for (const entry of payrollEntries) {
-                this.ensureAllowedTransition("Payroll entry", entry.status, "APPROVED", payrollEntryTransitions);
+                this.ensureAllowedTransition("Payroll entry", coerceEnumValue(entry.status, payrollEntryStatuses, "PENDING_APPROVAL"), "APPROVED", payrollEntryTransitions);
                 entry.status = "APPROVED";
             }
             payrollPeriod.approvedByUser = actor;
@@ -1197,7 +1238,7 @@ let GymManagementService = class GymManagementService {
                 throw new common_1.BadRequestException("Payroll period must be approved before payout");
             }
             for (const entry of payrollEntries) {
-                this.ensureAllowedTransition("Payroll entry", entry.status, "PAID", payrollEntryTransitions);
+                this.ensureAllowedTransition("Payroll entry", coerceEnumValue(entry.status, payrollEntryStatuses, "PENDING_APPROVAL"), "PAID", payrollEntryTransitions);
                 entry.status = "PAID";
             }
             payrollPeriod.paidAt = new Date();
@@ -1209,7 +1250,7 @@ let GymManagementService = class GymManagementService {
     async transitionExpenseStatus(expenseId, nextStatus, options) {
         const em = this.createEntityManager();
         const expense = await this.getRequiredOperatingExpenseEntity(em, expenseId);
-        this.ensureAllowedTransition("Operating expense", expense.status, nextStatus, operatingExpenseTransitions);
+        this.ensureAllowedTransition("Operating expense", coerceEnumValue(expense.status, operatingExpenseStatuses, "DRAFT"), nextStatus, operatingExpenseTransitions);
         if (nextStatus === "PENDING_APPROVAL") {
             expense.submittedAt = new Date();
             expense.approvedByUser = null;
@@ -1275,7 +1316,7 @@ let GymManagementService = class GymManagementService {
         if (!salesInvoice) {
             throw new common_1.NotFoundException(`Sales invoice ${salesInvoiceId} not found`);
         }
-        this.ensureAllowedTransition("Sales invoice", salesInvoice.status, nextStatus, salesInvoiceTransitions);
+        this.ensureAllowedTransition("Sales invoice", coerceEnumValue(salesInvoice.status, salesInvoiceStatuses, "DRAFT"), nextStatus, salesInvoiceTransitions);
         const invoiceItems = await em.find(gym_management_entity_1.SalesInvoiceItemEntity, { salesInvoice }, { populate: ["product", "salesInvoice"] });
         if (nextStatus === "CONFIRMED") {
             for (const invoiceItem of invoiceItems) {
@@ -1348,7 +1389,7 @@ let GymManagementService = class GymManagementService {
     }
     flattenToRow(value, seed = {}, prefix = "") {
         const row = { ...seed };
-        if (!value || typeof value !== "object") {
+        if (!this.isObjectRecord(value)) {
             if (prefix) {
                 row[prefix] = String(value);
             }
@@ -1370,6 +1411,30 @@ let GymManagementService = class GymManagementService {
             Object.assign(row, this.flattenToRow(entryValue, {}, nextKey));
         }
         return row;
+    }
+    isObjectRecord(value) {
+        return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+    }
+    toAuthTokenPayload(payload) {
+        if (!this.isObjectRecord(payload)) {
+            throw new common_1.UnauthorizedException("Access token payload is invalid");
+        }
+        const { sessionId, userId, role, ptId } = payload;
+        if (typeof sessionId !== "string" || typeof userId !== "string") {
+            throw new common_1.UnauthorizedException("Access token payload is invalid");
+        }
+        if (typeof role !== "string" || !isOneOf(role, authTokenRoles)) {
+            throw new common_1.UnauthorizedException("Access token payload is invalid");
+        }
+        if (ptId !== undefined && typeof ptId !== "string") {
+            throw new common_1.UnauthorizedException("Access token payload is invalid");
+        }
+        return {
+            sessionId,
+            userId,
+            role,
+            ptId,
+        };
     }
     async toPdfBuffer(reportType, exportedAt, rows) {
         const document = new PDFDocument({ margin: 36, size: "A4" });
@@ -1444,6 +1509,14 @@ let GymManagementService = class GymManagementService {
             return false;
         }
         return fallbackValue;
+    }
+    toSystemConfigLabel(configKey) {
+        return configKey
+            .split("_")
+            .map((segment) => segment.length > 0
+            ? `${segment.slice(0, 1).toUpperCase()}${segment.slice(1)}`
+            : segment)
+            .join(" ");
     }
     async issueAccessToken(payload) {
         const accessToken = this.generateOpaqueToken("access");
@@ -1848,15 +1921,6 @@ let GymManagementService = class GymManagementService {
             throw new common_1.NotFoundException(`Expense ${expenseId} not found`);
         }
         return operatingExpense;
-    }
-    async getRequiredSystemConfigEntity(em, configKey) {
-        const systemConfig = await em.findOne(gym_management_entity_1.SystemConfigEntity, {
-            key: configKey,
-        });
-        if (!systemConfig) {
-            throw new common_1.NotFoundException(`System config ${configKey} not found`);
-        }
-        return systemConfig;
     }
 };
 exports.GymManagementService = GymManagementService;

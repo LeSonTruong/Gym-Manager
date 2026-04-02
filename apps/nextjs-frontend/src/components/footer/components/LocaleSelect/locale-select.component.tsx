@@ -1,12 +1,16 @@
 'use client';
 
-import {type JSX, useTransition} from 'react';
-import {Dropdown, type DropdownChangeEvent} from 'primereact/dropdown';
-import {type SelectItemOptionsType} from 'primereact/selectitem';
-import {type Locale, useLocale, useTranslations} from 'next-intl';
-import {useParams} from 'next/navigation';
-import {usePathname, useRouter} from '@/i18n/navigation.ts';
-import {routing} from '@/i18n/routing.ts';
+import { type JSX, useTransition } from 'react';
+import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
+import { type SelectItemOptionsType } from 'primereact/selectitem';
+import { type Locale, useLocale, useTranslations } from 'next-intl';
+import { useParams } from 'next/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation.ts';
+import { routing } from '@/i18n/routing.ts';
+
+function isLocale(value: string): value is Locale {
+  return (routing.locales as readonly string[]).includes(value);
+}
 
 export function LocaleSelect(): JSX.Element {
   const t = useTranslations('components.footer.localeSelect');
@@ -27,14 +31,20 @@ export function LocaleSelect(): JSX.Element {
   }));
 
   const onLocaleChange = (event: DropdownChangeEvent): void => {
-    const nextLocale = event.target.value as Locale;
+    const nextLocaleValue: unknown = event.target.value;
+
+    if (typeof nextLocaleValue !== 'string' || !isLocale(nextLocaleValue)) {
+      return;
+    }
+
+    const nextLocale = nextLocaleValue;
     startTransition(() => {
       router.replace(
         // @ts-expect-error -- TypeScript will validate that only known `params`
         // are used in combination with a given `pathname`. Since the two will
         // always match for the current route, we can skip runtime checks.
-        {pathname, params},
-        {locale: nextLocale},
+        { pathname, params },
+        { locale: nextLocale },
       );
     });
   };

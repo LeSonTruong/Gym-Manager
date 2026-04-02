@@ -11,7 +11,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private subscriber: Redis | undefined;
   private useInMemoryRedis = false;
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {
+
+  }
 
   onModuleInit(): void {
     if ((this.configService.get<string>(ConfigKey.REDIS_HOST) ?? '').toLowerCase() === 'memory') {
@@ -102,25 +104,28 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.setValue(key, JSON.stringify(value), ttlSeconds);
   }
 
-  async getJson<T>(key: string): Promise<T | undefined> {
+  async getJson(key: string): Promise<unknown | undefined> {
     const value = await this.getValue(key);
 
     if (!value) {
       return undefined;
     }
 
-    return JSON.parse(value) as T;
+    return JSON.parse(value) as unknown;
   }
 
-  async subscribe<T>(channel: string, callback: (message: T) => void): Promise<void> {
+  async subscribe(
+    channel: string,
+    callback: (message: unknown) => void,
+  ): Promise<void> {
     if (this.useInMemoryRedis) {
       const callbacks = this.memorySubscribers.get(channel) ?? new Set<(message: string) => void>();
 
       callbacks.add((message) => {
         try {
-          callback(JSON.parse(message) as T);
+          callback(JSON.parse(message) as unknown);
         } catch {
-          callback(message as T);
+          callback(message);
         }
       });
       this.memorySubscribers.set(channel, callbacks);
@@ -135,11 +140,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.subscriber.on('message', (ch, msg) => {
       if (ch === channel) {
         try {
-          const parsed = JSON.parse(msg) as T;
-          callback(parsed);
+          callback(JSON.parse(msg) as unknown);
         } catch (error) {
           console.error('Failed to parse message:', error);
-          callback(msg as T);
+          callback(msg);
         }
       }
     });

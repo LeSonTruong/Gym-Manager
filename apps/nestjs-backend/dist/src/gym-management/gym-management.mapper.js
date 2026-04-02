@@ -50,13 +50,38 @@ function parseDateTime(value) {
 function toDecimalString(value) {
     return value.toString();
 }
+const userRoles = ["ADMIN", "PT", "STAFF"];
+const userStatuses = ["ACTIVE", "INACTIVE"];
+const genders = ["MALE", "FEMALE", "OTHER"];
+const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"];
+const attendanceStatuses = ["OPEN", "VALID", "HALF", "INVALID"];
+const payrollPeriodStatuses = ["OPEN", "PENDING_APPROVAL", "APPROVED", "PAID"];
+const payrollEntryStatuses = ["PENDING_APPROVAL", "APPROVED", "PAID"];
+const membershipPlanTypes = ["DAY", "MONTH", "YEAR"];
+const membershipPlanStatuses = ["ON_SALE", "OFF_SALE"];
+const membershipStatuses = ["ACTIVE", "EXPIRED", "CANCELLED"];
+const commissionTypes = ["PERCENT", "FIXED"];
+const assignmentStatuses = ["ACTIVE", "ENDED"];
+const paymentMethods = ["CASH", "BANK_TRANSFER", "CARD"];
+const membershipInvoiceStatuses = ["CONFIRMED", "CANCELLED"];
+const productStatuses = ["ACTIVE", "INACTIVE"];
+const inventoryTransactionTypes = ["IMPORT", "SALE", "ADJUSTMENT"];
+const salesInvoiceStatuses = ["DRAFT", "CONFIRMED", "CANCELLED"];
+const expenseCategories = ["CLEANING", "UTILITY", "SALARY", "RENT", "OTHER"];
+const expenseStatuses = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "REJECTED", "PAID"];
+function isOneOf(value, acceptedValues) {
+    return acceptedValues.includes(value);
+}
+function coerceEnumValue(value, acceptedValues, fallback) {
+    return isOneOf(value, acceptedValues) ? value : fallback;
+}
 function mapUserEntity(entity) {
     return {
         id: entity.id,
         fullName: entity.fullName,
         email: entity.email,
-        role: entity.role,
-        status: entity.status,
+        role: coerceEnumValue(entity.role, userRoles, "STAFF"),
+        status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
@@ -66,12 +91,12 @@ function mapPersonalTrainerEntity(entity) {
         code: entity.code,
         userId: entity.user?.id ?? undefined,
         fullName: entity.fullName,
-        gender: entity.gender,
+        gender: coerceEnumValue(entity.gender, genders, "OTHER"),
         birthDate: toDateOnlyString(entity.birthDate),
         phone: entity.phone,
         email: entity.email,
         address: entity.address,
-        status: entity.status,
+        status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
         specialties: entity.specialties,
         experienceYears: entity.experienceYears,
         avatarUrl: entity.avatarUrl,
@@ -85,7 +110,7 @@ function mapPtContractEntity(entity) {
         ptId: entity.personalTrainer.id,
         contractCode: entity.contractCode,
         contractType: entity.contractType,
-        salaryType: entity.salaryType,
+        salaryType: coerceEnumValue(entity.salaryType, salaryTypes, "MONTHLY"),
         baseSalary: Number(entity.baseSalary),
         minValidShiftHours: Number(entity.minValidShiftHours),
         standardShiftHours: Number(entity.standardShiftHours),
@@ -109,7 +134,7 @@ function mapAttendanceLogEntity(entity) {
         workedHours: Number(entity.workedHours),
         paidHours: Number(entity.paidHours),
         overtimeHours: Number(entity.overtimeHours),
-        status: entity.status,
+        status: coerceEnumValue(entity.status, attendanceStatuses, "OPEN"),
         workCredit: Number(entity.workCredit),
         note: entity.note ?? undefined,
     };
@@ -120,7 +145,7 @@ function mapPayrollPeriodEntity(entity) {
         code: entity.code,
         from: toDateOnlyString(entity.fromDate),
         to: toDateOnlyString(entity.toDate),
-        status: entity.status,
+        status: coerceEnumValue(entity.status, payrollPeriodStatuses, "OPEN"),
         submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
         approvedByUserId: entity.approvedByUser?.id ?? undefined,
         approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
@@ -147,7 +172,7 @@ function mapPayrollEntryEntity(entity) {
         penalties: Number(entity.penalties),
         grossPay: Number(entity.grossPay),
         netPay: Number(entity.netPay),
-        status: entity.status,
+        status: coerceEnumValue(entity.status, payrollEntryStatuses, "PENDING_APPROVAL"),
     };
 }
 function mapMemberEntity(entity) {
@@ -155,7 +180,7 @@ function mapMemberEntity(entity) {
         id: entity.id,
         code: entity.code,
         fullName: entity.fullName,
-        gender: entity.gender,
+        gender: coerceEnumValue(entity.gender, genders, "OTHER"),
         birthDate: toDateOnlyString(entity.birthDate),
         phone: entity.phone,
         email: entity.email,
@@ -165,7 +190,7 @@ function mapMemberEntity(entity) {
         goal: entity.goal,
         healthNotes: entity.healthNotes,
         registeredAt: toDateOnlyString(entity.registeredAt),
-        status: entity.status,
+        status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
@@ -174,13 +199,13 @@ function mapMembershipPlanEntity(entity) {
         id: entity.id,
         code: entity.code,
         name: entity.name,
-        type: entity.type,
+        type: coerceEnumValue(entity.type, membershipPlanTypes, "MONTH"),
         price: Number(entity.price),
         durationDays: entity.durationDays,
         includesPt: entity.includesPt,
         includedPtSessions: entity.includedPtSessions,
         perks: entity.perks,
-        status: entity.status,
+        status: coerceEnumValue(entity.status, membershipPlanStatuses, "ON_SALE"),
     };
 }
 function mapMemberMembershipEntity(entity) {
@@ -190,7 +215,7 @@ function mapMemberMembershipEntity(entity) {
         membershipPlanId: entity.membershipPlan.id,
         startDate: toDateOnlyString(entity.startDate),
         endDate: toDateOnlyString(entity.endDate),
-        status: entity.status,
+        status: coerceEnumValue(entity.status, membershipStatuses, "ACTIVE"),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
@@ -202,10 +227,13 @@ function mapMemberPtAssignmentEntity(entity) {
         memberMembershipId: entity.memberMembership.id,
         assignedFrom: toDateOnlyString(entity.assignedFrom),
         assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
-        commissionType: entity.commissionType ?? undefined,
+        commissionType: typeof entity.commissionType === "string" &&
+            isOneOf(entity.commissionType, commissionTypes)
+            ? entity.commissionType
+            : undefined,
         commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,
         commissionAmount: Number(entity.commissionAmount),
-        status: entity.status,
+        status: coerceEnumValue(entity.status, assignmentStatuses, "ACTIVE"),
         note: entity.note ?? undefined,
     };
 }
@@ -217,8 +245,8 @@ function mapMembershipInvoiceEntity(entity) {
         memberMembershipId: entity.memberMembership.id,
         invoiceDate: toDateTimeString(entity.invoiceDate),
         totalAmount: Number(entity.totalAmount),
-        paymentMethod: entity.paymentMethod,
-        status: entity.status,
+        paymentMethod: coerceEnumValue(entity.paymentMethod, paymentMethods, "CASH"),
+        status: coerceEnumValue(entity.status, membershipInvoiceStatuses, "CONFIRMED"),
     };
 }
 function mapProductEntity(entity) {
@@ -231,7 +259,7 @@ function mapProductEntity(entity) {
         salePrice: Number(entity.salePrice),
         stockOnHand: entity.stockOnHand,
         minimumStockLevel: entity.minimumStockLevel,
-        status: entity.status,
+        status: coerceEnumValue(entity.status, productStatuses, "ACTIVE"),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
@@ -239,7 +267,7 @@ function mapInventoryTransactionEntity(entity) {
     return {
         id: entity.id,
         productId: entity.product.id,
-        type: entity.type,
+        type: coerceEnumValue(entity.type, inventoryTransactionTypes, "IMPORT"),
         quantity: entity.quantity,
         unitCost: Number(entity.unitCost),
         transactionDate: toDateTimeString(entity.transactionDate),
@@ -264,8 +292,8 @@ function mapSalesInvoiceEntity(entity, items) {
         createdByUserId: entity.createdByUser.id,
         memberId: entity.member?.id ?? undefined,
         customerName: entity.customerName,
-        status: entity.status,
-        paymentMethod: entity.paymentMethod,
+        status: coerceEnumValue(entity.status, salesInvoiceStatuses, "DRAFT"),
+        paymentMethod: coerceEnumValue(entity.paymentMethod, paymentMethods, "CASH"),
         discountAmount: Number(entity.discountAmount),
         totalAmount: Number(entity.totalAmount),
         note: entity.note,
@@ -280,13 +308,13 @@ function mapOperatingExpenseEntity(entity) {
         id: entity.id,
         code: entity.code,
         expenseDate: toDateOnlyString(entity.expenseDate),
-        category: entity.category,
+        category: coerceEnumValue(entity.category, expenseCategories, "OTHER"),
         vendorName: entity.vendorName,
         amount: Number(entity.amount),
         description: entity.description,
         approvedByUserId: entity.approvedByUser?.id ?? undefined,
         attachmentUrl: entity.attachmentUrl ?? undefined,
-        status: entity.status,
+        status: coerceEnumValue(entity.status, expenseStatuses, "DRAFT"),
         submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
         approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
         rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : undefined,

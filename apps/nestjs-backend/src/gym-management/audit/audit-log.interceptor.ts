@@ -16,7 +16,9 @@ export class AuditLogInterceptor implements NestInterceptor {
   constructor(
     private readonly reflector: Reflector,
     private readonly auditLogService: AuditLogService,
-  ) { }
+  ) {
+
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const metadata = this.reflector.getAllAndOverride<AuditActionMetadata | undefined>(AUDIT_ACTION_KEY, [
@@ -30,7 +32,7 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     const request = context.switchToHttp().getRequest<AuditAwareRequest>();
     const response = context.switchToHttp().getResponse<{ statusCode?: number }>();
-    const recordId = (request.params?.id as string | undefined) ?? (request.params?.key as string | undefined);
+    const recordId = request.params?.id ?? request.params?.key;
 
     return next.handle().pipe(
       tap((responseBody: unknown) => {
@@ -43,7 +45,7 @@ export class AuditLogInterceptor implements NestInterceptor {
           responseBody,
           statusCode: response.statusCode ?? 200,
           method: request.method,
-          path: request.route?.path ?? request.path,
+          path: request.originalUrl ?? request.path,
         });
       }),
     );

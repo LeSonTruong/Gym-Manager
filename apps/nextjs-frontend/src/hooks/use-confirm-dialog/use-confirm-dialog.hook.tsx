@@ -18,9 +18,11 @@ export const useConfirmDialog = (): {confirmDialog: (props: Partial<ConfirmDialo
     element: undefined,
     props: {},
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    accept() {},
+    accept() {
+    },
     // eslint-disable-next-line @typescript-eslint/no-empty-function
-    reject() {},
+    reject() {
+    },
   };
 
   const confirmDialogWithDefaults = (props: Partial<ConfirmDialogOptions>): ConfirmDialogReturn => {

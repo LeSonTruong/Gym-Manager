@@ -48,7 +48,7 @@ export default async function Layout({
                   locale={locale}
                   currentUserName={session?.user.fullName}
                   currentUserRole={session?.user.role}
-                  logoutAction={logoutAction}
+                  logoutAction={logoutAction as (formData: FormData) => void}
                 >
                   {children}
                 </AppShell>

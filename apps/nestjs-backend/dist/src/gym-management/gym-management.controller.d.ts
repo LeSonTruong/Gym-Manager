@@ -59,6 +59,7 @@ export declare class GymManagementController {
     getAttendance(): Promise<ApiResponse<Snapshot["dataset"]["attendanceLogs"]>>;
     checkInAttendance(attendanceCheckInDto: AttendanceCheckInDto, currentUser: AuthenticatedUser): Promise<ApiResponse<AttendanceRecord>>;
     checkOutAttendance(attendanceCheckOutDto: AttendanceCheckOutDto, currentUser: AuthenticatedUser): Promise<ApiResponse<AttendanceRecord>>;
+    checkOutAttendanceCompat(attendanceCheckOutDto: AttendanceCheckOutDto, currentUser: AuthenticatedUser): Promise<ApiResponse<AttendanceRecord>>;
     patchAttendance(attendanceLogId: string, patchAttendanceDto: PatchAttendanceDto): Promise<ApiResponse<AttendanceRecord>>;
     getMyAttendance(ptId: string | undefined, currentUser: AuthenticatedUser): Promise<ApiResponse<PtDetail["attendance"]>>;
     getAttendanceByPt(ptId: string): Promise<ApiResponse<PtDetail["attendance"]>>;

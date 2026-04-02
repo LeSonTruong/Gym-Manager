@@ -76,13 +76,48 @@ export function toDecimalString(value: number): string {
   return value.toString();
 }
 
+const userRoles = ["ADMIN", "PT", "STAFF"] as const;
+const userStatuses = ["ACTIVE", "INACTIVE"] as const;
+const genders = ["MALE", "FEMALE", "OTHER"] as const;
+const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"] as const;
+const attendanceStatuses = ["OPEN", "VALID", "HALF", "INVALID"] as const;
+const payrollPeriodStatuses = ["OPEN", "PENDING_APPROVAL", "APPROVED", "PAID"] as const;
+const payrollEntryStatuses = ["PENDING_APPROVAL", "APPROVED", "PAID"] as const;
+const membershipPlanTypes = ["DAY", "MONTH", "YEAR"] as const;
+const membershipPlanStatuses = ["ON_SALE", "OFF_SALE"] as const;
+const membershipStatuses = ["ACTIVE", "EXPIRED", "CANCELLED"] as const;
+const commissionTypes = ["PERCENT", "FIXED"] as const;
+const assignmentStatuses = ["ACTIVE", "ENDED"] as const;
+const paymentMethods = ["CASH", "BANK_TRANSFER", "CARD"] as const;
+const membershipInvoiceStatuses = ["CONFIRMED", "CANCELLED"] as const;
+const productStatuses = ["ACTIVE", "INACTIVE"] as const;
+const inventoryTransactionTypes = ["IMPORT", "SALE", "ADJUSTMENT"] as const;
+const salesInvoiceStatuses = ["DRAFT", "CONFIRMED", "CANCELLED"] as const;
+const expenseCategories = ["CLEANING", "UTILITY", "SALARY", "RENT", "OTHER"] as const;
+const expenseStatuses = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "REJECTED", "PAID"] as const;
+
+function isOneOf<T extends readonly string[]>(
+  value: string,
+  acceptedValues: T,
+): value is T[number] {
+  return (acceptedValues as readonly string[]).includes(value);
+}
+
+function coerceEnumValue<T extends readonly string[]>(
+  value: string,
+  acceptedValues: T,
+  fallback: T[number],
+): T[number] {
+  return isOneOf(value, acceptedValues) ? value : fallback;
+}
+
 export function mapUserEntity(entity: UserEntity): DemoUser {
   return {
     id: entity.id,
     fullName: entity.fullName,
     email: entity.email,
-    role: entity.role as DemoUser['role'],
-    status: entity.status as DemoUser['status'],
+    role: coerceEnumValue(entity.role, userRoles, "STAFF"),
+    status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
@@ -93,12 +128,12 @@ export function mapPersonalTrainerEntity(entity: PersonalTrainerEntity): Persona
     code: entity.code,
     userId: entity.user?.id ?? undefined,
     fullName: entity.fullName,
-    gender: entity.gender as PersonalTrainer['gender'],
+    gender: coerceEnumValue(entity.gender, genders, "OTHER"),
     birthDate: toDateOnlyString(entity.birthDate),
     phone: entity.phone,
     email: entity.email,
     address: entity.address,
-    status: entity.status as PersonalTrainer['status'],
+    status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
     specialties: entity.specialties,
     experienceYears: entity.experienceYears,
     avatarUrl: entity.avatarUrl,
@@ -113,7 +148,7 @@ export function mapPtContractEntity(entity: PtContractEntity): PtContract {
     ptId: entity.personalTrainer.id,
     contractCode: entity.contractCode,
     contractType: entity.contractType,
-    salaryType: entity.salaryType as PtContract['salaryType'],
+    salaryType: coerceEnumValue(entity.salaryType, salaryTypes, "MONTHLY"),
     baseSalary: Number(entity.baseSalary),
     minValidShiftHours: Number(entity.minValidShiftHours),
     standardShiftHours: Number(entity.standardShiftHours),
@@ -138,7 +173,7 @@ export function mapAttendanceLogEntity(entity: AttendanceLogEntity): AttendanceL
     workedHours: Number(entity.workedHours),
     paidHours: Number(entity.paidHours),
     overtimeHours: Number(entity.overtimeHours),
-    status: entity.status as AttendanceLog['status'],
+    status: coerceEnumValue(entity.status, attendanceStatuses, "OPEN"),
     workCredit: Number(entity.workCredit),
     note: entity.note ?? undefined,
   };
@@ -150,7 +185,7 @@ export function mapPayrollPeriodEntity(entity: PayrollPeriodEntity): PayrollPeri
     code: entity.code,
     from: toDateOnlyString(entity.fromDate),
     to: toDateOnlyString(entity.toDate),
-    status: entity.status as PayrollPeriod['status'],
+    status: coerceEnumValue(entity.status, payrollPeriodStatuses, "OPEN"),
     submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
     approvedByUserId: entity.approvedByUser?.id ?? undefined,
     approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
@@ -178,7 +213,7 @@ export function mapPayrollEntryEntity(entity: PayrollEntryEntity): PayrollEntry 
     penalties: Number(entity.penalties),
     grossPay: Number(entity.grossPay),
     netPay: Number(entity.netPay),
-    status: entity.status as PayrollEntry['status'],
+    status: coerceEnumValue(entity.status, payrollEntryStatuses, "PENDING_APPROVAL"),
   };
 }
 
@@ -187,7 +222,7 @@ export function mapMemberEntity(entity: MemberEntity): Member {
     id: entity.id,
     code: entity.code,
     fullName: entity.fullName,
-    gender: entity.gender as Member['gender'],
+    gender: coerceEnumValue(entity.gender, genders, "OTHER"),
     birthDate: toDateOnlyString(entity.birthDate),
     phone: entity.phone,
     email: entity.email,
@@ -197,7 +232,7 @@ export function mapMemberEntity(entity: MemberEntity): Member {
     goal: entity.goal,
     healthNotes: entity.healthNotes,
     registeredAt: toDateOnlyString(entity.registeredAt),
-    status: entity.status as Member['status'],
+    status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
@@ -207,13 +242,13 @@ export function mapMembershipPlanEntity(entity: MembershipPlanEntity): Membershi
     id: entity.id,
     code: entity.code,
     name: entity.name,
-    type: entity.type as MembershipPlan['type'],
+    type: coerceEnumValue(entity.type, membershipPlanTypes, "MONTH"),
     price: Number(entity.price),
     durationDays: entity.durationDays,
     includesPt: entity.includesPt,
     includedPtSessions: entity.includedPtSessions,
     perks: entity.perks,
-    status: entity.status as MembershipPlan['status'],
+    status: coerceEnumValue(entity.status, membershipPlanStatuses, "ON_SALE"),
   };
 }
 
@@ -224,7 +259,7 @@ export function mapMemberMembershipEntity(entity: MemberMembershipEntity): Membe
     membershipPlanId: entity.membershipPlan.id,
     startDate: toDateOnlyString(entity.startDate),
     endDate: toDateOnlyString(entity.endDate),
-    status: entity.status as MemberMembership['status'],
+    status: coerceEnumValue(entity.status, membershipStatuses, "ACTIVE"),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
@@ -237,10 +272,14 @@ export function mapMemberPtAssignmentEntity(entity: MemberPtAssignmentEntity): M
     memberMembershipId: entity.memberMembership.id,
     assignedFrom: toDateOnlyString(entity.assignedFrom),
     assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
-    commissionType: (entity.commissionType as MemberPtAssignment['commissionType']) ?? undefined,
+    commissionType:
+      typeof entity.commissionType === "string" &&
+        isOneOf(entity.commissionType, commissionTypes)
+        ? entity.commissionType
+        : undefined,
     commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,
     commissionAmount: Number(entity.commissionAmount),
-    status: entity.status as MemberPtAssignment['status'],
+    status: coerceEnumValue(entity.status, assignmentStatuses, "ACTIVE"),
     note: entity.note ?? undefined,
   };
 }
@@ -253,8 +292,8 @@ export function mapMembershipInvoiceEntity(entity: MembershipInvoiceEntity): Mem
     memberMembershipId: entity.memberMembership.id,
     invoiceDate: toDateTimeString(entity.invoiceDate),
     totalAmount: Number(entity.totalAmount),
-    paymentMethod: entity.paymentMethod as MembershipInvoice['paymentMethod'],
-    status: entity.status as MembershipInvoice['status'],
+    paymentMethod: coerceEnumValue(entity.paymentMethod, paymentMethods, "CASH"),
+    status: coerceEnumValue(entity.status, membershipInvoiceStatuses, "CONFIRMED"),
   };
 }
 
@@ -268,7 +307,7 @@ export function mapProductEntity(entity: ProductEntity): Product {
     salePrice: Number(entity.salePrice),
     stockOnHand: entity.stockOnHand,
     minimumStockLevel: entity.minimumStockLevel,
-    status: entity.status as Product['status'],
+    status: coerceEnumValue(entity.status, productStatuses, "ACTIVE"),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
@@ -277,7 +316,7 @@ export function mapInventoryTransactionEntity(entity: InventoryTransactionEntity
   return {
     id: entity.id,
     productId: entity.product.id,
-    type: entity.type as InventoryTransaction['type'],
+    type: coerceEnumValue(entity.type, inventoryTransactionTypes, "IMPORT"),
     quantity: entity.quantity,
     unitCost: Number(entity.unitCost),
     transactionDate: toDateTimeString(entity.transactionDate),
@@ -304,8 +343,8 @@ export function mapSalesInvoiceEntity(entity: SalesInvoiceEntity, items: SalesIn
     createdByUserId: entity.createdByUser.id,
     memberId: entity.member?.id ?? undefined,
     customerName: entity.customerName,
-    status: entity.status as SalesInvoice['status'],
-    paymentMethod: entity.paymentMethod as SalesInvoice['paymentMethod'],
+    status: coerceEnumValue(entity.status, salesInvoiceStatuses, "DRAFT"),
+    paymentMethod: coerceEnumValue(entity.paymentMethod, paymentMethods, "CASH"),
     discountAmount: Number(entity.discountAmount),
     totalAmount: Number(entity.totalAmount),
     note: entity.note,
@@ -321,13 +360,13 @@ export function mapOperatingExpenseEntity(entity: OperatingExpenseEntity): Opera
     id: entity.id,
     code: entity.code,
     expenseDate: toDateOnlyString(entity.expenseDate),
-    category: entity.category as OperatingExpense['category'],
+    category: coerceEnumValue(entity.category, expenseCategories, "OTHER"),
     vendorName: entity.vendorName,
     amount: Number(entity.amount),
     description: entity.description,
     approvedByUserId: entity.approvedByUser?.id ?? undefined,
     attachmentUrl: entity.attachmentUrl ?? undefined,
-    status: entity.status as OperatingExpense['status'],
+    status: coerceEnumValue(entity.status, expenseStatuses, "DRAFT"),
     submittedAt: entity.submittedAt ? toDateTimeString(entity.submittedAt) : undefined,
     approvedAt: entity.approvedAt ? toDateTimeString(entity.approvedAt) : undefined,
     rejectedAt: entity.rejectedAt ? toDateTimeString(entity.rejectedAt) : undefined,

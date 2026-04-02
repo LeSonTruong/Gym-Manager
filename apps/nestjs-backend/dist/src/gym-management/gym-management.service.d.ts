@@ -132,6 +132,8 @@ export declare class GymManagementService {
     private getReportData;
     private toExportRows;
     private flattenToRow;
+    private isObjectRecord;
+    private toAuthTokenPayload;
     private toPdfBuffer;
     private toVietnamDate;
     private assertCurrentVietnamDate;
@@ -140,6 +142,7 @@ export declare class GymManagementService {
     private getStringSystemConfig;
     private getNumberSystemConfig;
     private getBooleanSystemConfig;
+    private toSystemConfigLabel;
     private issueAccessToken;
     private issueAuthTokens;
     private generateOpaqueToken;
@@ -164,6 +167,5 @@ export declare class GymManagementService {
     private getRequiredOperatingExpenseEntity;
     private getRequiredEquipmentAssetEntity;
     private findOperatingExpenseOrThrow;
-    private getRequiredSystemConfigEntity;
 }
 export {};

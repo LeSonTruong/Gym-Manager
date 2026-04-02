@@ -120,8 +120,7 @@ let RedisService = class RedisService {
         this.subscriber.on('message', (ch, msg) => {
             if (ch === channel) {
                 try {
-                    const parsed = JSON.parse(msg);
-                    callback(parsed);
+                    callback(JSON.parse(msg));
                 }
                 catch (error) {
                     console.error('Failed to parse message:', error);

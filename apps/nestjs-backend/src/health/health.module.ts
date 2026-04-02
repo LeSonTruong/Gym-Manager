@@ -6,4 +6,5 @@ import {HealthController} from './health.controller';
   imports: [TerminusModule],
   controllers: [HealthController],
 })
-export class HealthModule {}
+export class HealthModule {
+}

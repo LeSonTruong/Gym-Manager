@@ -17,5 +17,6 @@ export declare class AuditLogService {
     createAuditLog(input: CreateAuditLogInput): Promise<void>;
     private toSafePayload;
     private redactSensitive;
+    private isObjectRecord;
 }
 export {};

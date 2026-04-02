@@ -9,7 +9,9 @@ export class GymAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly gymManagementService: GymManagementService,
-  ) { }
+  ) {
+ 
+  }
 
   async canActivate(context: import('@nestjs/common').ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [

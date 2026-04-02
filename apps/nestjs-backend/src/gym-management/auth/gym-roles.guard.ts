@@ -7,7 +7,9 @@ import { ROLES_KEY } from './roles.decorator';
 
 @Injectable()
 export class GymRolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) { }
+  constructor(private readonly reflector: Reflector) {
+ 
+  }
 
   canActivate(context: import('@nestjs/common').ExecutionContext): boolean {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [

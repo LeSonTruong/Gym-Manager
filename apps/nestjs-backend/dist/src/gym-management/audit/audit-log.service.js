@@ -52,15 +52,14 @@ let AuditLogService = AuditLogService_1 = class AuditLogService {
         return this.redactSensitive(clone);
     }
     redactSensitive(payload) {
-        if (!payload || typeof payload !== "object") {
+        if (!this.isObjectRecord(payload)) {
             return payload;
         }
         if (Array.isArray(payload)) {
             return payload.map((item) => this.redactSensitive(item));
         }
-        const clonedPayload = payload;
         const redactedPayload = {};
-        for (const [key, value] of Object.entries(clonedPayload)) {
+        for (const [key, value] of Object.entries(payload)) {
             if (["password", "refreshToken", "accessToken"].includes(key)) {
                 redactedPayload[key] = "[REDACTED]";
                 continue;
@@ -68,6 +67,9 @@ let AuditLogService = AuditLogService_1 = class AuditLogService {
             redactedPayload[key] = this.redactSensitive(value);
         }
         return redactedPayload;
+    }
+    isObjectRecord(value) {
+        return Boolean(value) && typeof value === "object";
     }
 };
 exports.AuditLogService = AuditLogService;

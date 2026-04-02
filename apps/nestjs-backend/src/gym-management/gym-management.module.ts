@@ -65,4 +65,6 @@ import { GymManagementService } from './gym-management.service';
     AuditLogInterceptor,
   ],
 })
-export class GymManagementModule { }
+export class GymManagementModule {
+ 
+}

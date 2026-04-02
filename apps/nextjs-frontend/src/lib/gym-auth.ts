@@ -25,7 +25,11 @@ function getBackendUrl(): string {
     process.env.GYM_BACKEND_URL ??
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "http://localhost:4000"
-  ).replace(/\/$/, "");
+  ).replace(/\/$/v, "");
+}
+
+function hasAuthPayload(value: unknown): value is ApiResponse<AuthPayload> {
+  return Boolean(value) && typeof value === "object" && "data" in value;
 }
 
 async function setRefreshTokenCookie(refreshToken: string): Promise<void> {
@@ -63,7 +67,11 @@ export async function loginToGymFrontend(
     throw new Error("Invalid email or password");
   }
 
-  const payload = (await response.json()) as ApiResponse<AuthPayload>;
+  const payload: unknown = await response.json();
+
+  if (!hasAuthPayload(payload)) {
+    throw new TypeError("Unexpected login payload");
+  }
 
   await setRefreshTokenCookie(payload.data.refreshToken);
 
@@ -100,7 +108,11 @@ export async function getOptionalGymSession(): Promise<GymFrontendSession | null
     return null;
   }
 
-  const payload = (await response.json()) as ApiResponse<AuthPayload>;
+  const payload: unknown = await response.json();
+
+  if (!hasAuthPayload(payload)) {
+    return null;
+  }
 
   return {
     user: payload.data.user,

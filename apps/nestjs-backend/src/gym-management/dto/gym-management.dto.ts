@@ -59,7 +59,9 @@ export class CreatePersonalTrainerDto {
   startDate!: string;
 }
 
-export class UpdatePersonalTrainerDto extends PartialType(CreatePersonalTrainerDto) { }
+export class UpdatePersonalTrainerDto extends PartialType(CreatePersonalTrainerDto) {
+ 
+}
 
 export class CreateMemberDto {
   @IsString()
@@ -104,7 +106,9 @@ export class CreateMemberDto {
   status!: string;
 }
 
-export class UpdateMemberDto extends PartialType(CreateMemberDto) { }
+export class UpdateMemberDto extends PartialType(CreateMemberDto) {
+ 
+}
 
 export class CreateMembershipPlanDto {
   @IsString()
@@ -142,7 +146,9 @@ export class CreateMembershipPlanDto {
   status!: string;
 }
 
-export class UpdateMembershipPlanDto extends PartialType(CreateMembershipPlanDto) { }
+export class UpdateMembershipPlanDto extends PartialType(CreateMembershipPlanDto) {
+ 
+}
 
 export class CreateProductDto {
   @IsString()
@@ -171,7 +177,9 @@ export class CreateProductDto {
   status!: string;
 }
 
-export class UpdateProductDto extends PartialType(CreateProductDto) { }
+export class UpdateProductDto extends PartialType(CreateProductDto) {
+ 
+}
 
 export class CreateEquipmentDto {
   @IsString()
@@ -209,7 +217,9 @@ export class CreateEquipmentDto {
   note!: string;
 }
 
-export class UpdateEquipmentDto extends PartialType(CreateEquipmentDto) { }
+export class UpdateEquipmentDto extends PartialType(CreateEquipmentDto) {
+ 
+}
 
 export class CreateOperatingExpenseDto {
   @IsString()
@@ -239,7 +249,9 @@ export class CreateOperatingExpenseDto {
   attachmentUrl?: string;
 }
 
-export class UpdateOperatingExpenseDto extends PartialType(CreateOperatingExpenseDto) { }
+export class UpdateOperatingExpenseDto extends PartialType(CreateOperatingExpenseDto) {
+ 
+}
 
 export class RejectExpenseDto {
   @IsString()
@@ -347,7 +359,9 @@ export class CreatePtContractDto {
   effectiveTo?: string;
 }
 
-export class UpdatePtContractDto extends PartialType(CreatePtContractDto) { }
+export class UpdatePtContractDto extends PartialType(CreatePtContractDto) {
+ 
+}
 
 export class CreateMemberMembershipDto {
   @IsString()

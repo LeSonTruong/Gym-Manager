@@ -1,7 +1,11 @@
 import { Buffer } from "node:buffer";
 import { randomBytes, randomUUID } from "node:crypto";
-import { MikroORM, type RequiredEntityData, wrap } from "@mikro-orm/core";
-import { EntityManager } from "@mikro-orm/postgresql";
+import {
+  MikroORM,
+  type EntityManager,
+  type RequiredEntityData,
+  wrap,
+} from "@mikro-orm/core";
 import {
   createGymManagementSnapshot,
   findMemberById,
@@ -188,12 +192,49 @@ const salesInvoiceTransitions: Readonly<
   CANCELLED: [],
 };
 
+const payrollPeriodStatuses = [
+  "OPEN",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "PAID",
+] as const;
+
+const payrollEntryStatuses = ["PENDING_APPROVAL", "APPROVED", "PAID"] as const;
+
+const operatingExpenseStatuses = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "PAID",
+] as const;
+
+const salesInvoiceStatuses = ["DRAFT", "CONFIRMED", "CANCELLED"] as const;
+const authTokenRoles = ["ADMIN", "PT", "STAFF"] as const;
+
+function isOneOf<T extends readonly string[]>(
+  value: string,
+  acceptedValues: T,
+): value is T[number] {
+  return (acceptedValues as readonly string[]).includes(value);
+}
+
+function coerceEnumValue<T extends readonly string[]>(
+  value: string,
+  acceptedValues: T,
+  fallback: T[number],
+): T[number] {
+  return isOneOf(value, acceptedValues) ? value : fallback;
+}
+
 @Injectable()
 export class GymManagementService {
   constructor(
     private readonly orm: MikroORM,
     private readonly redisService: RedisService,
-  ) { }
+  ) {
+
+  }
 
   async getSnapshot(): Promise<GymManagementSnapshot> {
     return createGymManagementSnapshot(await this.loadDataset());
@@ -259,7 +300,7 @@ export class GymManagementService {
 
     const userEntity = refreshTokenEntity.user;
 
-    if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
+    if (userEntity?.status !== "ACTIVE" || userEntity.deletedAt) {
       throw new UnauthorizedException("User account is inactive");
     }
 
@@ -315,7 +356,7 @@ export class GymManagementService {
       throw new UnauthorizedException("Access token has been revoked");
     }
 
-    const payload = await this.redisService.getJson<AuthTokenPayload>(
+    const payload = await this.redisService.getJson(
       this.toAccessTokenKey(accessToken),
     );
 
@@ -323,18 +364,22 @@ export class GymManagementService {
       throw new UnauthorizedException("Access token is invalid or expired");
     }
 
-    const em = this.createEntityManager();
-    const userEntity = await em.findOne(UserEntity, { id: payload.userId });
+    const authTokenPayload = this.toAuthTokenPayload(payload);
 
-    if (!userEntity || userEntity.status !== "ACTIVE" || userEntity.deletedAt) {
+    const em = this.createEntityManager();
+    const userEntity = await em.findOne(UserEntity, {
+      id: authTokenPayload.userId,
+    });
+
+    if (userEntity?.status !== "ACTIVE" || userEntity.deletedAt) {
       throw new UnauthorizedException("User account is inactive");
     }
 
     return {
       user: mapUserEntity(userEntity),
-      role: payload.role,
-      ptId: payload.ptId,
-      sessionId: payload.sessionId,
+      role: authTokenPayload.role,
+      ptId: authTokenPayload.ptId,
+      sessionId: authTokenPayload.sessionId,
       accessToken,
     };
   }
@@ -349,7 +394,7 @@ export class GymManagementService {
     const em = this.createEntityManager();
     const currentUser = await em.findOne(UserEntity, { id: userId });
 
-    if (!currentUser || currentUser.status !== "ACTIVE" || currentUser.deletedAt) {
+    if (currentUser?.status !== "ACTIVE" || currentUser.deletedAt) {
       throw new UnauthorizedException("No demo users configured");
     }
 
@@ -1843,7 +1888,7 @@ export class GymManagementService {
     const em = this.createEntityManager();
     const trainerData = this.toPersonalTrainerEntityData(
       createPersonalTrainerDto,
-    ) as unknown as RequiredEntityData<PersonalTrainerEntity>;
+    );
 
     if (createPersonalTrainerDto.userId) {
       trainerData.user = await this.getRequiredUserEntity(
@@ -1893,9 +1938,7 @@ export class GymManagementService {
 
   async createMember(createMemberDto: CreateMemberDto): Promise<MemberRecord> {
     const em = this.createEntityManager();
-    const memberData = this.toMemberEntityData(
-      createMemberDto,
-    ) as unknown as RequiredEntityData<MemberEntity>;
+    const memberData = this.toMemberEntityData(createMemberDto);
     const member = em.create(MemberEntity, memberData);
 
     em.persist(member);
@@ -1936,7 +1979,7 @@ export class GymManagementService {
     const em = this.createEntityManager();
     const membershipPlanData = this.toMembershipPlanEntityData(
       createMembershipPlanDto,
-    ) as unknown as RequiredEntityData<MembershipPlanEntity>;
+    );
     const membershipPlan = em.create(MembershipPlanEntity, membershipPlanData);
 
     em.persist(membershipPlan);
@@ -1983,9 +2026,7 @@ export class GymManagementService {
     createProductDto: CreateProductDto,
   ): Promise<ProductRecord> {
     const em = this.createEntityManager();
-    const productData = this.toProductEntityData(
-      createProductDto,
-    ) as unknown as RequiredEntityData<ProductEntity>;
+    const productData = this.toProductEntityData(createProductDto);
     const product = em.create(ProductEntity, productData);
 
     em.persist(product);
@@ -2026,7 +2067,7 @@ export class GymManagementService {
     const em = this.createEntityManager();
     const equipmentAssetData = this.toEquipmentAssetEntityData(
       createEquipmentDto,
-    ) as unknown as RequiredEntityData<EquipmentAssetEntity>;
+    );
     const equipmentAsset = em.create(EquipmentAssetEntity, equipmentAssetData);
 
     em.persist(equipmentAsset);
@@ -2058,10 +2099,10 @@ export class GymManagementService {
     createOperatingExpenseDto: CreateOperatingExpenseDto,
   ): Promise<OperatingExpenseRecord> {
     const em = this.createEntityManager();
-    const operatingExpenseData = (await this.toOperatingExpenseEntityData(
+    const operatingExpenseData = await this.toOperatingExpenseEntityData(
       em,
       createOperatingExpenseDto,
-    )) as unknown as RequiredEntityData<OperatingExpenseEntity>;
+    );
     const operatingExpense = em.create(
       OperatingExpenseEntity,
       operatingExpenseData,
@@ -2114,13 +2155,14 @@ export class GymManagementService {
     });
 
     if (!systemConfig) {
-      systemConfig = em.create(SystemConfigEntity, {
+      const systemConfigData: RequiredEntityData<SystemConfigEntity> = {
         key: normalizedKey,
         label: this.toSystemConfigLabel(normalizedKey),
         value: patchSystemConfigDto.value,
         description: `Custom config for ${normalizedKey}`,
         updatedByUser: null,
-      } as RequiredEntityData<SystemConfigEntity>);
+      };
+      systemConfig = em.create(SystemConfigEntity, systemConfigData);
       em.persist(systemConfig);
     }
 
@@ -2139,7 +2181,7 @@ export class GymManagementService {
   }
 
   private createEntityManager(): EntityManager {
-    return this.orm.em.fork() as EntityManager;
+    return this.orm.em.fork();
   }
 
   private async transitionPayrollPeriodStatus(
@@ -2160,7 +2202,7 @@ export class GymManagementService {
 
     this.ensureAllowedTransition(
       "Payroll period",
-      payrollPeriod.status as PayrollPeriodStatus,
+      coerceEnumValue(payrollPeriod.status, payrollPeriodStatuses, "OPEN"),
       nextStatus,
       payrollPeriodTransitions,
     );
@@ -2190,7 +2232,11 @@ export class GymManagementService {
       for (const entry of payrollEntries) {
         this.ensureAllowedTransition(
           "Payroll entry",
-          entry.status as PayrollEntryStatus,
+          coerceEnumValue(
+            entry.status,
+            payrollEntryStatuses,
+            "PENDING_APPROVAL",
+          ),
           "APPROVED",
           payrollEntryTransitions,
         );
@@ -2212,7 +2258,11 @@ export class GymManagementService {
       for (const entry of payrollEntries) {
         this.ensureAllowedTransition(
           "Payroll entry",
-          entry.status as PayrollEntryStatus,
+          coerceEnumValue(
+            entry.status,
+            payrollEntryStatuses,
+            "PENDING_APPROVAL",
+          ),
           "PAID",
           payrollEntryTransitions,
         );
@@ -2241,7 +2291,7 @@ export class GymManagementService {
 
     this.ensureAllowedTransition(
       "Operating expense",
-      expense.status as OperatingExpenseStatus,
+      coerceEnumValue(expense.status, operatingExpenseStatuses, "DRAFT"),
       nextStatus,
       operatingExpenseTransitions,
     );
@@ -2345,7 +2395,7 @@ export class GymManagementService {
 
     this.ensureAllowedTransition(
       "Sales invoice",
-      salesInvoice.status as SalesInvoiceStatus,
+      coerceEnumValue(salesInvoice.status, salesInvoiceStatuses, "DRAFT"),
       nextStatus,
       salesInvoiceTransitions,
     );
@@ -2489,7 +2539,7 @@ export class GymManagementService {
   ): Record<string, boolean | number | string> {
     const row = { ...seed };
 
-    if (!value || typeof value !== "object") {
+    if (!this.isObjectRecord(value)) {
       if (prefix) {
         row[prefix] = String(value);
       }
@@ -2497,9 +2547,7 @@ export class GymManagementService {
       return row;
     }
 
-    for (const [entryKey, entryValue] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
+    for (const [entryKey, entryValue] of Object.entries(value)) {
       const nextKey = prefix ? `${prefix}.${entryKey}` : entryKey;
 
       if (
@@ -2521,6 +2569,37 @@ export class GymManagementService {
     }
 
     return row;
+  }
+
+  private isObjectRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  }
+
+  private toAuthTokenPayload(payload: unknown): AuthTokenPayload {
+    if (!this.isObjectRecord(payload)) {
+      throw new UnauthorizedException("Access token payload is invalid");
+    }
+
+    const { sessionId, userId, role, ptId } = payload;
+
+    if (typeof sessionId !== "string" || typeof userId !== "string") {
+      throw new UnauthorizedException("Access token payload is invalid");
+    }
+
+    if (typeof role !== "string" || !isOneOf(role, authTokenRoles)) {
+      throw new UnauthorizedException("Access token payload is invalid");
+    }
+
+    if (ptId !== undefined && typeof ptId !== "string") {
+      throw new UnauthorizedException("Access token payload is invalid");
+    }
+
+    return {
+      sessionId,
+      userId,
+      role,
+      ptId,
+    };
   }
 
   private async toPdfBuffer(
@@ -2825,6 +2904,12 @@ export class GymManagementService {
   }
 
   private toPersonalTrainerEntityData(
+    dto: CreatePersonalTrainerDto,
+  ): RequiredEntityData<PersonalTrainerEntity>;
+  private toPersonalTrainerEntityData(
+    dto: UpdatePersonalTrainerDto,
+  ): Partial<PersonalTrainerEntity>;
+  private toPersonalTrainerEntityData(
     dto: CreatePersonalTrainerDto | UpdatePersonalTrainerDto,
   ): Partial<PersonalTrainerEntity> {
     const data: Partial<PersonalTrainerEntity> = {};
@@ -2880,6 +2965,10 @@ export class GymManagementService {
     return data;
   }
 
+  private toMemberEntityData(
+    dto: CreateMemberDto,
+  ): RequiredEntityData<MemberEntity>;
+  private toMemberEntityData(dto: UpdateMemberDto): Partial<MemberEntity>;
   private toMemberEntityData(
     dto: CreateMemberDto | UpdateMemberDto,
   ): Partial<MemberEntity> {
@@ -2941,6 +3030,12 @@ export class GymManagementService {
   }
 
   private toMembershipPlanEntityData(
+    dto: CreateMembershipPlanDto,
+  ): RequiredEntityData<MembershipPlanEntity>;
+  private toMembershipPlanEntityData(
+    dto: UpdateMembershipPlanDto,
+  ): Partial<MembershipPlanEntity>;
+  private toMembershipPlanEntityData(
     dto: CreateMembershipPlanDto | UpdateMembershipPlanDto,
   ): Partial<MembershipPlanEntity> {
     const data: Partial<MembershipPlanEntity> = {};
@@ -2989,6 +3084,10 @@ export class GymManagementService {
   }
 
   private toProductEntityData(
+    dto: CreateProductDto,
+  ): RequiredEntityData<ProductEntity>;
+  private toProductEntityData(dto: UpdateProductDto): Partial<ProductEntity>;
+  private toProductEntityData(
     dto: CreateProductDto | UpdateProductDto,
   ): Partial<ProductEntity> {
     const data: Partial<ProductEntity> = {};
@@ -3028,6 +3127,12 @@ export class GymManagementService {
     return data;
   }
 
+  private toEquipmentAssetEntityData(
+    dto: CreateEquipmentDto,
+  ): RequiredEntityData<EquipmentAssetEntity>;
+  private toEquipmentAssetEntityData(
+    dto: UpdateEquipmentDto,
+  ): Partial<EquipmentAssetEntity>;
   private toEquipmentAssetEntityData(
     dto: CreateEquipmentDto | UpdateEquipmentDto,
   ): Partial<EquipmentAssetEntity> {
@@ -3078,6 +3183,14 @@ export class GymManagementService {
     return data;
   }
 
+  private async toOperatingExpenseEntityData(
+    em: EntityManager,
+    dto: CreateOperatingExpenseDto,
+  ): Promise<RequiredEntityData<OperatingExpenseEntity>>;
+  private async toOperatingExpenseEntityData(
+    em: EntityManager,
+    dto: UpdateOperatingExpenseDto,
+  ): Promise<Partial<OperatingExpenseEntity>>;
   private async toOperatingExpenseEntityData(
     em: EntityManager,
     dto: CreateOperatingExpenseDto | UpdateOperatingExpenseDto,

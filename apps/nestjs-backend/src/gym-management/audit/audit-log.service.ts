@@ -1,5 +1,8 @@
-import { MikroORM, type RequiredEntityData } from "@mikro-orm/core";
-import { EntityManager } from "@mikro-orm/postgresql";
+import {
+  MikroORM,
+  type EntityManager,
+  type RequiredEntityData,
+} from "@mikro-orm/core";
 import { Injectable, Logger } from "@nestjs/common";
 import { AuditLogEntity, UserEntity } from "../entities/gym-management.entity";
 
@@ -19,10 +22,11 @@ type CreateAuditLogInput = {
 export class AuditLogService {
   private readonly logger = new Logger(AuditLogService.name);
 
-  constructor(private readonly orm: MikroORM) {}
+  constructor(private readonly orm: MikroORM) {
+  }
 
   async createAuditLog(input: CreateAuditLogInput): Promise<void> {
-    const em = this.orm.em.fork() as EntityManager;
+    const em: EntityManager = this.orm.em.fork();
     const changedByUser = input.changedByUserId
       ? await em.findOne(UserEntity, { id: input.changedByUserId })
       : undefined;
@@ -61,7 +65,7 @@ export class AuditLogService {
   }
 
   private redactSensitive(payload: unknown): unknown {
-    if (!payload || typeof payload !== "object") {
+    if (!this.isObjectRecord(payload)) {
       return payload;
     }
 
@@ -69,10 +73,9 @@ export class AuditLogService {
       return payload.map((item) => this.redactSensitive(item));
     }
 
-    const clonedPayload = payload as Record<string, unknown>;
     const redactedPayload: Record<string, unknown> = {};
 
-    for (const [key, value] of Object.entries(clonedPayload)) {
+    for (const [key, value] of Object.entries(payload)) {
       if (["password", "refreshToken", "accessToken"].includes(key)) {
         redactedPayload[key] = "[REDACTED]";
         continue;
@@ -82,5 +85,9 @@ export class AuditLogService {
     }
 
     return redactedPayload;
+  }
+
+  private isObjectRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === "object";
   }
 }

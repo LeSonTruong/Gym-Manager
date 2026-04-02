@@ -8,7 +8,8 @@ export type ShowToastFunction = (options: ToastMessage) => void;
 const defaultToastLife = 3000;
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-export const ToastContext = createContext<ShowToastFunction>(() => {});
+export const ToastContext = createContext<ShowToastFunction>(() => {
+});
 
 export function ToastProvider({children}: {readonly children: ReactNode}): JSX.Element {
   const toastRef = useRef<Toast>(null);

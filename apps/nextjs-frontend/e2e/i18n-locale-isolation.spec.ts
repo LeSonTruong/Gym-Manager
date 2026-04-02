@@ -9,6 +9,24 @@ type RouteCheck = {
 const demoEmail = process.env.GYM_FRONTEND_DEMO_EMAIL ?? 'admin@gymmanager.local';
 const demoPassword = process.env.GYM_FRONTEND_DEMO_PASSWORD ?? 'demo123';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function getRefreshToken(payload: unknown): string {
+  if (!isRecord(payload) || !isRecord(payload.data)) {
+    throw new TypeError('Invalid login payload structure');
+  }
+
+  const { refreshToken } = payload.data;
+
+  if (typeof refreshToken !== 'string') {
+    throw new TypeError('Missing refresh token in login payload');
+  }
+
+  return refreshToken;
+}
+
 async function loginAsAdmin(page: Page): Promise<void> {
   const backendUrl = process.env.GYM_BACKEND_URL
     ?? process.env.NEXT_PUBLIC_BACKEND_URL
@@ -39,14 +57,12 @@ async function loginAsAdmin(page: Page): Promise<void> {
       return;
     }
 
-    const loginPayload = (await loginResponse.json()) as {
-      data: { refreshToken: string };
-    };
+    const refreshToken = getRefreshToken(await loginResponse.json());
 
     await page.context().addCookies([
       {
         name: 'gym_refresh_token',
-        value: loginPayload.data.refreshToken,
+        value: refreshToken,
         url: 'http://localhost:3000',
         httpOnly: true,
         sameSite: 'Lax',
@@ -67,7 +83,7 @@ async function navigateAsAdminToRoute(page: Page, routePath: string): Promise<vo
 
     await page.goto(routePath);
 
-    if (/\/vi\/login$/i.test(page.url())) {
+    if (/\/vi\/login$/iv.test(page.url())) {
       await loginAsAdmin(page);
       await tryNavigateAt(attempt + 1);
     }
@@ -137,10 +153,10 @@ test.describe('Locale Isolation', () => {
     await page.goto('/vi/login');
     const main = page.locator('body');
 
-    await expect(main).not.toContainText(/build error|export translatefromtext doesn't exist/i);
-    await expect(main).not.toContainText(/secure access/i);
-    await expect(main).not.toContainText(/login form/i);
-    await expect(main).toContainText(/đăng nhập an toàn|biểu mẫu đăng nhập/i);
+    await expect(main).not.toContainText(/build error|export translatefromtext doesn't exist/iv);
+    await expect(main).not.toContainText(/secure access/iv);
+    await expect(main).not.toContainText(/login form/iv);
+    await expect(main).toContainText(/đăng nhập an toàn|biểu mẫu đăng nhập/iv);
   });
 
   test('all vi module routes should stay localized', async ({ page }) => {
@@ -150,8 +166,8 @@ test.describe('Locale Isolation', () => {
       await navigateAsAdminToRoute(page, check.path);
       const main = page.locator('body');
 
-      await expect(main).not.toContainText(/build error|export translatefromtext doesn't exist/i);
-      await Promise.all(check.en.map(async phrase => expect(main).not.toContainText(new RegExp(phrase, 'i'))));
+      await expect(main).not.toContainText(/build error|export translatefromtext doesn't exist/iv);
+      await Promise.all(check.en.map(async phrase => expect(main).not.toContainText(new RegExp(phrase, 'iv'))));
     });
   });
 

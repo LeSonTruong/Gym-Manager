@@ -76,6 +76,17 @@ function translateText(value: string, locale: "en" | "vi"): string {
   return translateFromText(value, locale);
 }
 
+function isRenderableNode(value: unknown): value is ReactNode {
+  return (
+    value === null
+    || value === undefined
+    || typeof value === "string"
+    || typeof value === "number"
+    || typeof value === "boolean"
+    || typeof value === "object"
+  );
+}
+
 function translateNode(node: ReactNode, locale: "en" | "vi"): ReactNode {
   if (typeof node === "string") {
     return translateText(node, locale);
@@ -84,8 +95,10 @@ function translateNode(node: ReactNode, locale: "en" | "vi"): ReactNode {
   if (Array.isArray(node)) {
     const translatedItems: ReactNode[] = [];
 
-    for (const item of node as ReactNode[]) {
-      translatedItems.push(translateNode(item, locale));
+    for (const item of node) {
+      if (isRenderableNode(item)) {
+        translatedItems.push(translateNode(item, locale));
+      }
     }
 
     return translatedItems;
@@ -704,7 +717,7 @@ function buildPtDetailPage(
         member !== undefined,
     );
 
-  const contract = ptOverview.contract;
+  const { contract } = ptOverview;
   const compensationDefaults = {
     baseSalary: getSystemConfigNumberValue(
       snapshot,
@@ -3203,8 +3216,7 @@ export function renderGymRoute(
   slug: string[],
   options?: RenderGymRouteOptions,
 ): JSX.Element {
-  const section = slug[0];
-  const entityId = slug[1];
+  const [section, entityId] = slug;
   const locale: UiLocale = getLocale(options) === "vi" ? "vi" : "en";
   let content: JSX.Element | undefined;
 

@@ -14,8 +14,8 @@ export declare class RedisService implements OnModuleInit, OnModuleDestroy {
     getValue(key: string): Promise<string | undefined>;
     deleteKey(key: string): Promise<void>;
     setJson<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
-    getJson<T>(key: string): Promise<T | undefined>;
-    subscribe<T>(channel: string, callback: (message: T) => void): Promise<void>;
+    getJson(key: string): Promise<unknown | undefined>;
+    subscribe(channel: string, callback: (message: unknown) => void): Promise<void>;
     unsubscribe(channel: string): Promise<void>;
     onModuleDestroy(): Promise<void>;
     private getPublisher;

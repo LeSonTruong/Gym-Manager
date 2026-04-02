@@ -14,7 +14,8 @@ export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly db: MikroOrmHealthIndicator,
-  ) {}
+  ) {
+  }
 
   @Get()
   @HealthCheck()

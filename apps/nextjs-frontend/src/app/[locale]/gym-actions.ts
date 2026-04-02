@@ -48,7 +48,7 @@ function getLineList(formData: FormData, key: string): string[] {
   }
 
   return rawValue
-    .split(/\r?\n|,/)
+    .split(/\r?\n|,/v)
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
@@ -68,7 +68,7 @@ async function postToBackend(
 
   headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${session.accessToken}`);
-  const response = await fetch(`${backendUrl.replace(/\/$/, "")}${endpoint}`, {
+  const response = await fetch(`${backendUrl.replace(/\/$/v, "")}${endpoint}`, {
     method,
     headers,
     cache: "no-store",

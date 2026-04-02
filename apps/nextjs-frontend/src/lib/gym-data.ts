@@ -48,7 +48,13 @@ function getBackendUrl(): string {
     process.env.GYM_BACKEND_URL ??
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "http://localhost:4000"
-  ).replace(/\/$/, "");
+  ).replace(/\/$/v, "");
+}
+
+function hasApiResponseData<ResponsePayload>(
+  value: unknown,
+): value is ApiResponse<ResponsePayload> {
+  return Boolean(value) && typeof value === "object" && "data" in value;
 }
 
 async function fetchBackendData<ResponsePayload>(
@@ -67,7 +73,11 @@ async function fetchBackendData<ResponsePayload>(
     throw new Error(`Unable to load backend data from ${endpoint} (${response.status})`);
   }
 
-  const payload = (await response.json()) as ApiResponse<ResponsePayload>;
+  const payload: unknown = await response.json();
+
+  if (!hasApiResponseData<ResponsePayload>(payload)) {
+    throw new TypeError(`Unexpected backend payload for ${endpoint}`);
+  }
 
   return payload.data;
 }
@@ -237,14 +247,14 @@ export function getMembershipPlanForMember(
 }
 
 export function sortProductsByStock(products: Product[]): Product[] {
-  return [...products].sort(
+  return products.toSorted(
     (firstProduct, secondProduct) =>
       firstProduct.stockOnHand - secondProduct.stockOnHand,
   );
 }
 
 export function sortMembersByDate(members: Member[]): Member[] {
-  return [...members].sort((firstMember, secondMember) =>
+  return members.toSorted((firstMember, secondMember) =>
     secondMember.registeredAt.localeCompare(firstMember.registeredAt),
   );
 }
