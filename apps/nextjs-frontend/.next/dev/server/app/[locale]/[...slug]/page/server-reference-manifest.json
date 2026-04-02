@@ -9,9 +9,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "loginAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -23,9 +20,6 @@
           "exportedName": "generatePayrollAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "generatePayrollAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
@@ -39,9 +33,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "createPayrollPeriodAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -53,9 +44,6 @@
           "exportedName": "createPtContractAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "createPtContractAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
@@ -69,9 +57,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "createAssignmentAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -83,9 +68,6 @@
           "exportedName": "updatePtContractAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "updatePtContractAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
@@ -99,9 +81,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "logoutAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -113,9 +92,6 @@
           "exportedName": "checkInAttendanceAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "checkInAttendanceAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
@@ -129,9 +105,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "renewMembershipAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -143,9 +116,6 @@
           "exportedName": "cancelMembershipAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "cancelMembershipAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
@@ -159,9 +129,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "createMaintenanceAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -173,9 +140,6 @@
           "exportedName": "importInventoryAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "importInventoryAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
@@ -189,9 +153,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "createMembershipAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -203,9 +164,6 @@
           "exportedName": "patchAttendanceAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "patchAttendanceAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
@@ -219,9 +177,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "createSalesInvoiceAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -234,9 +189,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
-      },
       "exportedName": "checkOutAttendanceAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
@@ -248,9 +200,6 @@
           "exportedName": "endAssignmentAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc"
       },
       "exportedName": "endAssignmentAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"

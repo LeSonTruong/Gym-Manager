@@ -23,11 +23,6 @@ const appConfig = () => ({
     [config_key_enum_1.ConfigKey.REDIS_HOST]: process.env.REDIS_HOST ?? 'localhost',
     [config_key_enum_1.ConfigKey.REDIS_PORT]: readNumber(process.env.REDIS_PORT) ?? 6379,
     [config_key_enum_1.ConfigKey.REDIS_PASSWORD]: process.env.REDIS_PASSWORD,
-    [config_key_enum_1.ConfigKey.MAILDEV_WEB_PORT]: readNumber(process.env.MAILDEV_WEB_PORT) ?? 1080,
-    [config_key_enum_1.ConfigKey.MAIL_HOST]: process.env.MAIL_HOST,
-    [config_key_enum_1.ConfigKey.MAIL_PORT]: readNumber(process.env.MAIL_PORT) ?? 587,
-    [config_key_enum_1.ConfigKey.MAIL_USER]: process.env.MAIL_USER,
-    [config_key_enum_1.ConfigKey.MAIL_PASS]: process.env.MAIL_PASS,
 });
 exports.default = appConfig;
 //# sourceMappingURL=app.config.js.map

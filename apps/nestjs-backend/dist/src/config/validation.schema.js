@@ -19,15 +19,6 @@ const validationSchemaMap = {
     [config_key_enum_1.ConfigKey.REDIS_HOST]: Joi.string().default('localhost'),
     [config_key_enum_1.ConfigKey.REDIS_PORT]: Joi.number().min(0).max(65_535).default(6379),
     [config_key_enum_1.ConfigKey.REDIS_PASSWORD]: Joi.string().optional().allow('', null),
-    [config_key_enum_1.ConfigKey.MAILDEV_WEB_PORT]: Joi.number().min(0).max(65_535).default(1080).when(config_key_enum_1.ConfigKey.NODE_ENV, {
-        is: 'development',
-        then: Joi.optional(),
-        otherwise: Joi.forbidden(),
-    }),
-    [config_key_enum_1.ConfigKey.MAIL_HOST]: Joi.string().optional(),
-    [config_key_enum_1.ConfigKey.MAIL_PORT]: Joi.number().min(0).max(65_535).default(587).optional(),
-    [config_key_enum_1.ConfigKey.MAIL_USER]: Joi.string().optional(),
-    [config_key_enum_1.ConfigKey.MAIL_PASS]: Joi.string().optional(),
 };
 exports.default = Joi.object(validationSchemaMap);
 //# sourceMappingURL=validation.schema.js.map

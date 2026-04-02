@@ -22,3 +22,4 @@
 [00:00:16.643] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 [00:00:17.091] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
 [00:00:17.505] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+{"timestamp":"01:51:50.754","source":"Server","level":"LOG","message":"✓ Compiled in 106ms"}
