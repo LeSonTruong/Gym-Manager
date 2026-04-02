@@ -15,6 +15,8 @@
 > - Chuẩn hóa báo cáo lợi nhuận có tính `COGS` cho hàng hóa bán trong phòng Gym.
 > - Chốt phạm vi MVP: tạm dời module `Equipment/Maintenance` sang Phase 2.
 > - Bổ sung luồng `Member Check-in` và `PT Booking` cho vận hành thực tế.
+> - Hard cleanup: route UI `/expenses`, `/equipment`, `/maintenance`, `/pts/:id/contracts` được loại bỏ khỏi điều hướng active và trả `404`.
+> - Siết quyền Staff với mutation: vòng đời membership, phân công member-PT, nhập kho, xác nhận hóa đơn bán hàng yêu cầu `ADMIN`.
 
 ---
 

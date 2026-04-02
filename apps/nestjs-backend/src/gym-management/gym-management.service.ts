@@ -449,8 +449,8 @@ export class GymManagementService {
     );
 
     if (!attendanceLog) {
-      throw new NotFoundException(
-        `Open shift for PT ${attendanceCheckOutDto.ptId} not found`,
+      throw new BadRequestException(
+        `PT ${attendanceCheckOutDto.ptId} does not have an open shift to check out`,
       );
     }
 
@@ -545,8 +545,8 @@ export class GymManagementService {
   async getPtDetail(ptId: string): Promise<{
     trainer: TrainerRecord;
     contract:
-      | GymManagementSnapshot["dataset"]["ptContracts"][number]
-      | undefined;
+    | GymManagementSnapshot["dataset"]["ptContracts"][number]
+    | undefined;
     attendance: GymManagementSnapshot["dataset"]["attendanceLogs"];
     payrollEntries: GymManagementSnapshot["dataset"]["payrollEntries"];
     assignedMembers: GymManagementSnapshot["dataset"]["members"];
@@ -803,9 +803,9 @@ export class GymManagementService {
   async createMemberMembership(
     createMemberMembershipDto: CreateMemberMembershipDto,
   ): Promise<{
-      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-    }> {
+    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+  }> {
     const em = this.createEntityManager();
     const member = await this.getRequiredMemberEntity(
       em,
@@ -843,9 +843,9 @@ export class GymManagementService {
     membershipId: string,
     renewMemberMembershipDto: RenewMemberMembershipDto,
   ): Promise<{
-      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-    }> {
+    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+  }> {
     const em = this.createEntityManager();
     const membership = await em.findOne(
       MemberMembershipEntity,
@@ -1074,10 +1074,41 @@ export class GymManagementService {
         payrollPeriod.fromDate,
         payrollPeriod.toDate,
       );
-
-      if (!contract) {
-        continue;
-      }
+      const baseSalaryAmount = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_base_salary`,
+        contract ? Number(contract.baseSalary) : 0,
+      );
+      const overtimeHourlyRate = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_overtime_hourly_rate`,
+        contract ? Number(contract.overtimeHourlyRate) : 0,
+      );
+      const allowanceAmount = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_allowance`,
+        contract ? Number(contract.allowances) : 0,
+      );
+      const packageCommissionRate = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_package_commission_rate`,
+        contract ? Number(contract.packageCommissionRate) : 0,
+      );
+      const salesCommissionRate = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_sales_commission_rate`,
+        contract ? Number(contract.salesCommissionRate) : 0,
+      );
+      const performanceBonusThreshold = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_performance_bonus_threshold`,
+        contract ? contract.performanceBonusThreshold : 0,
+      );
+      const performanceBonusAmountValue = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_performance_bonus_amount`,
+        contract ? Number(contract.performanceBonusAmount) : 0,
+      );
 
       const attendanceLogs = await em.find(AttendanceLogEntity, {
         personalTrainer: trainer,
@@ -1116,7 +1147,7 @@ export class GymManagementService {
             assignment.commissionType,
             assignment.commissionValue ? Number(assignment.commissionValue) : null,
             Number(assignment.commissionAmount),
-            Number(contract.packageCommissionRate),
+            packageCommissionRate,
           );
         }),
       );
@@ -1135,17 +1166,15 @@ export class GymManagementService {
               this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod) &&
               invoice.createdByUser.id === trainer.user?.id,
           )
-          .map((invoice) => Number(invoice.totalAmount) * Number(contract.salesCommissionRate)),
+          .map((invoice) => Number(invoice.totalAmount) * salesCommissionRate),
       );
       const performanceBonus =
-        packageCount >= contract.performanceBonusThreshold
-          ? Number(contract.performanceBonusAmount)
+        packageCount >= performanceBonusThreshold
+          ? performanceBonusAmountValue
           : 0;
       const overtimeAmount =
-        overtimeHours * Number(contract.overtimeHourlyRate);
-      const baseSalaryAmount = Number(contract.baseSalary);
+        overtimeHours * overtimeHourlyRate;
       const attendanceBonusAmount = 0;
-      const allowanceAmount = Number(contract.allowances);
       const deductionAmount = 0;
       const penalties = 0;
       const grossPay = this.sumNumbers([
@@ -1162,7 +1191,7 @@ export class GymManagementService {
       const payrollEntry = em.create(PayrollEntryEntity, {
         payrollPeriod,
         personalTrainer: trainer,
-        contract,
+        contract: contract ?? null,
         validShiftCredits: toDecimalString(validShiftCredits),
         paidHours: toDecimalString(paidHours),
         overtimeHours: toDecimalString(overtimeHours),
@@ -1403,9 +1432,9 @@ export class GymManagementService {
     paymentMethod: string,
     totalAmount?: number,
   ): Promise<{
-      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-    }> {
+    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+  }> {
     const endDate = this.addDays(startDate, membershipPlan.durationDays - 1);
     const remainingSessions =
       membershipPlan.usageLimit ??
@@ -2079,10 +2108,21 @@ export class GymManagementService {
     actorUserId?: string,
   ): Promise<SystemConfigRecord> {
     const em = this.createEntityManager();
-    const systemConfig = await this.getRequiredSystemConfigEntity(
-      em,
-      configKey,
-    );
+    const normalizedKey = configKey.trim();
+    let systemConfig = await em.findOne(SystemConfigEntity, {
+      key: normalizedKey,
+    });
+
+    if (!systemConfig) {
+      systemConfig = em.create(SystemConfigEntity, {
+        key: normalizedKey,
+        label: this.toSystemConfigLabel(normalizedKey),
+        value: patchSystemConfigDto.value,
+        description: `Custom config for ${normalizedKey}`,
+        updatedByUser: null,
+      } as RequiredEntityData<SystemConfigEntity>);
+      em.persist(systemConfig);
+    }
 
     systemConfig.value = patchSystemConfigDto.value;
 
@@ -2623,6 +2663,17 @@ export class GymManagementService {
     }
 
     return fallbackValue;
+  }
+
+  private toSystemConfigLabel(configKey: string): string {
+    return configKey
+      .split("_")
+      .map((segment) =>
+        segment.length > 0
+          ? `${segment.slice(0, 1).toUpperCase()}${segment.slice(1)}`
+          : segment,
+      )
+      .join(" ");
   }
 
   private async issueAccessToken(payload: AuthTokenPayload): Promise<string> {
@@ -3230,18 +3281,4 @@ export class GymManagementService {
     return operatingExpense;
   }
 
-  private async getRequiredSystemConfigEntity(
-    em: EntityManager,
-    configKey: string,
-  ): Promise<SystemConfigEntity> {
-    const systemConfig = await em.findOne(SystemConfigEntity, {
-      key: configKey,
-    });
-
-    if (!systemConfig) {
-      throw new NotFoundException(`System config ${configKey} not found`);
-    }
-
-    return systemConfig;
-  }
 }

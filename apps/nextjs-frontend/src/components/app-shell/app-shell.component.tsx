@@ -44,7 +44,10 @@ function getNavigationByRole(t: (key: string) => string, role?: string): {
 
   const staffMainNavigation: NavItem[] = [
     { href: '/dashboard', label: t('Dashboard'), iconClassName: 'pi pi-home' },
+    { href: '/pts', label: t('PT'), iconClassName: 'pi pi-users' },
     { href: '/members', label: t('Members'), iconClassName: 'pi pi-id-card' },
+    { href: '/membership-plans', label: t('Plans'), iconClassName: 'pi pi-ticket' },
+    { href: '/products', label: t('Products'), iconClassName: 'pi pi-shopping-bag' },
     { href: '/reports/revenue', label: t('Reports'), iconClassName: 'pi pi-chart-line' },
   ];
 

@@ -248,4 +248,3 @@ export function sortMembersByDate(members: Member[]): Member[] {
     secondMember.registeredAt.localeCompare(firstMember.registeredAt),
   );
 }
-

@@ -12,7 +12,7 @@ const demoPassword = process.env.GYM_FRONTEND_DEMO_PASSWORD ?? 'demo123';
 async function loginAsAdmin(page: Page): Promise<void> {
   const backendUrl = process.env.GYM_BACKEND_URL
     ?? process.env.NEXT_PUBLIC_BACKEND_URL
-    ?? 'http://localhost:4000';
+    ?? 'http://127.0.0.1:4000';
 
   const candidates = [
     { email: demoEmail, password: demoPassword },
@@ -90,9 +90,6 @@ const routeChecks: RouteCheck[] = [
   { path: '/vi/inventory', en: ['inventory transactions', 'inventory ledger'] },
   { path: '/vi/inventory/import', en: ['import tracker', 'import transactions'] },
   { path: '/vi/invoices', en: ['service invoices', 'sales invoices'] },
-  { path: '/vi/expenses', en: ['expense requests', 'expense slips'] },
-  { path: '/vi/equipment', en: ['equipment register', 'equipment list'] },
-  { path: '/vi/maintenance', en: ['maintenance log', 'maintenance history'] },
   { path: '/vi/reports/revenue', en: ['revenue report', 'total revenue'] },
   { path: '/vi/reports/payroll', en: ['payroll report', 'payroll by trainer'] },
   { path: '/vi/reports/inventory', en: ['inventory report', 'top sellers'] },
@@ -100,6 +97,8 @@ const routeChecks: RouteCheck[] = [
   { path: '/vi/reports/profit', en: ['profit report', 'profit formula'] },
   { path: '/vi/settings', en: ['settings', 'system configs'] },
 ];
+
+const removedLegacyRoutePaths = ['/vi/expenses', '/vi/equipment', '/vi/maintenance'];
 
 async function runRouteChecks(
   page: Page,
@@ -113,6 +112,24 @@ async function runRouteChecks(
 
   await runCheck(checks[index]);
   await runRouteChecks(page, checks, runCheck, index + 1);
+}
+
+async function runLegacyRouteChecks(
+  page: Page,
+  routes: string[],
+  index = 0,
+): Promise<void> {
+  if (index >= routes.length) {
+    return;
+  }
+
+  const routePath = routes[index];
+  const response = await page.goto(routePath);
+
+  expect(response, `Expected a response for ${routePath}`).not.toBeNull();
+  expect(response?.status(), `Expected ${routePath} to be unavailable`).toBe(404);
+
+  await runLegacyRouteChecks(page, routes, index + 1);
 }
 
 test.describe('Locale Isolation', () => {
@@ -136,5 +153,10 @@ test.describe('Locale Isolation', () => {
       await expect(main).not.toContainText(/build error|export translatefromtext doesn't exist/i);
       await Promise.all(check.en.map(async phrase => expect(main).not.toContainText(new RegExp(phrase, 'i'))));
     });
+  });
+
+  test('legacy hidden modules should return 404', async ({ page }) => {
+    await loginAsAdmin(page);
+    await runLegacyRouteChecks(page, removedLegacyRoutePaths);
   });
 });

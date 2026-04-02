@@ -52,3 +52,5 @@ Copy `.env.example` to `.env` and configure:
 - The app is configured for locale-prefixed routes.
 - The default landing page is intentionally generic so it can be replaced by your product UI.
 - Docker builds use the monorepo workspace and the shared package directly.
+- Legacy UI modules `/expenses`, `/equipment`, `/maintenance`, and `/pts/:id/contracts` are intentionally removed from active routing.
+- Membership lifecycle, assignment management, and inventory import are admin-only mutation flows.

@@ -143,7 +143,8 @@ function createResponse<ResponsePayload>(
 @UseInterceptors(AuditLogInterceptor)
 @Roles("ADMIN", "STAFF")
 export class GymManagementController {
-  constructor(private readonly gymManagementService: GymManagementService) { }
+  constructor(private readonly gymManagementService: GymManagementService) {
+  }
 
   @Public()
   @Post("auth/login")
@@ -336,6 +337,23 @@ export class GymManagementController {
     );
   }
 
+  @Post("attendance/checkout")
+  @Roles("ADMIN", "STAFF")
+  @AuditAction("ATTENDANCE_CHECK_OUT", "attendance_logs")
+  async checkOutAttendanceCompat(
+    @Body() attendanceCheckOutDto: AttendanceCheckOutDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<AttendanceRecord>> {
+    attendanceCheckOutDto.ptId = this.resolveScopedPtId(
+      currentUser,
+      attendanceCheckOutDto.ptId,
+    );
+
+    return createResponse(
+      await this.gymManagementService.checkOutAttendance(attendanceCheckOutDto),
+    );
+  }
+
   @Patch("attendance/:id")
   @Roles("ADMIN", "STAFF")
   @AuditAction("ATTENDANCE_PATCH", "attendance_logs")
@@ -477,6 +495,7 @@ export class GymManagementController {
   }
 
   @Post("members")
+  @Roles("ADMIN")
   async createMember(
     @Body() createMemberDto: CreateMemberDto,
   ): Promise<ApiResponse<MemberRecord>> {
@@ -505,6 +524,7 @@ export class GymManagementController {
   }
 
   @Patch("members/:id")
+  @Roles("ADMIN")
   async updateMember(
     @Param("id") memberId: string,
     @Body() updateMemberDto: UpdateMemberDto,
@@ -515,6 +535,7 @@ export class GymManagementController {
   }
 
   @Delete("members/:id")
+  @Roles("ADMIN")
   async deleteMember(
     @Param("id") memberId: string,
   ): Promise<ApiResponse<MemberRecord>> {
@@ -578,6 +599,7 @@ export class GymManagementController {
   }
 
   @Post("member-memberships")
+  @Roles("ADMIN")
   @AuditAction("MEMBERSHIP_CREATE", "member_memberships")
   async createMemberMembership(
     @Body() createMemberMembershipDto: CreateMemberMembershipDto,
@@ -590,6 +612,7 @@ export class GymManagementController {
   }
 
   @Post("member-memberships/:id/renew")
+  @Roles("ADMIN")
   @AuditAction("MEMBERSHIP_RENEW", "member_memberships")
   async renewMemberMembership(
     @Param("id") membershipId: string,
@@ -604,6 +627,7 @@ export class GymManagementController {
   }
 
   @Post("member-memberships/:id/cancel")
+  @Roles("ADMIN")
   @AuditAction("MEMBERSHIP_CANCEL", "member_memberships")
   async cancelMemberMembership(
     @Param("id") membershipId: string,
@@ -627,6 +651,7 @@ export class GymManagementController {
   }
 
   @Post("member-assignments")
+  @Roles("ADMIN")
   @AuditAction("MEMBER_ASSIGNMENT_CREATE", "member_pt_assignments")
   async createMemberAssignment(
     @Body() createMemberAssignmentDto: CreateMemberAssignmentDto,
@@ -639,6 +664,7 @@ export class GymManagementController {
   }
 
   @Post("member-assignments/:id/end")
+  @Roles("ADMIN")
   @AuditAction("MEMBER_ASSIGNMENT_END", "member_pt_assignments")
   async endMemberAssignment(
     @Param("id") assignmentId: string,
@@ -712,6 +738,7 @@ export class GymManagementController {
   }
 
   @Post("inventory/import")
+  @Roles("ADMIN")
   @AuditAction("INVENTORY_IMPORT", "inventory_transactions")
   async importInventory(
     @Body() inventoryImportDto: InventoryImportDto,
@@ -755,6 +782,7 @@ export class GymManagementController {
   }
 
   @Post("sales/invoices/:id/confirm")
+  @Roles("ADMIN")
   @AuditAction("SALES_INVOICE_CONFIRM", "sales_invoices")
   async confirmSalesInvoice(
     @Param("id") salesInvoiceId: string,

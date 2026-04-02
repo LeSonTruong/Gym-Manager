@@ -52,3 +52,4 @@ Copy `.env.example` to `.env` and configure:
 - Swagger is enabled through `ENABLE_SWAGGER=true`.
 - On startup the app applies pending MikroORM migrations automatically, then seeds the PostgreSQL database if `users` is empty.
 - `apps/nestjs-backend/docker-compose.yml` can be used to start PostgreSQL, Redis, and Maildev locally.
+- Staff mutation permissions are intentionally restricted; membership lifecycle, member assignment updates, inventory import, and sales invoice confirmation require admin role.

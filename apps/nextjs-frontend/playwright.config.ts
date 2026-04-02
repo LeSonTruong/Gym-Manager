@@ -24,6 +24,7 @@ export default defineConfig({
         ...process.env,
         FRONTEND_HOST: process.env.FRONTEND_HOST ?? 'http://localhost:3000',
         PORT: process.env.PORT ?? '4000',
+        POSTGRES_DB_NAME: process.env.POSTGRES_DB_NAME ?? ':memory:',
         POSTGRES_HOST: process.env.POSTGRES_HOST ?? 'sqlite',
         REDIS_HOST: process.env.REDIS_HOST ?? 'memory',
       },
