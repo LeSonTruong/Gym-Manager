@@ -4,12 +4,9 @@ import {
   type ApiResponse,
   createGymManagementMockData,
   createGymManagementSnapshot,
-  findEquipmentAssetById,
   findMemberById,
   findMembershipPlanById,
   findPersonalTrainerById,
-  findPtContractByPtId,
-  type EquipmentAsset,
   type GymManagementSnapshot,
   type Member,
   type MembershipPlan,
@@ -206,27 +203,6 @@ export function getProductName(
   );
 }
 
-export function getEquipmentName(
-  snapshot: GymManagementSnapshot,
-  equipmentAssetId?: string,
-): string {
-  if (!equipmentAssetId) {
-    return "Khong gan thiet bi";
-  }
-
-  return (
-    findEquipmentAssetById(snapshot.dataset, equipmentAssetId)?.name ??
-    "Unknown equipment"
-  );
-}
-
-export function getContractForTrainer(
-  snapshot: GymManagementSnapshot,
-  ptId: string,
-): GymManagementSnapshot["dataset"]["ptContracts"][number] | undefined {
-  return findPtContractByPtId(snapshot.dataset, ptId);
-}
-
 export function getTrainerForMember(
   snapshot: GymManagementSnapshot,
   memberId: string,
@@ -273,12 +249,3 @@ export function sortMembersByDate(members: Member[]): Member[] {
   );
 }
 
-export function sortEquipmentByMaintenance(
-  equipmentAssets: EquipmentAsset[],
-): EquipmentAsset[] {
-  return [...equipmentAssets].sort((firstAsset, secondAsset) =>
-    (firstAsset.nextMaintenanceAt ?? "").localeCompare(
-      secondAsset.nextMaintenanceAt ?? "",
-    ),
-  );
-}

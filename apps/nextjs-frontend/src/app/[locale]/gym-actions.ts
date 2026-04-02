@@ -26,6 +26,23 @@ function getNumberValue(formData: FormData, key: string): number {
   return Number(getString(formData, key));
 }
 
+function getOptionalNumberValue(formData: FormData, key: string): number | undefined {
+  const value = getString(formData, key);
+
+  return value.length > 0 ? Number(value) : undefined;
+}
+
+function getBooleanValue(formData: FormData, key: string): boolean {
+  return getString(formData, key) === "true";
+}
+
+function getLineList(formData: FormData, key: string): string[] {
+  return getString(formData, key)
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 async function postToBackend(
   locale: string,
   endpoint: string,
@@ -123,96 +140,203 @@ export async function cancelMembershipAction(formData: FormData): Promise<void> 
   }
 }
 
-export async function createPtContractAction(formData: FormData): Promise<void> {
+export async function createPersonalTrainerAction(formData: FormData): Promise<void> {
   const locale = getString(formData, "locale") || "en";
-  const ptId = getString(formData, "ptId");
 
-  await postToBackend(locale, `/api/pts/${ptId}/contracts`, {
-    contractCode: getOptionalString(formData, "contractCode"),
-    contractType: getString(formData, "contractType"),
-    salaryType: getString(formData, "salaryType"),
-    baseSalary: getNumberValue(formData, "baseSalary"),
-    minValidShiftHours: getNumberValue(formData, "minValidShiftHours"),
-    standardShiftHours: getNumberValue(formData, "standardShiftHours"),
-    overtimeHourlyRate: getNumberValue(formData, "overtimeHourlyRate"),
-    performanceBonusThreshold: getNumberValue(formData, "performanceBonusThreshold"),
-    performanceBonusAmount: getNumberValue(formData, "performanceBonusAmount"),
-    packageCommissionRate: getNumberValue(formData, "packageCommissionRate"),
-    salesCommissionRate: getNumberValue(formData, "salesCommissionRate"),
-    allowances: getNumberValue(formData, "allowances"),
-    penaltyRules: getString(formData, "penaltyRules")
-      .split("\n")
-      .map((rule) => rule.trim())
-      .filter(Boolean),
-    effectiveFrom: getString(formData, "effectiveFrom"),
-    effectiveTo: getOptionalString(formData, "effectiveTo"),
+  await postToBackend(locale, "/api/pts", {
+    code: getString(formData, "code"),
+    userId: getOptionalString(formData, "userId"),
+    fullName: getString(formData, "fullName"),
+    gender: getString(formData, "gender"),
+    birthDate: getString(formData, "birthDate"),
+    phone: getString(formData, "phone"),
+    email: getString(formData, "email"),
+    address: getString(formData, "address"),
+    status: getString(formData, "status"),
+    specialties: getLineList(formData, "specialties"),
+    experienceYears: getNumberValue(formData, "experienceYears"),
+    avatarUrl: getOptionalString(formData, "avatarUrl") ?? "",
+    startDate: getString(formData, "startDate"),
   });
-  revalidatePath(`/${locale}/pts/${ptId}/contracts`);
-  revalidatePath(`/${locale}/pts/${ptId}`);
+  revalidatePath(`/${locale}/pts`);
 }
 
-export async function updatePtContractAction(formData: FormData): Promise<void> {
+export async function updatePersonalTrainerAction(formData: FormData): Promise<void> {
   const locale = getString(formData, "locale") || "en";
   const ptId = getString(formData, "ptId");
-  const contractId = getString(formData, "contractId");
 
-  await postToBackend(locale, `/api/pts/${ptId}/contracts/${contractId}`, {
-    contractCode: getOptionalString(formData, "contractCode"),
-    contractType: getString(formData, "contractType"),
-    salaryType: getString(formData, "salaryType"),
-    baseSalary: getNumberValue(formData, "baseSalary"),
-    minValidShiftHours: getNumberValue(formData, "minValidShiftHours"),
-    standardShiftHours: getNumberValue(formData, "standardShiftHours"),
-    overtimeHourlyRate: getNumberValue(formData, "overtimeHourlyRate"),
-    performanceBonusThreshold: getNumberValue(formData, "performanceBonusThreshold"),
-    performanceBonusAmount: getNumberValue(formData, "performanceBonusAmount"),
-    packageCommissionRate: getNumberValue(formData, "packageCommissionRate"),
-    salesCommissionRate: getNumberValue(formData, "salesCommissionRate"),
-    allowances: getNumberValue(formData, "allowances"),
-    penaltyRules: getString(formData, "penaltyRules")
-      .split("\n")
-      .map((rule) => rule.trim())
-      .filter(Boolean),
-    effectiveFrom: getString(formData, "effectiveFrom"),
-    effectiveTo: getOptionalString(formData, "effectiveTo"),
+  await postToBackend(locale, `/api/pts/${ptId}`, {
+    code: getString(formData, "code"),
+    userId: getOptionalString(formData, "userId"),
+    fullName: getString(formData, "fullName"),
+    gender: getString(formData, "gender"),
+    birthDate: getString(formData, "birthDate"),
+    phone: getString(formData, "phone"),
+    email: getString(formData, "email"),
+    address: getString(formData, "address"),
+    status: getString(formData, "status"),
+    specialties: getLineList(formData, "specialties"),
+    experienceYears: getNumberValue(formData, "experienceYears"),
+    avatarUrl: getOptionalString(formData, "avatarUrl") ?? "",
+    startDate: getString(formData, "startDate"),
   }, "PATCH");
-  revalidatePath(`/${locale}/pts/${ptId}/contracts`);
+  revalidatePath(`/${locale}/pts`);
   revalidatePath(`/${locale}/pts/${ptId}`);
 }
 
-export async function createPayrollPeriodAction(formData: FormData): Promise<void> {
+export async function deletePersonalTrainerAction(formData: FormData): Promise<void> {
   const locale = getString(formData, "locale") || "en";
+  const ptId = getString(formData, "ptId");
 
-  await postToBackend(locale, "/api/payroll/periods", {
-    code: getOptionalString(formData, "code"),
-    from: getString(formData, "from"),
-    to: getString(formData, "to"),
-  });
-  revalidatePath(`/${locale}/payroll`);
+  await postToBackend(locale, `/api/pts/${ptId}`, {}, "DELETE");
+  revalidatePath(`/${locale}/pts`);
 }
 
-export async function generatePayrollAction(formData: FormData): Promise<void> {
+export async function createMemberAction(formData: FormData): Promise<void> {
   const locale = getString(formData, "locale") || "en";
 
-  await postToBackend(locale, "/api/payroll/generate", {
-    payrollPeriodId: getString(formData, "payrollPeriodId"),
+  await postToBackend(locale, "/api/members", {
+    code: getString(formData, "code"),
+    fullName: getString(formData, "fullName"),
+    gender: getString(formData, "gender"),
+    birthDate: getString(formData, "birthDate"),
+    phone: getString(formData, "phone"),
+    email: getString(formData, "email"),
+    address: getString(formData, "address"),
+    heightCm: getNumberValue(formData, "heightCm"),
+    weightKg: getNumberValue(formData, "weightKg"),
+    goal: getString(formData, "goal"),
+    healthNotes: getString(formData, "healthNotes"),
+    registeredAt: getString(formData, "registeredAt"),
+    status: getString(formData, "status"),
   });
-  revalidatePath(`/${locale}/payroll`);
+  revalidatePath(`/${locale}/members`);
 }
 
-export async function createAssignmentAction(formData: FormData): Promise<void> {
+export async function updateMemberAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const memberId = getString(formData, "memberId");
+
+  await postToBackend(locale, `/api/members/${memberId}`, {
+    code: getString(formData, "code"),
+    fullName: getString(formData, "fullName"),
+    gender: getString(formData, "gender"),
+    birthDate: getString(formData, "birthDate"),
+    phone: getString(formData, "phone"),
+    email: getString(formData, "email"),
+    address: getString(formData, "address"),
+    heightCm: getNumberValue(formData, "heightCm"),
+    weightKg: getNumberValue(formData, "weightKg"),
+    goal: getString(formData, "goal"),
+    healthNotes: getString(formData, "healthNotes"),
+    registeredAt: getString(formData, "registeredAt"),
+    status: getString(formData, "status"),
+  }, "PATCH");
+  revalidatePath(`/${locale}/members`);
+  revalidatePath(`/${locale}/members/${memberId}`);
+}
+
+export async function deleteMemberAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const memberId = getString(formData, "memberId");
+
+  await postToBackend(locale, `/api/members/${memberId}`, {}, "DELETE");
+  revalidatePath(`/${locale}/members`);
+}
+
+export async function createMembershipPlanAction(formData: FormData): Promise<void> {
   const locale = getString(formData, "locale") || "en";
 
-  await postToBackend(locale, "/api/member-assignments", {
-    memberId: getString(formData, "memberId"),
-    ptId: getString(formData, "ptId"),
-    memberMembershipId: getString(formData, "memberMembershipId"),
-    assignedFrom: getString(formData, "assignedFrom"),
-    commissionType: getString(formData, "commissionType"),
+  await postToBackend(locale, "/api/membership-plans", {
+    code: getString(formData, "code"),
+    name: getString(formData, "name"),
+    type: getString(formData, "type"),
+    price: getNumberValue(formData, "price"),
+    durationDays: getNumberValue(formData, "durationDays"),
+    usageLimit: getOptionalNumberValue(formData, "usageLimit"),
+    includesPt: getBooleanValue(formData, "includesPt"),
+    includedPtSessions: getNumberValue(formData, "includedPtSessions"),
+    perks: getLineList(formData, "perks"),
+    status: getString(formData, "status"),
+  });
+  revalidatePath(`/${locale}/membership-plans`);
+}
+
+export async function updateMembershipPlanAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const planId = getString(formData, "planId");
+
+  await postToBackend(locale, `/api/membership-plans/${planId}`, {
+    code: getString(formData, "code"),
+    name: getString(formData, "name"),
+    type: getString(formData, "type"),
+    price: getNumberValue(formData, "price"),
+    durationDays: getNumberValue(formData, "durationDays"),
+    usageLimit: getOptionalNumberValue(formData, "usageLimit"),
+    includesPt: getBooleanValue(formData, "includesPt"),
+    includedPtSessions: getNumberValue(formData, "includedPtSessions"),
+    perks: getLineList(formData, "perks"),
+    status: getString(formData, "status"),
+  }, "PATCH");
+  revalidatePath(`/${locale}/membership-plans`);
+  revalidatePath(`/${locale}/membership-plans/${planId}`);
+}
+
+export async function deleteMembershipPlanAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const planId = getString(formData, "planId");
+
+  await postToBackend(locale, `/api/membership-plans/${planId}`, {}, "DELETE");
+  revalidatePath(`/${locale}/membership-plans`);
+}
+
+export async function createProductAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+
+  await postToBackend(locale, "/api/products", {
+    code: getString(formData, "code"),
+    name: getString(formData, "name"),
+    category: getString(formData, "category"),
+    unitCost: getNumberValue(formData, "unitCost"),
+    salePrice: getNumberValue(formData, "salePrice"),
+    stockOnHand: getNumberValue(formData, "stockOnHand"),
+    minimumStockLevel: getNumberValue(formData, "minimumStockLevel"),
+    status: getString(formData, "status"),
+  });
+  revalidatePath(`/${locale}/products`);
+}
+
+export async function updateProductAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const productId = getString(formData, "productId");
+
+  await postToBackend(locale, `/api/products/${productId}`, {
+    code: getString(formData, "code"),
+    name: getString(formData, "name"),
+    category: getString(formData, "category"),
+    unitCost: getNumberValue(formData, "unitCost"),
+    salePrice: getNumberValue(formData, "salePrice"),
+    stockOnHand: getNumberValue(formData, "stockOnHand"),
+    minimumStockLevel: getNumberValue(formData, "minimumStockLevel"),
+    status: getString(formData, "status"),
+  }, "PATCH");
+  revalidatePath(`/${locale}/products`);
+  revalidatePath(`/${locale}/products/${productId}`);
+}
+
+export async function deleteProductAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const productId = getString(formData, "productId");
+
+  await postToBackend(locale, `/api/products/${productId}`, {}, "DELETE");
+  revalidatePath(`/${locale}/products`);
+}
+assignedFrom: getString(formData, "assignedFrom"),
+  commissionType: getString(formData, "commissionType"),
     commissionValue: getNumberValue(formData, "commissionValue"),
   });
-  revalidatePath(`/${locale}/member-assignments`);
-  revalidatePath(`/${locale}/members`);
+revalidatePath(`/${locale}/member-assignments`);
+revalidatePath(`/${locale}/members`);
 }
 
 export async function endAssignmentAction(formData: FormData): Promise<void> {
@@ -260,23 +384,6 @@ export async function importInventoryAction(formData: FormData): Promise<void> {
   });
   revalidatePath(`/${locale}/inventory`);
   revalidatePath(`/${locale}/products`);
-}
-
-export async function createMaintenanceAction(formData: FormData): Promise<void> {
-  const locale = getString(formData, "locale") || "en";
-
-  await postToBackend(locale, "/api/maintenance", {
-    equipmentAssetId: getString(formData, "equipmentAssetId"),
-    maintenanceType: getString(formData, "maintenanceType"),
-    maintenanceDate: getString(formData, "maintenanceDate"),
-    description: getString(formData, "description"),
-    vendorName: getString(formData, "vendorName"),
-    amount: getNumberValue(formData, "amount"),
-    resultStatus: getString(formData, "resultStatus"),
-    nextMaintenanceAt: getOptionalString(formData, "nextMaintenanceAt"),
-  });
-  revalidatePath(`/${locale}/maintenance`);
-  revalidatePath(`/${locale}/equipment`);
 }
 
 export async function patchAttendanceAction(formData: FormData): Promise<void> {

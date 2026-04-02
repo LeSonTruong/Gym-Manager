@@ -17,17 +17,26 @@ import {
   checkInAttendanceAction,
   checkOutAttendanceAction,
   createAssignmentAction,
-  createMaintenanceAction,
+  createMemberAction,
   createMembershipAction,
+  createMembershipPlanAction,
   createPayrollPeriodAction,
-  createPtContractAction,
+  createPersonalTrainerAction,
+  createProductAction,
   createSalesInvoiceAction,
+  deleteMemberAction,
+  deleteMembershipPlanAction,
+  deletePersonalTrainerAction,
+  deleteProductAction,
   endAssignmentAction,
   generatePayrollAction,
   importInventoryAction,
   loginAction,
   renewMembershipAction,
-  updatePtContractAction,
+  updateMemberAction,
+  updateMembershipPlanAction,
+  updatePersonalTrainerAction,
+  updateProductAction,
 } from "@/app/[locale]/gym-actions.ts";
 import { Link } from "@/i18n/navigation.ts";
 import {
@@ -35,8 +44,6 @@ import {
   formatDate,
   formatDateTime,
   formatHours,
-  getContractForTrainer,
-  getEquipmentName,
   getGymSnapshot,
   getMemberName,
   getPlanName,
@@ -44,7 +51,6 @@ import {
   getStatusTone,
   getTrainerName,
   humanizeStatus,
-  sortEquipmentByMaintenance,
   sortMembersByDate,
   sortProductsByStock,
 } from "@/lib/gym-data.ts";
@@ -84,407 +90,324 @@ function translateNode(node: ReactNode, locale: "en" | "vi"): ReactNode {
   }
 
   return node;
-}
+  function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const locale = getLocale(options);
 
-function ActionLink({
-  href,
-  children,
-}: {
-  readonly href: string;
-  readonly children: string;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
+    return (
+      <>
+        <PageHeader
+          eyebrow="Quản lý PT"
+          title="Huấn luyện viên cá nhân"
+          actions={<ActionLink href="/pts/attendance">Mở chấm công</ActionLink>}
+        />
 
-  return (
-    <Link
-      href={href}
-      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
-    >
-      {translateText(children, locale)}
-    </Link>
-  );
-}
+        <StatsGrid
+          items={[
+            {
+              label: "Hội viên được phân công",
+              value: `${snapshot.ptOverview.reduce((total, item) => total + item.activeMembers, 0)}`,
+              note: "Tổng số hội viên đang có PT phụ trách.",
+            },
+            {
+              label: "Công quy đổi",
+              value: `${snapshot.ptOverview.reduce((total, item) => total + item.validShiftCredits, 0)}`,
+              note: "Tổng công VALID/HALF trong dữ liệu mẫu.",
+            },
+            {
+              label: "Tăng ca",
+              value: formatHours(
+                snapshot.ptOverview.reduce((total, item) => total + item.overtimeHours, 0),
+              ),
+              note: "Tổng giờ tăng ca được lấy từ nhật ký chấm công.",
+            },
+            {
+              label: "Lương ước tính",
+              value: formatCurrency(
+                snapshot.ptOverview.reduce((total, item) => total + item.estimatedPayroll, 0),
+              ),
+              note: "Tổng thực lĩnh kỳ gần nhất của tất cả PT.",
+            },
+          ]}
+        />
 
-function PageHeader(props: {
-  readonly eyebrow: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly actions?: ReactNode;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
+        {canManageGym(options) ? (
+          <SectionCard title="Tạo PT mới">
+            <form action={createPersonalTrainerAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormField label="Mã PT" name="code" placeholder="PT004" required />
+                <FormField label="Họ và tên" name="fullName" placeholder="Nguyễn Văn A" required />
+                <FormSelect
+                  label="Giới tính"
+                  name="gender"
+                  required
+                  defaultValue="MALE"
+                  options={[
+                    { value: "MALE", label: "Nam" },
+                    { value: "FEMALE", label: "Nữ" },
+                    { value: "OTHER", label: "Khác" },
+                  ]}
+                />
+                <FormField label="Ngày sinh" name="birthDate" type="date" required />
+                <FormField label="Số điện thoại" name="phone" required />
+                <FormField label="Thư điện tử" name="email" type="email" required />
+                <FormField label="Địa chỉ" name="address" required />
+                <FormSelect
+                  label="Trạng thái"
+                  name="status"
+                  required
+                  defaultValue="ACTIVE"
+                  options={[
+                    { value: "ACTIVE", label: "Đang hoạt động" },
+                    { value: "INACTIVE", label: "Ngưng hoạt động" },
+                  ]}
+                />
+                <FormField label="Chuyên môn" name="specialties" placeholder="Yoga\nHIIT" required />
+                <FormField label="Kinh nghiệm" name="experienceYears" type="number" min={0} defaultValue={0} required />
+                <FormField label="Avatar URL" name="avatarUrl" placeholder="https://..." />
+                <FormField label="Ngày bắt đầu" name="startDate" type="date" required />
+                <FormField label="Mã người dùng" name="userId" placeholder="user-uuid" />
+              </FormGrid>
+              <SubmitButton label="Tạo PT" />
+            </form>
+          </SectionCard>
+        ) : null}
 
-  return (
-    <BasePageHeader
-      eyebrow={translateText(props.eyebrow, locale)}
-      title={translateText(props.title, locale)}
-      description={translateText(props.description ?? "", locale)}
-      actions={translateNode(props.actions, locale)}
-    />
-  );
-}
-
-function SectionCard(props: {
-  readonly title: string;
-  readonly children: ReactNode;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return (
-    <BaseSectionCard
-      title={translateText(props.title, locale)}
-    >
-      {translateNode(props.children, locale)}
-    </BaseSectionCard>
-  );
-}
-
-function StatsGrid(props: {
-  readonly items: Array<{ readonly label: string; readonly value: string; readonly note: string }>;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return (
-    <BaseStatsGrid
-      items={props.items.map((item) => ({
-        ...item,
-        label: translateText(item.label, locale),
-        note: translateText(item.note, locale),
-      }))}
-    />
-  );
-}
-
-function KeyValueList(props: {
-  readonly items: Array<{ readonly label: string; readonly value: ReactNode }>;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return (
-    <BaseKeyValueList
-      items={props.items.map((item) => ({
-        label: translateText(item.label, locale),
-        value: translateNode(item.value, locale),
-      }))}
-    />
-  );
-}
-
-function DataTable(props: {
-  readonly headers: string[];
-  readonly rows: ReactNode[][];
-  readonly emptyMessage?: string;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
-  const translatedHeaders = props.headers.map((header) => translateText(header, locale));
-  const translatedRows: ReactNode[][] = [];
-
-  for (const row of props.rows) {
-    const translatedRow: ReactNode[] = [];
-
-    for (const cell of row) {
-      translatedRow.push(translateNode(cell, locale));
-    }
-
-    translatedRows.push(translatedRow);
-  }
-
-  return (
-    <BaseDataTable
-      headers={translatedHeaders}
-      rows={translatedRows}
-      emptyMessage={props.emptyMessage ? translateText(props.emptyMessage, locale) : undefined}
-    />
-  );
-}
-
-function Badge({ children, tone = "slate" }: { readonly children: ReactNode; readonly tone?: "slate" | "emerald" | "amber" | "rose" | "sky" }): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return <BaseBadge tone={tone}>{translateNode(children, locale)}</BaseBadge>;
-}
-
-type SearchParamsRecord = Record<string, string | string[] | undefined>;
-
-type RenderGymRouteOptions = {
-  readonly locale?: string;
-  readonly searchParams?: SearchParamsRecord;
-  readonly currentUser?: DemoUser;
-  readonly ptAttendance?: GymManagementSnapshot["dataset"]["attendanceLogs"];
-  readonly ptPayrollEntries?: GymManagementSnapshot["dataset"]["payrollEntries"];
-};
-
-type FieldValue = string | number | undefined;
-
-function getLocale(options?: RenderGymRouteOptions): string {
-  return options?.locale ?? "en";
-}
-
-function getSearchParam(
-  searchParams: SearchParamsRecord | undefined,
-  key: string,
-): string | undefined {
-  const value = searchParams?.[key];
-
-  return Array.isArray(value) ? value[0] : value;
-}
-
-function canManageGym(options?: RenderGymRouteOptions): boolean {
-  return (
-    options?.currentUser?.role === "ADMIN" ||
-    options?.currentUser?.role === "STAFF"
-  );
-}
-
-function isAdmin(options?: RenderGymRouteOptions): boolean {
-  return options?.currentUser?.role === "ADMIN";
-}
-
-function toDateInputValue(value?: string | null): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  return value.slice(0, 10);
-}
-
-function FormGrid({
-  children,
-  columns = 2,
-}: {
-  readonly children: ReactNode;
-  readonly columns?: 1 | 2;
-}): JSX.Element {
-  return (
-    <div className={columns === 1 ? "grid gap-4" : "grid gap-4 md:grid-cols-2"}>
-      {children}
-    </div>
-  );
-}
-
-function FormField({
-  label,
-  name,
-  type = "text",
-  defaultValue,
-  placeholder,
-  required = false,
-  min,
-  step,
-}: {
-  readonly label: string;
-  readonly name: string;
-  readonly type?: string;
-  readonly defaultValue?: FieldValue;
-  readonly placeholder?: string;
-  readonly required?: boolean;
-  readonly min?: string | number;
-  readonly step?: string | number;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-        {translateText(label, locale)}
-      </span>
-      <input
-        type={type}
-        name={name}
-        defaultValue={defaultValue}
-        placeholder={placeholder ? translateText(placeholder, locale) : undefined}
-        required={required}
-        min={min}
-        step={step}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-      />
-    </label>
-  );
-}
-
-function FormSelect({
-  label,
-  name,
-  options,
-  defaultValue,
-  required = false,
-}: {
-  readonly label: string;
-  readonly name: string;
-  readonly options: Array<{ readonly label: string; readonly value: string }>;
-  readonly defaultValue?: string;
-  readonly required?: boolean;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-        {translateText(label, locale)}
-      </span>
-      <select
-        name={name}
-        defaultValue={defaultValue}
-        required={required}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-      >
-        {options.map((option) => (
-          <option key={`${name}-${option.value}`} value={option.value}>
-            {translateText(option.label, locale)}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function FormTextArea({
-  label,
-  name,
-  defaultValue,
-  placeholder,
-  rows = 4,
-}: {
-  readonly label: string;
-  readonly name: string;
-  readonly defaultValue?: string;
-  readonly placeholder?: string;
-  readonly rows?: number;
-}): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-        {translateText(label, locale)}
-      </span>
-      <textarea
-        name={name}
-        defaultValue={defaultValue}
-        placeholder={placeholder ? translateText(placeholder, locale) : undefined}
-        rows={rows}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-      />
-    </label>
-  );
-}
-
-function SubmitButton({ label }: { readonly label: string }): JSX.Element {
-  const locale = getActiveUiLocale();
-
-  return (
-    <button
-      type="submit"
-      className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-    >
-      {translateText(label, locale)}
-    </button>
-  );
-}
-
-function buildDashboardPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Vận hành phòng gym"
-        title="Tổng quan vận hành"
-        actions={
-          <ActionLink href="/reports/profit">
-            Báo cáo lợi nhuận
-          </ActionLink>
-        }
-      />
-
-      <StatsGrid
-        items={[
-          {
-            label: "Hội viên đang hoạt động",
-            value: `${snapshot.dashboard.activeMembers}/${snapshot.dashboard.totalMembers}`,
-            note: "Bao gồm hội viên day-pass, gói tháng và gói năm đang hiệu lực.",
-          },
-          {
-            label: "PT trong biên chế",
-            value: `${snapshot.dashboard.totalPts}`,
-            note: "Toàn bộ PT đang ở trạng thái ACTIVE và có hợp đồng hiệu lực.",
-          },
-          {
-            label: "Doanh thu tháng",
-            value: formatCurrency(snapshot.dashboard.revenue.monthly),
-            note: `Gói tập ${formatCurrency(snapshot.dashboard.revenue.membership)} + dịch vụ ${formatCurrency(snapshot.dashboard.revenue.services)}.`,
-          },
-          {
-            label: "Quỹ lương hiện tại",
-            value: formatCurrency(snapshot.dashboard.totalPtPayroll),
-            note: "Tổng lương thực nhận của kỳ lương hiện tại đang duyệt.",
-          },
-        ]}
-      />
-
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <SectionCard
-          title="Phân tích doanh thu"
-        >
-          <KeyValueList
-            items={[
-              {
-                label: "Doanh thu ngày",
-                value: formatCurrency(snapshot.dashboard.revenue.daily),
-              },
-              {
-                label: "Doanh thu năm",
-                value: formatCurrency(snapshot.dashboard.revenue.yearly),
-              },
-              {
-                label: "Chi phí vận hành",
-                value: formatCurrency(snapshot.dashboard.totalOperatingExpense),
-              },
-              {
-                label: "Lợi nhuận ròng",
-                value: formatCurrency(snapshot.profitReport.netProfit),
-              },
-            ]}
-          />
-        </SectionCard>
-
-        <SectionCard
-          title="Cảnh báo tồn kho thấp"
-        >
+        <SectionCard title="Danh sách PT">
           <DataTable
             headers={[
-              "Sản phẩm",
-              "Tồn kho",
-              "Ngưỡng",
-              "Trạng thái",
+              "PT",
+              "Chuyên môn",
+              "Hội viên đang hoạt động",
+              "Công quy đổi",
+              "Tăng ca",
+              "Thực lĩnh",
+              "Chi tiết",
             ]}
-            rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
-              (product) => [
-                product.name,
-                `${product.stockOnHand} đơn vị`,
-                `${product.minimumStockLevel} đơn vị`,
-                <Badge key={product.id} tone="amber">
-                  Bổ sung ngay
-                </Badge>,
-              ],
-            )}
-          />
-        </SectionCard>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionCard
-          title="Sản phẩm bán chạy"
-        >
-          <DataTable
-            headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
-            rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
-              entry.product.name,
-              `${entry.soldQuantity} đơn vị`,
-              `${entry.product.stockOnHand} đơn vị`,
+            rows={snapshot.ptOverview.map((item) => [
+              <div key={item.pt.id}>
+                <p className="font-semibold text-slate-900">{item.pt.fullName}</p>
+                <p className="text-xs text-slate-500">{item.pt.code}</p>
+              </div>,
+              item.pt.specialties.join(", "),
+              `${item.activeMembers}`,
+              `${item.validShiftCredits}`,
+              formatHours(item.overtimeHours),
+              formatCurrency(item.estimatedPayroll),
+              <div key={`${item.pt.id}-links`} className="flex gap-2">
+                <ActionLink href={`/pts/${item.pt.id}`}>Hồ sơ</ActionLink>
+              </div>,
             ])}
           />
         </SectionCard>
-      </div>
+      </>
+    );
+  }
+
+  function buildPtDetailPage(ptId: string, options?: RenderGymRouteOptions): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const ptOverview = snapshot.ptOverview.find((item) => item.pt.id === ptId);
+
+    if (!ptOverview) {
+      notFound();
+    }
+
+    const attendanceLogs = snapshot.dataset.attendanceLogs.filter(
+      (attendanceLog) => attendanceLog.ptId === ptId,
+    );
+    const payrollEntries = snapshot.dataset.payrollEntries.filter(
+      (entry) => entry.ptId === ptId,
+    );
+    const assignedMembers = snapshot.dataset.memberPtAssignments
+      .filter((assignment) => assignment.ptId === ptId)
+      .map((assignment) =>
+        snapshot.dataset.members.find((member) => member.id === assignment.memberId),
+      )
+      .filter((member): member is (typeof snapshot.dataset.members)[number] => member !== undefined);
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Hồ sơ PT"
+          title={ptOverview.pt.fullName}
+          actions={<ActionLink href="/pts">Quay lại danh sách PT</ActionLink>}
+        />
+
+        <StatsGrid
+          items={[
+            { label: "Hội viên đang hoạt động", value: `${ptOverview.activeMembers}`, note: "Phân công hội viên đang mở." },
+            { label: "Công quy đổi", value: `${ptOverview.validShiftCredits}`, note: "Công VALID/HALF trong kỳ." },
+            { label: "Tăng ca", value: formatHours(ptOverview.overtimeHours), note: "Tổng giờ tăng ca." },
+            { label: "Lương kỳ gần nhất", value: formatCurrency(ptOverview.estimatedPayroll), note: "Thực lĩnh kỳ gần nhất." },
+          ]}
+        />
+
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <SectionCard title="Tóm tắt hồ sơ">
+            <KeyValueList
+              items={[
+                { label: "Thư điện tử", value: ptOverview.pt.email },
+                { label: "Số điện thoại", value: ptOverview.pt.phone },
+                { label: "Địa chỉ", value: ptOverview.pt.address },
+                { label: "Kinh nghiệm", value: `${ptOverview.pt.experienceYears} năm` },
+                {
+                  label: "Trạng thái",
+                  value: <Badge tone={getStatusTone(ptOverview.pt.status)}>{ptOverview.pt.status}</Badge>,
+                },
+                { label: "Lương do Admin quản lý", value: formatCurrency(ptOverview.estimatedPayroll) },
+              ]}
+            />
+          </SectionCard>
+
+          <SectionCard title="Hội viên được phân công">
+            <DataTable
+              headers={["Hội viên", "Trạng thái", "Ngày tham gia", "Chi tiết"]}
+              rows={assignedMembers.map((member) => [
+                member.fullName,
+                <Badge key={member.id} tone={getStatusTone(member.status)}>{member.status}</Badge>,
+                formatDate(member.registeredAt),
+                <ActionLink key={`${member.id}-detail`} href={`/members/${member.id}`}>Mở hội viên</ActionLink>,
+              ])}
+            />
+          </SectionCard>
+        </div>
+
+        <SectionCard title="Dòng thời gian chấm công">
+          <DataTable
+            headers={["Ngày", "Vào ca", "Ra ca", "Giờ làm", "Tăng ca", "Trạng thái"]}
+            rows={attendanceLogs.map((attendanceLog) => [
+              attendanceLog.attendanceDate,
+              formatDateTime(attendanceLog.checkInAt),
+              attendanceLog.checkOutAt ? formatDateTime(attendanceLog.checkOutAt) : "Đang mở",
+              formatHours(attendanceLog.workedHours),
+              formatHours(attendanceLog.overtimeHours),
+              <Badge key={attendanceLog.id} tone={getStatusTone(attendanceLog.status)}>{attendanceLog.status}</Badge>,
+            ])}
+          />
+        </SectionCard>
+
+        <SectionCard title="Lịch sử lương">
+          <DataTable
+            headers={["Kỳ", "Công quy đổi", "Tăng ca", "Hoa hồng gói", "Thực lĩnh", "Trạng thái"]}
+            rows={payrollEntries.map((entry) => [
+              snapshot.dataset.payrollPeriods.find((period) => period.id === entry.payrollPeriodId)?.code ?? entry.payrollPeriodId,
+              `${entry.validShiftCredits}`,
+              formatHours(entry.overtimeHours),
+              formatCurrency(entry.packageCommission),
+              formatCurrency(entry.netPay),
+              <Badge key={entry.id} tone={getStatusTone(entry.status)}>{humanizeStatus(entry.status)}</Badge>,
+            ])}
+          />
+        </SectionCard>
+
+        {canManageGym(options) ? (
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <SectionCard title="Cập nhật PT">
+              <form action={updatePersonalTrainerAction} className="space-y-4">
+                <input type="hidden" name="locale" value={getLocale(options)} />
+                <input type="hidden" name="ptId" value={ptId} />
+                <FormGrid>
+                  <FormField label="Mã PT" name="code" defaultValue={ptOverview.pt.code} required />
+                  <FormField label="Họ và tên" name="fullName" defaultValue={ptOverview.pt.fullName} required />
+                  <FormSelect
+                    label="Giới tính"
+                    name="gender"
+                    required
+                    defaultValue={ptOverview.pt.gender}
+                    options={[
+                      { value: "MALE", label: "Nam" },
+                      { value: "FEMALE", label: "Nữ" },
+                      { value: "OTHER", label: "Khác" },
+                    ]}
+                  />
+                  <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.birthDate)} required />
+                  <FormField label="Số điện thoại" name="phone" defaultValue={ptOverview.pt.phone} required />
+                  <FormField label="Thư điện tử" name="email" type="email" defaultValue={ptOverview.pt.email} required />
+                  <FormField label="Địa chỉ" name="address" defaultValue={ptOverview.pt.address} required />
+                  <FormSelect
+                    label="Trạng thái"
+                    name="status"
+                    required
+                    defaultValue={ptOverview.pt.status}
+                    options={[
+                      { value: "ACTIVE", label: "Đang hoạt động" },
+                      { value: "INACTIVE", label: "Ngưng hoạt động" },
+                    ]}
+                  />
+                  <FormField label="Chuyên môn" name="specialties" defaultValue={ptOverview.pt.specialties.join("\n")} required />
+                  <FormField label="Kinh nghiệm" name="experienceYears" type="number" min={0} defaultValue={ptOverview.pt.experienceYears} required />
+                  <FormField label="Avatar URL" name="avatarUrl" defaultValue={ptOverview.pt.avatarUrl} />
+                  <FormField label="Ngày bắt đầu" name="startDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.startDate)} required />
+                  <FormField label="Mã người dùng" name="userId" defaultValue={ptOverview.pt.userId} />
+                </FormGrid>
+                <SubmitButton label="Lưu PT" />
+              </form>
+            </SectionCard>
+
+            <SectionCard title="Xóa PT">
+              <form action={deletePersonalTrainerAction} className="space-y-4">
+                <input type="hidden" name="locale" value={getLocale(options)} />
+                <input type="hidden" name="ptId" value={ptId} />
+                <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  Xóa PT sẽ loại bỏ hồ sơ khỏi danh sách quản trị.
+                </p>
+                <button type="submit" className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700">
+                  Xóa PT
+                </button>
+              </form>
+            </SectionCard>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  label: "Lợi nhuận ròng",
+    value: formatCurrency(snapshot.profitReport.netProfit),
+              },
+            ]}
+          />
+        </SectionCard >
+
+  <SectionCard
+    title="Cảnh báo tồn kho thấp"
+  >
+    <DataTable
+      headers={[
+        "Sản phẩm",
+        "Tồn kho",
+        "Ngưỡng",
+        "Trạng thái",
+      ]}
+      rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
+        (product) => [
+          product.name,
+          `${product.stockOnHand} đơn vị`,
+          `${product.minimumStockLevel} đơn vị`,
+          <Badge key={product.id} tone="amber">
+            Bổ sung ngay
+          </Badge>,
+        ],
+      )}
+    />
+  </SectionCard>
+      </div >
+
+  <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+    <SectionCard
+      title="Sản phẩm bán chạy"
+    >
+      <DataTable
+        headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
+        rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
+          entry.product.name,
+          `${entry.soldQuantity} đơn vị`,
+          `${entry.product.stockOnHand} đơn vị`,
+        ])}
+      />
+    </SectionCard>
+  </div>
     </>
   );
 }
@@ -511,541 +434,337 @@ function buildPtsPage(): JSX.Element {
           },
           {
             label: "Công quy đổi",
-            value: `${snapshot.ptOverview.reduce((total, item) => total + item.validShiftCredits, 0)}`,
-            note: "Tổng công VALID/HALF quy đổi trong dữ liệu mẫu.",
-          },
-          {
-            label: "Tăng ca",
-            value: formatHours(
-              snapshot.ptOverview.reduce(
+        { canManageGym(undefined) ? null : null}
+
+        {true ? (
+          <SectionCard title="Tạo PT mới">
+            <form action={createPersonalTrainerAction} className="space-y-4">
+              <input type="hidden" name="locale" value={getLocale()} />
+              <FormGrid>
+                <FormField label="Mã PT" name="code" placeholder="PT004" required />
+                <FormField label="Họ và tên" name="fullName" placeholder="Nguyễn Văn A" required />
+                <FormSelect
+                  label="Giới tính"
+                  name="gender"
+                  required
+                  defaultValue="MALE"
+                  options={[
+                    { value: "MALE", label: "Nam" },
+                    { value: "FEMALE", label: "Nữ" },
+                    { value: "OTHER", label: "Khác" },
+                  ]}
+                />
+                <FormField label="Ngày sinh" name="birthDate" type="date" required />
+                <FormField label="Số điện thoại" name="phone" required />
+                <FormField label="Thư điện tử" name="email" type="email" required />
+                <FormField label="Địa chỉ" name="address" required />
+                <FormSelect
+                  label="Trạng thái"
+                  name="status"
+                  required
+                  defaultValue="ACTIVE"
+                  options={[
+                    { value: "ACTIVE", label: "Đang hoạt động" },
+                    { value: "INACTIVE", label: "Ngưng hoạt động" },
+                  ]}
+                />
+                <FormField label="Chuyên môn" name="specialties" placeholder="Yoga\nHIIT" required />
+                <FormField label="Kinh nghiệm" name="experienceYears" type="number" min={0} defaultValue={0} required />
+                <FormField label="Avatar URL" name="avatarUrl" placeholder="https://..." />
+                <FormField label="Ngày bắt đầu" name="startDate" type="date" required />
+                <FormField label="Mã người dùng" name="userId" placeholder="user-uuid" />
+              </FormGrid>
+              <SubmitButton label="Tạo PT" />
+            </form>
+          </SectionCard>
+        ) : null}
+
+        <SectionCard title="Danh sách PT">
+        {
+          label: "Tăng ca",
+        value: formatHours(
+        snapshot.ptOverview.reduce(
                 (total, item) => total + item.overtimeHours,
-                0,
-              ),
-            ),
-            note: "Tổng giờ tăng ca được lấy từ nhật ký chấm công.",
+        0,
+        ),
+        ),
+        note: "Tổng giờ tăng ca được lấy từ nhật ký chấm công.",
           },
-          {
-            label: "Lương ước tính",
-            value: formatCurrency(
-              snapshot.ptOverview.reduce(
+        {
+          label: "Lương ước tính",
+        value: formatCurrency(
+        snapshot.ptOverview.reduce(
                 (total, item) => total + item.estimatedPayroll,
-                0,
-              ),
-            ),
-            note: "Tổng thực lĩnh kỳ gần nhất của tất cả PT.",
+        0,
+        ),
+        ),
+        note: "Tổng thực lĩnh kỳ gần nhất của tất cả PT.",
           },
         ]}
       />
 
-      <SectionCard
-        title="Danh sách PT"
-      >
-        <DataTable
-          headers={[
-            "PT",
-            "Chuyên môn",
-            "Hội viên đang hoạt động",
-            "Công quy đổi",
-            "Tăng ca",
-            "Thực lĩnh",
-            "Chi tiết",
-          ]}
-          rows={snapshot.ptOverview.map((item) => [
-            <div key={item.pt.id}>
-              <p className="font-semibold text-slate-900">{item.pt.fullName}</p>
-              <p className="text-xs text-slate-500">{item.pt.code}</p>
-            </div>,
-            item.pt.specialties.join(", "),
-            `${item.activeMembers}`,
-            `${item.validShiftCredits}`,
-            formatHours(item.overtimeHours),
-            formatCurrency(item.estimatedPayroll),
-            <div key={`${item.pt.id}-links`} className="flex gap-2">
-              <ActionLink href={`/pts/${item.pt.id}`}>Hồ sơ</ActionLink>
-              <ActionLink href={`/pts/${item.pt.id}/contracts`}>
-                Hợp đồng
-              </ActionLink>
-            </div>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
+        <SectionCard
+          title="Danh sách PT"
+        >
+          <DataTable
+            headers={[
+              "PT",
+              "Chuyên môn",
+              "Hội viên đang hoạt động",
+              "Công quy đổi",
+              "Tăng ca",
+              "Thực lĩnh",
+              "Chi tiết",
+            ]}
+            rows={snapshot.ptOverview.map((item) => [
+              <div key={item.pt.id}>
+                <p className="font-semibold text-slate-900">{item.pt.fullName}</p>
+                <p className="text-xs text-slate-500">{item.pt.code}</p>
+              </div>,
+              item.pt.specialties.join(", "),
+              `${item.activeMembers}`,
+              `${item.validShiftCredits}`,
+              formatHours(item.overtimeHours),
+              formatCurrency(item.estimatedPayroll),
+              <div key={`${item.pt.id}-links`} className="flex gap-2">
+                <ActionLink href={`/pts/${item.pt.id}`}>Hồ sơ</ActionLink>
+              </div>,
+            ])}
+          />
+        </SectionCard>
+      </>
+      );
 }
 
-function buildPtDetailPage(ptId: string): JSX.Element {
+      function buildPtDetailPage(ptId: string): JSX.Element {
   const snapshot = getGymSnapshot();
   const ptOverview = snapshot.ptOverview.find((item) => item.pt.id === ptId);
 
-  if (!ptOverview) {
-    notFound();
+      if (!ptOverview) {
+        notFound();
   }
 
-  const attendanceLogs = snapshot.dataset.attendanceLogs.filter(
+      const attendanceLogs = snapshot.dataset.attendanceLogs.filter(
     (attendanceLog) => attendanceLog.ptId === ptId,
-  );
-  const payrollEntries = snapshot.dataset.payrollEntries.filter(
+      );
+      const payrollEntries = snapshot.dataset.payrollEntries.filter(
     (entry) => entry.ptId === ptId,
-  );
-  const assignedMembers = snapshot.dataset.memberPtAssignments
+      );
+      const assignedMembers = snapshot.dataset.memberPtAssignments
     .filter((assignment) => assignment.ptId === ptId)
     .map((assignment) =>
       snapshot.dataset.members.find(
         (member) => member.id === assignment.memberId,
       ),
-    )
-    .filter(
+      )
+      .filter(
       (member): member is (typeof snapshot.dataset.members)[number] =>
-        member !== undefined,
-    );
+      member !== undefined,
+      );
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Hồ sơ PT"
-        title={ptOverview.pt.fullName}
-        actions={
-          <ActionLink href={`/pts/${ptId}/contracts`}>Xem hợp đồng</ActionLink>
-        }
-      />
+      return (
+      <>
+        <PageHeader
+          eyebrow="Hồ sơ PT"
+          title={ptOverview.pt.fullName}
+          actions={
+            <ActionLink href="/pts">Quay lại danh sách PT</ActionLink>
+          }
+        />
 
-      <StatsGrid
-        items={[
-          {
-            label: "Hội viên đang hoạt động",
-            value: `${ptOverview.activeMembers}`,
-            note: "Phân công hội viên đang mở.",
-          },
-          {
-            label: "Công quy đổi",
-            value: `${ptOverview.validShiftCredits}`,
-            note: "Công VALID/HALF trong kỳ.",
-          },
-          {
-            label: "Tăng ca",
-            value: formatHours(ptOverview.overtimeHours),
-            note: "Tổng giờ tăng ca.",
-          },
-          {
-            label: "Lương kỳ gần nhất",
-            value: formatCurrency(ptOverview.estimatedPayroll),
-            note: "Thực lĩnh kỳ gần nhất.",
-          },
-        ]}
-      />
+        <StatsGrid
+          items={[
+            {
+              label: "Hội viên đang hoạt động",
+              value: `${ptOverview.activeMembers}`,
+              note: "Phân công hội viên đang mở.",
+            },
+            {
+              label: "Công quy đổi",
+              value: `${ptOverview.validShiftCredits}`,
+              note: "Công VALID/HALF trong kỳ.",
+            },
+            {
+              label: "Tăng ca",
+              value: formatHours(ptOverview.overtimeHours),
+              note: "Tổng giờ tăng ca.",
+            },
+            {
+              label: "Lương kỳ gần nhất",
+              value: formatCurrency(ptOverview.estimatedPayroll),
+              note: "Thực lĩnh kỳ gần nhất.",
+            },
+          ]}
+        />
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Tóm tắt hồ sơ">
-          <KeyValueList
-            items={[
-              { label: "Thư điện tử", value: ptOverview.pt.email },
-              { label: "Số điện thoại", value: ptOverview.pt.phone },
-              { label: "Địa chỉ", value: ptOverview.pt.address },
-              {
-                label: "Kinh nghiệm",
-                value: `${ptOverview.pt.experienceYears} năm`,
-              },
-              {
-                label: "Trạng thái",
-                value: (
-                  <Badge tone={getStatusTone(ptOverview.pt.status)}>
-                    {ptOverview.pt.status}
-                  </Badge>
-                ),
-              },
-              {
-                label: "Loại hợp đồng",
-                value: ptOverview.contract?.contractType ?? "Chưa có hợp đồng",
-              },
-            ]}
-          />
-        </SectionCard>
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <SectionCard title="Tóm tắt hồ sơ">
+            <KeyValueList
+              items={[
+                { label: "Thư điện tử", value: ptOverview.pt.email },
+                { label: "Số điện thoại", value: ptOverview.pt.phone },
+                { label: "Địa chỉ", value: ptOverview.pt.address },
+                {
+                  label: "Kinh nghiệm",
+                  value: `${ptOverview.pt.experienceYears} năm`,
+                },
+                {
+                  label: "Trạng thái",
+                  value: (
+                    <Badge tone={getStatusTone(ptOverview.pt.status)}>
+                      {ptOverview.pt.status}
+                    </Badge>
+                  ),
+                },
+                { label: "Lương do Admin quản lý", value: formatCurrency(ptOverview.estimatedPayroll) },
+              ]}
+            />
+          </SectionCard>
 
-        <SectionCard title="Hội viên được phân công">
+          <SectionCard title="Hội viên được phân công">
+            <DataTable
+              headers={["Hội viên", "Trạng thái", "Ngày tham gia", "Chi tiết"]}
+              rows={assignedMembers.map((member) => [
+                member.fullName,
+                <Badge key={member.id} tone={getStatusTone(member.status)}>
+                  {member.status}
+                </Badge>,
+                formatDate(member.registeredAt),
+                <ActionLink
+                  key={`${member.id}-detail`}
+                  href={`/members/${member.id}`}
+                >
+                  Mở hội viên
+                </ActionLink>,
+              ])}
+            />
+          </SectionCard>
+        </div>
+
+        <SectionCard title="Dòng thời gian chấm công">
           <DataTable
-            headers={["Hội viên", "Trạng thái", "Ngày tham gia", "Chi tiết"]}
-            rows={assignedMembers.map((member) => [
-              member.fullName,
-              <Badge key={member.id} tone={getStatusTone(member.status)}>
-                {member.status}
-              </Badge>,
-              formatDate(member.registeredAt),
-              <ActionLink
-                key={`${member.id}-detail`}
-                href={`/members/${member.id}`}
+            headers={[
+              "Ngày",
+              "Vào ca",
+              "Ra ca",
+              "Giờ làm",
+              "Tăng ca",
+              "Trạng thái",
+            ]}
+            rows={attendanceLogs.map((attendanceLog) => [
+              attendanceLog.attendanceDate,
+              formatDateTime(attendanceLog.checkInAt),
+              attendanceLog.checkOutAt
+                ? formatDateTime(attendanceLog.checkOutAt)
+                : "Đang mở",
+              formatHours(attendanceLog.workedHours),
+              formatHours(attendanceLog.overtimeHours),
+              <Badge
+                key={attendanceLog.id}
+                tone={getStatusTone(attendanceLog.status)}
               >
-                Mở hội viên
-              </ActionLink>,
+                {attendanceLog.status}
+              </Badge>,
             ])}
           />
         </SectionCard>
-      </div>
 
-      <SectionCard title="Dòng thời gian chấm công">
-        <DataTable
-          headers={[
-            "Ngày",
-            "Vào ca",
-            "Ra ca",
-            "Giờ làm",
-            "Tăng ca",
-            "Trạng thái",
-          ]}
-          rows={attendanceLogs.map((attendanceLog) => [
-            attendanceLog.attendanceDate,
-            formatDateTime(attendanceLog.checkInAt),
-            attendanceLog.checkOutAt
-              ? formatDateTime(attendanceLog.checkOutAt)
-              : "Đang mở",
-            formatHours(attendanceLog.workedHours),
-            formatHours(attendanceLog.overtimeHours),
-            <Badge
-              key={attendanceLog.id}
-              tone={getStatusTone(attendanceLog.status)}
-            >
-              {attendanceLog.status}
-            </Badge>,
-          ])}
-        />
-      </SectionCard>
+        <SectionCard title="Lịch sử lương">
+          <DataTable
+            headers={[
+              "Kỳ",
+              "Công quy đổi",
+              "Tăng ca",
+              "Hoa hồng gói",
+              "Thực lĩnh",
+              "Trạng thái",
+            ]}
+            rows={payrollEntries.map((entry) => [
+              snapshot.dataset.payrollPeriods.find(
+                (period) => period.id === entry.payrollPeriodId,
+              )?.code ?? entry.payrollPeriodId,
+              `${entry.validShiftCredits}`,
+              formatHours(entry.overtimeHours),
+              formatCurrency(entry.packageCommission),
+              formatCurrency(entry.netPay),
+              <Badge key={entry.id} tone={getStatusTone(entry.status)}>
 
-      <SectionCard title="Lịch sử lương">
-        <DataTable
-          headers={[
-            "Kỳ",
-            "Công quy đổi",
-            "Tăng ca",
-            "Hoa hồng gói",
-            "Thực lĩnh",
-            "Trạng thái",
-          ]}
-          rows={payrollEntries.map((entry) => [
-            snapshot.dataset.payrollPeriods.find(
-              (period) => period.id === entry.payrollPeriodId,
-            )?.code ?? entry.payrollPeriodId,
-            `${entry.validShiftCredits}`,
-            formatHours(entry.overtimeHours),
-            formatCurrency(entry.packageCommission),
-            formatCurrency(entry.netPay),
-            <Badge key={entry.id} tone={getStatusTone(entry.status)}>
-              {humanizeStatus(entry.status)}
-            </Badge>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
+                {canManageGym(undefined) ? null : null}
+
+                {true ? (
+                  <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                    <SectionCard title="Cập nhật PT">
+                      <form action={updatePersonalTrainerAction} className="space-y-4">
+                        <input type="hidden" name="locale" value={getLocale()} />
+                        <input type="hidden" name="ptId" value={ptId} />
+                        <FormGrid>
+                          <FormField label="Mã PT" name="code" defaultValue={ptOverview.pt.code} required />
+                          <FormField label="Họ và tên" name="fullName" defaultValue={ptOverview.pt.fullName} required />
+                          <FormSelect
+                            label="Giới tính"
+                            name="gender"
+                            required
+                            defaultValue={ptOverview.pt.gender}
+                            options={[
+                              { value: "MALE", label: "Nam" },
+                              { value: "FEMALE", label: "Nữ" },
+                              { value: "OTHER", label: "Khác" },
+                            ]}
+                          />
+                          <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.birthDate)} required />
+                          <FormField label="Số điện thoại" name="phone" defaultValue={ptOverview.pt.phone} required />
+                          <FormField label="Thư điện tử" name="email" type="email" defaultValue={ptOverview.pt.email} required />
+                          <FormField label="Địa chỉ" name="address" defaultValue={ptOverview.pt.address} required />
+                          <FormSelect
+                            label="Trạng thái"
+                            name="status"
+                            required
+                            defaultValue={ptOverview.pt.status}
+                            options={[
+                              { value: "ACTIVE", label: "Đang hoạt động" },
+                              { value: "INACTIVE", label: "Ngưng hoạt động" },
+                            ]}
+                          />
+                          <FormField label="Chuyên môn" name="specialties" defaultValue={ptOverview.pt.specialties.join("\n")} required />
+                          <FormField label="Kinh nghiệm" name="experienceYears" type="number" min={0} defaultValue={ptOverview.pt.experienceYears} required />
+                          <FormField label="Avatar URL" name="avatarUrl" defaultValue={ptOverview.pt.avatarUrl} />
+                          <FormField label="Ngày bắt đầu" name="startDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.startDate)} required />
+                          <FormField label="Mã người dùng" name="userId" defaultValue={ptOverview.pt.userId} />
+                        </FormGrid>
+                        <SubmitButton label="Lưu PT" />
+                      </form>
+                    </SectionCard>
+
+                    <SectionCard title="Xóa PT">
+                      <form action={deletePersonalTrainerAction} className="space-y-4">
+                        <input type="hidden" name="locale" value={getLocale()} />
+                        <input type="hidden" name="ptId" value={ptId} />
+                        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                          Xóa PT sẽ loại bỏ hồ sơ khỏi danh sách quản trị.
+                        </p>
+                        <button type="submit" className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700">
+                          Xóa PT
+                        </button>
+                      </form>
+                    </SectionCard>
+                  </div>
+                ) : null}
+                {humanizeStatus(entry.status)}
+              </Badge>,
+            ])}
+          />
+        </SectionCard>
+      </>
+      );
 }
-
-function buildPtContractsPage(
-  ptId: string,
-  options?: RenderGymRouteOptions,
-): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const trainer = snapshot.dataset.personalTrainers.find(
-    (item) => item.id === ptId,
-  );
-  const contract = getContractForTrainer(snapshot, ptId);
-  const locale = getLocale(options);
-
-  if (!trainer || !contract) {
-    notFound();
-  }
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Hợp đồng PT"
-        title={`Hợp đồng của ${trainer.fullName}`}
-        actions={<ActionLink href={`/pts/${ptId}`}>Quay lại hồ sơ</ActionLink>}
-      />
-
-      <SectionCard title="Thiết lập hợp đồng">
-        <KeyValueList
-          items={[
-            { label: "Loại lương", value: contract.salaryType },
-            {
-              label: "Lương cơ bản",
-              value: formatCurrency(contract.baseSalary),
-            },
-            {
-              label: "Ca tối thiểu hợp lệ",
-              value: formatHours(contract.minValidShiftHours),
-            },
-            {
-              label: "Ca chuẩn",
-              value: formatHours(contract.standardShiftHours),
-            },
-            {
-              label: "Tỷ lệ tăng ca",
-              value: `${formatCurrency(contract.overtimeHourlyRate)} / giờ`,
-            },
-            {
-              label: "Hoa hồng gói",
-              value: `${contract.packageCommissionRate * 100}%`,
-            },
-            {
-              label: "Hoa hồng bán hàng",
-              value: `${contract.salesCommissionRate * 100}%`,
-            },
-            {
-              label: "Thưởng hiệu suất",
-              value: `${formatCurrency(contract.performanceBonusAmount)} khi đạt ${contract.performanceBonusThreshold} hội viên hoạt động`,
-            },
-            { label: "Phụ cấp", value: formatCurrency(contract.allowances) },
-            {
-              label: "Hiệu lực",
-              value: `${formatDate(contract.effectiveFrom)} - ${contract.effectiveTo ? formatDate(contract.effectiveTo) : "Không thời hạn"}`,
-            },
-          ]}
-        />
-      </SectionCard>
-
-      {isAdmin(options) ? (
-        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <SectionCard
-            title="Cập nhật hợp đồng đang áp dụng"
-          >
-            <form action={updatePtContractAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="ptId" value={ptId} />
-              <input type="hidden" name="contractId" value={contract.id} />
-              <FormGrid>
-                <FormField
-                  label="Mã hợp đồng"
-                  name="contractCode"
-                  defaultValue={contract.contractCode}
-                />
-                <FormField
-                  label="Loại hợp đồng"
-                  name="contractType"
-                  defaultValue={contract.contractType}
-                  required
-                />
-                <FormField
-                  label="Loại lương"
-                  name="salaryType"
-                  defaultValue={contract.salaryType}
-                  required
-                />
-                <FormField
-                  label="Lương cơ bản"
-                  name="baseSalary"
-                  type="number"
-                  defaultValue={contract.baseSalary}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Số giờ tối thiểu hợp lệ"
-                  name="minValidShiftHours"
-                  type="number"
-                  defaultValue={contract.minValidShiftHours}
-                  step="0.5"
-                  required
-                />
-                <FormField
-                  label="Số giờ ca chuẩn"
-                  name="standardShiftHours"
-                  type="number"
-                  defaultValue={contract.standardShiftHours}
-                  step="0.5"
-                  required
-                />
-                <FormField
-                  label="Đơn giá tăng ca theo giờ"
-                  name="overtimeHourlyRate"
-                  type="number"
-                  defaultValue={contract.overtimeHourlyRate}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Ngưỡng hiệu suất"
-                  name="performanceBonusThreshold"
-                  type="number"
-                  defaultValue={contract.performanceBonusThreshold}
-                  required
-                />
-                <FormField
-                  label="Thưởng hiệu suất"
-                  name="performanceBonusAmount"
-                  type="number"
-                  defaultValue={contract.performanceBonusAmount}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Tỷ lệ hoa hồng gói"
-                  name="packageCommissionRate"
-                  type="number"
-                  defaultValue={contract.packageCommissionRate}
-                  step="0.01"
-                  required
-                />
-                <FormField
-                  label="Tỷ lệ hoa hồng bán hàng"
-                  name="salesCommissionRate"
-                  type="number"
-                  defaultValue={contract.salesCommissionRate}
-                  step="0.01"
-                  required
-                />
-                <FormField
-                  label="Phụ cấp"
-                  name="allowances"
-                  type="number"
-                  defaultValue={contract.allowances}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Hiệu lực từ"
-                  name="effectiveFrom"
-                  type="date"
-                  defaultValue={toDateInputValue(contract.effectiveFrom)}
-                  required
-                />
-                <FormField
-                  label="Hiệu lực đến"
-                  name="effectiveTo"
-                  type="date"
-                  defaultValue={toDateInputValue(contract.effectiveTo)}
-                />
-              </FormGrid>
-              <FormTextArea
-                label="Quy tắc phạt"
-                name="penaltyRules"
-                defaultValue={(contract.penaltyRules ?? []).join("\n")}
-                placeholder="Mỗi dòng một quy tắc"
-              />
-              <SubmitButton label="Cập nhật hợp đồng" />
-            </form>
-          </SectionCard>
-
-          <SectionCard
-            title="Tạo hợp đồng kế tiếp"
-          >
-            <form action={createPtContractAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="ptId" value={ptId} />
-              <FormGrid>
-                <FormField
-                  label="Mã hợp đồng"
-                  name="contractCode"
-                  placeholder="PTC-2026-APR"
-                />
-                <FormField
-                  label="Loại hợp đồng"
-                  name="contractType"
-                  defaultValue={contract.contractType}
-                  required
-                />
-                <FormField
-                  label="Loại lương"
-                  name="salaryType"
-                  defaultValue={contract.salaryType}
-                  required
-                />
-                <FormField
-                  label="Lương cơ bản"
-                  name="baseSalary"
-                  type="number"
-                  defaultValue={contract.baseSalary}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Số giờ tối thiểu hợp lệ"
-                  name="minValidShiftHours"
-                  type="number"
-                  defaultValue={contract.minValidShiftHours}
-                  step="0.5"
-                  required
-                />
-                <FormField
-                  label="Số giờ ca chuẩn"
-                  name="standardShiftHours"
-                  type="number"
-                  defaultValue={contract.standardShiftHours}
-                  step="0.5"
-                  required
-                />
-                <FormField
-                  label="Đơn giá tăng ca theo giờ"
-                  name="overtimeHourlyRate"
-                  type="number"
-                  defaultValue={contract.overtimeHourlyRate}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Ngưỡng hiệu suất"
-                  name="performanceBonusThreshold"
-                  type="number"
-                  defaultValue={contract.performanceBonusThreshold}
-                  required
-                />
-                <FormField
-                  label="Thưởng hiệu suất"
-                  name="performanceBonusAmount"
-                  type="number"
-                  defaultValue={contract.performanceBonusAmount}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Tỷ lệ hoa hồng gói"
-                  name="packageCommissionRate"
-                  type="number"
-                  defaultValue={contract.packageCommissionRate}
-                  step="0.01"
-                  required
-                />
-                <FormField
-                  label="Tỷ lệ hoa hồng bán hàng"
-                  name="salesCommissionRate"
-                  type="number"
-                  defaultValue={contract.salesCommissionRate}
-                  step="0.01"
-                  required
-                />
-                <FormField
-                  label="Phụ cấp"
-                  name="allowances"
-                  type="number"
-                  defaultValue={contract.allowances}
-                  step="1000"
-                  required
-                />
-                <FormField
-                  label="Hiệu lực từ"
-                  name="effectiveFrom"
-                  type="date"
-                  defaultValue={toDateInputValue(contract.effectiveTo)}
-                  required
-                />
-                <FormField
-                  label="Hiệu lực đến"
-                  name="effectiveTo"
-                  type="date"
-                />
-              </FormGrid>
-              <FormTextArea
-                label="Quy tắc phạt"
-                name="penaltyRules"
-                defaultValue={(contract.penaltyRules ?? []).join("\n")}
-                placeholder="Mỗi dòng một quy tắc"
-              />
-              <p className="text-sm leading-6 text-slate-500">
-                Nếu hợp đồng hiện tại vẫn không thời hạn, hãy cập nhật trường
-                hiệu lực đến trước khi tạo hợp đồng mới để tránh chồng lấn.
-              </p>
-              <SubmitButton label="Tạo hợp đồng kế tiếp" />
-            </form>
-          </SectionCard>
-        </div>
-      ) : null}
+      notFound();
+      return <></>;
+      <SubmitButton label="Tạo hợp đồng kế tiếp" />
+    </form >
+          </SectionCard >
+        </div >
+      ) : null
+}
     </>
   );
 }
@@ -1506,8 +1225,9 @@ function buildPayrollPeriodPage(periodId: string): JSX.Element {
   );
 }
 
-function buildMembersPage(): JSX.Element {
+function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const locale = getLocale(options);
   const membersWithPt = snapshot.memberOverview.filter(
     (item) => item.trainer !== undefined,
   ).length;
@@ -1549,6 +1269,49 @@ function buildMembersPage(): JSX.Element {
         ]}
       />
 
+      {canManageGym(options) ? (
+        <SectionCard title="Tạo hội viên mới">
+          <form action={createMemberAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+            <FormGrid>
+              <FormField label="Mã hội viên" name="code" placeholder="MBR004" required />
+              <FormField label="Họ và tên" name="fullName" required />
+              <FormSelect
+                label="Giới tính"
+                name="gender"
+                required
+                defaultValue="MALE"
+                options={[
+                  { value: "MALE", label: "Nam" },
+                  { value: "FEMALE", label: "Nữ" },
+                  { value: "OTHER", label: "Khác" },
+                ]}
+              />
+              <FormField label="Ngày sinh" name="birthDate" type="date" required />
+              <FormField label="Số điện thoại" name="phone" required />
+              <FormField label="Thư điện tử" name="email" type="email" required />
+              <FormField label="Địa chỉ" name="address" required />
+              <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={165} required />
+              <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={60} required />
+              <FormField label="Mục tiêu" name="goal" required />
+              <FormField label="Ghi chú sức khỏe" name="healthNotes" required />
+              <FormField label="Ngày đăng ký" name="registeredAt" type="date" required />
+              <FormSelect
+                label="Trạng thái"
+                name="status"
+                defaultValue="ACTIVE"
+                required
+                options={[
+                  { value: "ACTIVE", label: "Đang hoạt động" },
+                  { value: "INACTIVE", label: "Ngưng hoạt động" },
+                ]}
+              />
+            </FormGrid>
+            <SubmitButton label="Tạo hội viên" />
+          </form>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Danh sách hội viên">
         <DataTable
           headers={[
@@ -1589,7 +1352,10 @@ function buildMembersPage(): JSX.Element {
   );
 }
 
-function buildMemberDetailPage(memberId: string): JSX.Element {
+function buildMemberDetailPage(
+  memberId: string,
+  options?: RenderGymRouteOptions,
+): JSX.Element {
   const snapshot = getGymSnapshot();
   const member = snapshot.dataset.members.find((item) => item.id === memberId);
 
@@ -1669,6 +1435,65 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
         </SectionCard>
       </div>
 
+      {canManageGym(options) ? (
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <SectionCard title="Cập nhật hội viên">
+            <form action={updateMemberAction} className="space-y-4">
+              <input type="hidden" name="locale" value={getLocale(options)} />
+              <input type="hidden" name="memberId" value={memberId} />
+              <FormGrid>
+                <FormField label="Mã hội viên" name="code" defaultValue={member.code} required />
+                <FormField label="Họ và tên" name="fullName" defaultValue={member.fullName} required />
+                <FormSelect
+                  label="Giới tính"
+                  name="gender"
+                  defaultValue={member.gender}
+                  required
+                  options={[
+                    { value: "MALE", label: "Nam" },
+                    { value: "FEMALE", label: "Nữ" },
+                    { value: "OTHER", label: "Khác" },
+                  ]}
+                />
+                <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(member.birthDate)} required />
+                <FormField label="Số điện thoại" name="phone" defaultValue={member.phone} required />
+                <FormField label="Thư điện tử" name="email" type="email" defaultValue={member.email} required />
+                <FormField label="Địa chỉ" name="address" defaultValue={member.address} required />
+                <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={member.heightCm} required />
+                <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={member.weightKg} required />
+                <FormField label="Mục tiêu" name="goal" defaultValue={member.goal} required />
+                <FormField label="Ghi chú sức khỏe" name="healthNotes" defaultValue={member.healthNotes} required />
+                <FormField label="Ngày đăng ký" name="registeredAt" type="date" defaultValue={toDateInputValue(member.registeredAt)} required />
+                <FormSelect
+                  label="Trạng thái"
+                  name="status"
+                  defaultValue={member.status}
+                  required
+                  options={[
+                    { value: "ACTIVE", label: "Đang hoạt động" },
+                    { value: "INACTIVE", label: "Ngưng hoạt động" },
+                  ]}
+                />
+              </FormGrid>
+              <SubmitButton label="Lưu hội viên" />
+            </form>
+          </SectionCard>
+
+          <SectionCard title="Xóa hội viên">
+            <form action={deleteMemberAction} className="space-y-4">
+              <input type="hidden" name="locale" value={getLocale(options)} />
+              <input type="hidden" name="memberId" value={memberId} />
+              <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                Xóa hội viên sẽ loại bỏ hồ sơ và toàn bộ quan hệ gắn với hồ sơ này.
+              </p>
+              <button type="submit" className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700">
+                Xóa hội viên
+              </button>
+            </form>
+          </SectionCard>
+        </div>
+      ) : null}
+
       <SectionCard title="Phân công PT">
         <DataTable
           headers={["PT", "Từ ngày", "Đến ngày", "Hoa hồng", "Trạng thái"]}
@@ -1716,35 +1541,181 @@ function buildMemberDetailPage(memberId: string): JSX.Element {
     </>
   );
 }
-
-function buildMembershipOverviewPage(
-  options?: RenderGymRouteOptions,
-): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const locale = getLocale(options);
-  const manageableMemberships = snapshot.dataset.memberMemberships.filter(
-    (membership) => membership.status !== "CANCELLED",
-  );
-  const activeAssignments = snapshot.dataset.memberPtAssignments.filter(
-    (assignment) => assignment.status === "ACTIVE",
-  );
+function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element {
+  function buildMembershipOverviewPage(
+    const locale = getLocale(options);
+    options?: RenderGymRouteOptions,
+  ): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const locale = getLocale(options);
+    const manageableMemberships = snapshot.dataset.memberMemberships.filter(
+      (membership) => membership.status !== "CANCELLED",
+    );
+    {
+      canManageGym(options) ? (
+        <SectionCard title="Tạo gói tập mới">
+          <form action={createMembershipPlanAction} className="space-y-4">
+            <input type="hidden" name="locale" value={locale} />
+            <FormGrid>
+              <FormField label="Mã gói" name="code" placeholder="PLAN-3M" required />
+              <FormField label="Tên gói" name="name" required />
+              <FormField label="Loại" name="type" placeholder="MONTHLY" required />
+              <FormField label="Giá" name="price" type="number" step="1000" min={0} required />
+              <FormField label="Số ngày" name="durationDays" type="number" min={1} defaultValue={30} required />
+              <FormField label="Giới hạn lượt" name="usageLimit" type="number" min={0} />
+              <FormSelect
+                label="Bao gồm PT"
+                name="includesPt"
+                defaultValue="false"
+                required
+                options={[
+                  { value: "false", label: "Không" },
+                  { value: "true", label: "Có" },
+                ]}
+              />
+              <FormField label="Số buổi PT kèm theo" name="includedPtSessions" type="number" min={0} defaultValue={0} required />
+              <FormField label="Quyền lợi" name="perks" placeholder="Tập gym\nTắm nóng lạnh" required />
+              <FormSelect
+                label="Trạng thái"
+                name="status"
+                defaultValue="ACTIVE"
+                required
+                options={[
+                  { value: "ACTIVE", label: "Đang bán" },
+                  { value: "INACTIVE", label: "Ngưng bán" },
+                ]}
+              />
+            </FormGrid>
+            <SubmitButton label="Tạo gói" />
+          </form>
+        </SectionCard>
+      ) : null
+    }
+    const activeAssignments = snapshot.dataset.memberPtAssignments.filter(
+      (assignment) => assignment.status === "ACTIVE",
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Vòng đời gói tập"
-        title="Gói tập đã bán"
-      />
+      <>
+        <PageHeader
+          eyebrow="Vòng đời gói tập"
+          title="Gói tập đã bán"
+        />
 
-      {canManageGym(options) ? (
-        <>
-          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-            <SectionCard
-              title="Bán gói tập mới"
-            >
-              <form action={createMembershipAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormGrid>
+        {canManageGym(options) ? (
+          <>
+            <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+              <SectionCard
+                title="Bán gói tập mới"
+              >
+                <form action={createMembershipAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormGrid>
+                    <FormSelect
+                      label="Hội viên"
+                      name="memberId"
+                      required
+                      options={snapshot.dataset.members.map((member) => ({
+                        value: member.id,
+                        label: `${member.code} | ${member.fullName}`,
+                      }))}
+                    />
+                    <FormSelect
+                      label="Gói"
+                      name="membershipPlanId"
+                      required
+                      options={snapshot.dataset.membershipPlans.map((plan) => ({
+                        value: plan.id,
+                        label: `${plan.name} | ${formatCurrency(plan.price)}`,
+                      }))}
+                    />
+                    <FormField
+                      label="Ngày bắt đầu"
+                      name="startDate"
+                      type="date"
+                      required
+                    />
+                    <FormSelect
+                      label="Phương thức thanh toán"
+                      name="paymentMethod"
+                      required
+                      defaultValue="BANK_TRANSFER"
+                      options={[
+                        { value: "CASH", label: "Tiền mặt" },
+                        { value: "CARD", label: "Thẻ" },
+                        { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+                      ]}
+                    />
+                  </FormGrid>
+                  <SubmitButton label="Bán gói tập" />
+                </form>
+              </SectionCard>
+
+              <SectionCard
+                title="Gia hạn gói tập"
+              >
+                <form action={renewMembershipAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormSelect
+                    label="Gói tập hiện có"
+                    name="membershipId"
+                    required
+                    options={manageableMemberships.map((membership) => ({
+                      value: membership.id,
+                      label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)} | ${humanizeStatus(membership.status)}`,
+                    }))}
+                  />
+                  <FormGrid>
+                    <FormField
+                      label="Ngày bắt đầu mới"
+                      name="startDate"
+                      type="date"
+                    />
+                    <FormSelect
+                      label="Phương thức thanh toán"
+                      name="paymentMethod"
+                      defaultValue="BANK_TRANSFER"
+                      options={[
+                        { value: "", label: "Giữ mặc định" },
+                        { value: "CASH", label: "Tiền mặt" },
+                        { value: "CARD", label: "Thẻ" },
+                        { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+                      ]}
+                    />
+                  </FormGrid>
+                  <SubmitButton label="Gia hạn gói tập" />
+                </form>
+              </SectionCard>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
+              <SectionCard
+                title="Hủy gói tập"
+              >
+                <form action={cancelMembershipAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormSelect
+                    label="Gói tập"
+                    name="membershipId"
+                    required
+                    options={manageableMemberships.map((membership) => ({
+                      value: membership.id,
+                      label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
+                    }))}
+                  />
+                  <FormField
+                    label="Thời điểm hủy"
+                    name="cancelledAt"
+                    type="date"
+                  />
+                  <SubmitButton label="Hủy gói tập" />
+                </form>
+              </SectionCard>
+
+              <SectionCard
+                title="Phân công PT"
+              >
+                <form action={createAssignmentAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
                   <FormSelect
                     label="Hội viên"
                     name="memberId"
@@ -1755,1656 +1726,1369 @@ function buildMembershipOverviewPage(
                     }))}
                   />
                   <FormSelect
-                    label="Gói"
-                    name="membershipPlanId"
+                    label="PT"
+                    name="ptId"
                     required
-                    options={snapshot.dataset.membershipPlans.map((plan) => ({
-                      value: plan.id,
-                      label: `${plan.name} | ${formatCurrency(plan.price)}`,
+                    options={snapshot.dataset.personalTrainers.map((trainer) => ({
+                      value: trainer.id,
+                      label: `${trainer.code} | ${trainer.fullName}`,
+                    }))}
+                  />
+                  <FormSelect
+                    label="Gói tập"
+                    name="memberMembershipId"
+                    required
+                    options={manageableMemberships.map((membership) => ({
+                      value: membership.id,
+                      label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
+                    }))}
+                  />
+                  <FormGrid>
+                    <FormField
+                      label="Phân công từ"
+                      name="assignedFrom"
+                      type="date"
+                      required
+                    />
+                    <FormSelect
+                      label="Loại hoa hồng"
+                      name="commissionType"
+                      defaultValue="PERCENTAGE"
+                      options={[
+                        { value: "PERCENTAGE", label: "Phần trăm" },
+                        { value: "FIXED", label: "Cố định" },
+                      ]}
+                    />
+                    <FormField
+                      label="Giá trị hoa hồng"
+                      name="commissionValue"
+                      type="number"
+                      defaultValue={10}
+                      step="0.5"
+                    />
+                  </FormGrid>
+                  <SubmitButton label="Tạo phân công" />
+                </form>
+              </SectionCard>
+
+              <SectionCard
+                title="Kết thúc phân công PT"
+              >
+                <form action={endAssignmentAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormSelect
+                    label="Phân công đang hoạt động"
+                    name="assignmentId"
+                    required
+                    options={activeAssignments.map((assignment) => ({
+                      value: assignment.id,
+                      label: `${getMemberName(snapshot, assignment.memberId)} -> ${getTrainerName(snapshot, assignment.ptId)}`,
                     }))}
                   />
                   <FormField
-                    label="Ngày bắt đầu"
-                    name="startDate"
-                    type="date"
-                    required
-                  />
-                  <FormSelect
-                    label="Phương thức thanh toán"
-                    name="paymentMethod"
-                    required
-                    defaultValue="BANK_TRANSFER"
-                    options={[
-                      { value: "CASH", label: "Tiền mặt" },
-                      { value: "CARD", label: "Thẻ" },
-                      { value: "BANK_TRANSFER", label: "Chuyển khoản" },
-                    ]}
-                  />
-                </FormGrid>
-                <SubmitButton label="Bán gói tập" />
-              </form>
-            </SectionCard>
-
-            <SectionCard
-              title="Gia hạn gói tập"
-            >
-              <form action={renewMembershipAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormSelect
-                  label="Gói tập hiện có"
-                  name="membershipId"
-                  required
-                  options={manageableMemberships.map((membership) => ({
-                    value: membership.id,
-                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)} | ${humanizeStatus(membership.status)}`,
-                  }))}
-                />
-                <FormGrid>
-                  <FormField
-                    label="Ngày bắt đầu mới"
-                    name="startDate"
+                    label="Phân công đến"
+                    name="assignedTo"
                     type="date"
                   />
-                  <FormSelect
-                    label="Phương thức thanh toán"
-                    name="paymentMethod"
-                    defaultValue="BANK_TRANSFER"
-                    options={[
-                      { value: "", label: "Giữ mặc định" },
-                      { value: "CASH", label: "Tiền mặt" },
-                      { value: "CARD", label: "Thẻ" },
-                      { value: "BANK_TRANSFER", label: "Chuyển khoản" },
-                    ]}
-                  />
-                </FormGrid>
-                <SubmitButton label="Gia hạn gói tập" />
-              </form>
-            </SectionCard>
-          </div>
+                  <SubmitButton label="Kết thúc phân công" />
+                </form>
+              </SectionCard>
+            </div>
+          </>
+        ) : null}
 
-          <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
-            <SectionCard
-              title="Hủy gói tập"
-            >
-              <form action={cancelMembershipAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormSelect
-                  label="Gói tập"
-                  name="membershipId"
-                  required
-                  options={manageableMemberships.map((membership) => ({
-                    value: membership.id,
-                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
-                  }))}
-                />
-                <FormField
-                  label="Thời điểm hủy"
-                  name="cancelledAt"
-                  type="date"
-                />
-                <SubmitButton label="Hủy gói tập" />
-              </form>
-            </SectionCard>
+        <SectionCard title="Gói tập của hội viên">
+          <DataTable
+            headers={["Hội viên", "Gói", "Khoảng thời gian", "Kèm PT", "Trạng thái"]}
+            rows={snapshot.dataset.memberMemberships.map((membership) => {
+              const plan = snapshot.dataset.membershipPlans.find(
+                (item) => item.id === membership.membershipPlanId,
+              );
 
+              return [
+                getMemberName(snapshot, membership.memberId),
+                plan?.name ?? membership.membershipPlanId,
+                `${formatDate(membership.startDate)} - ${formatDate(membership.endDate)}`,
+                plan?.includesPt ? "Có" : "Không",
+                <Badge
+                  key={membership.id}
+                  tone={getStatusTone(membership.status)}
+                >
+                  {humanizeStatus(membership.status)}
+                </Badge>,
+              ];
+            })}
+          />
+        </SectionCard>
+      </>
+    );
+  }
+
+  function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const locale = getLocale(options);
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Phân công PT"
+          title="Phân công hội viên"
+        />
+
+        <StatsGrid
+          items={[
+            {
+              label: "Phân công đang hoạt động",
+              value: `${snapshot.dataset.memberPtAssignments.filter(a => a.status === 'ACTIVE').length}`,
+              note: "Tổng số PT đang theo dõi hội viên.",
+            },
+            {
+              label: "Tổng phân công",
+              value: `${snapshot.dataset.memberPtAssignments.length}`,
+              note: "Lịch sử toàn bộ phân công.",
+            },
+          ]}
+        />
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <SectionCard title="Nhật ký phân công">
+            <DataTable
+              headers={[
+                "Hội viên",
+                "PT",
+                "Hoa hồng",
+                "Phân công từ",
+                "Đến ngày",
+                "Trạng thái",
+                "Hành động",
+              ]}
+              rows={snapshot.dataset.memberPtAssignments.map((assignment) => [
+                getMemberName(snapshot, assignment.memberId),
+                getTrainerName(snapshot, assignment.ptId),
+                assignment.commissionType === "PERCENT"
+                  ? `${(assignment.commissionValue ?? 0) * 100}%`
+                  : formatCurrency(assignment.commissionValue ?? 0),
+                formatDate(assignment.assignedFrom),
+                assignment.assignedTo ? formatDate(assignment.assignedTo) : "-",
+                <Badge
+                  key={assignment.id}
+                  tone={getStatusTone(assignment.status)}
+                >
+                  {assignment.status}
+                </Badge>,
+                assignment.status === "ACTIVE" ? (
+                  <form key={`${assignment.id}-form`} action={endAssignmentAction}>
+                    <input type="hidden" name="locale" value={locale} />
+                    <input type="hidden" name="assignmentId" value={assignment.id} />
+                    <button type="submit" className="text-sm font-semibold text-rose-600 hover:text-rose-700">Kết thúc</button>
+                  </form>
+                ) : null,
+              ])}
+            />
+          </SectionCard>
+
+          {canManageGym(options) ? (
             <SectionCard
-              title="Phân công PT"
+              title="Tạo phân công"
             >
               <form action={createAssignmentAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
-                <FormSelect
-                  label="Hội viên"
-                  name="memberId"
-                  required
-                  options={snapshot.dataset.members.map((member) => ({
-                    value: member.id,
-                    label: `${member.code} | ${member.fullName}`,
-                  }))}
-                />
-                <FormSelect
-                  label="PT"
-                  name="ptId"
-                  required
-                  options={snapshot.dataset.personalTrainers.map((trainer) => ({
-                    value: trainer.id,
-                    label: `${trainer.code} | ${trainer.fullName}`,
-                  }))}
-                />
-                <FormSelect
-                  label="Gói tập"
-                  name="memberMembershipId"
-                  required
-                  options={manageableMemberships.map((membership) => ({
-                    value: membership.id,
-                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
-                  }))}
-                />
                 <FormGrid>
+                  <FormSelect
+                    label="Hội viên"
+                    name="memberId"
+                    options={snapshot.dataset.members.map((m) => ({
+                      value: m.id,
+                      label: m.fullName,
+                    }))}
+                    required
+                  />
+                  <FormSelect
+                    label="PT"
+                    name="ptId"
+                    options={snapshot.dataset.personalTrainers.filter(pt => pt.status === 'ACTIVE').map((pt) => ({
+                      value: pt.id,
+                      label: pt.fullName,
+                    }))}
+                    required
+                  />
+                  <FormSelect
+                    label="Gói tập"
+                    name="memberMembershipId"
+                    options={snapshot.dataset.memberMemberships.filter(m => m.status === 'ACTIVE').map((m) => ({
+                      value: m.id,
+                      label: `${getPlanName(snapshot, m.membershipPlanId)} (${getMemberName(snapshot, m.memberId)})`,
+                    }))}
+                    required
+                  />
                   <FormField
                     label="Phân công từ"
                     name="assignedFrom"
                     type="date"
                     required
                   />
+                  <FormField
+                    label="Phân công đến"
+                    name="assignedTo"
+                    type="date"
+                  />
                   <FormSelect
                     label="Loại hoa hồng"
                     name="commissionType"
-                    defaultValue="PERCENTAGE"
                     options={[
-                      { value: "PERCENTAGE", label: "Phần trăm" },
-                      { value: "FIXED", label: "Cố định" },
+                      { value: "PERCENT", label: "Phần trăm" },
+                      { value: "FIXED", label: "Số tiền cố định" },
                     ]}
+                    defaultValue="PERCENT"
                   />
                   <FormField
                     label="Giá trị hoa hồng"
                     name="commissionValue"
                     type="number"
-                    defaultValue={10}
-                    step="0.5"
+                    step="0.01"
+                    required
                   />
                 </FormGrid>
+                <FormTextArea
+                  label="Ghi chú"
+                  name="note"
+                  placeholder="Chi tiết cho phân công này"
+                />
                 <SubmitButton label="Tạo phân công" />
               </form>
             </SectionCard>
+          ) : null}
+        </div>
+      </>
+    );
+  }
 
-            <SectionCard
-              title="Kết thúc phân công PT"
-            >
-              <form action={endAssignmentAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormSelect
-                  label="Phân công đang hoạt động"
-                  name="assignmentId"
-                  required
-                  options={activeAssignments.map((assignment) => ({
-                    value: assignment.id,
-                    label: `${getMemberName(snapshot, assignment.memberId)} -> ${getTrainerName(snapshot, assignment.ptId)}`,
-                  }))}
-                />
-                <FormField
-                  label="Phân công đến"
-                  name="assignedTo"
-                  type="date"
-                />
-                <SubmitButton label="Kết thúc phân công" />
-              </form>
-            </SectionCard>
-          </div>
-        </>
-      ) : null}
+  function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const locale = getLocale(options);
 
-      <SectionCard title="Gói tập của hội viên">
-        <DataTable
-          headers={["Hội viên", "Gói", "Khoảng thời gian", "Kèm PT", "Trạng thái"]}
-          rows={snapshot.dataset.memberMemberships.map((membership) => {
-            const plan = snapshot.dataset.membershipPlans.find(
-              (item) => item.id === membership.membershipPlanId,
-            );
-
-            return [
-              getMemberName(snapshot, membership.memberId),
-              plan?.name ?? membership.membershipPlanId,
-              `${formatDate(membership.startDate)} - ${formatDate(membership.endDate)}`,
-              plan?.includesPt ? "Có" : "Không",
-              <Badge
-                key={membership.id}
-                tone={getStatusTone(membership.status)}
-              >
-                {humanizeStatus(membership.status)}
-              </Badge>,
-            ];
-          })}
+    return (
+      <>
+        <PageHeader
+          eyebrow="Danh mục"
+          title="Gói tập"
         />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const locale = getLocale(options);
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Phân công PT"
-        title="Phân công hội viên"
-      />
-
-      <StatsGrid
-        items={[
-          {
-            label: "Phân công đang hoạt động",
-            value: `${snapshot.dataset.memberPtAssignments.filter(a => a.status === 'ACTIVE').length}`,
-            note: "Tổng số PT đang theo dõi hội viên.",
-          },
-          {
-            label: "Tổng phân công",
-            value: `${snapshot.dataset.memberPtAssignments.length}`,
-            note: "Lịch sử toàn bộ phân công.",
-          },
-        ]}
-      />
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionCard title="Nhật ký phân công">
+        {canManageGym(options) ? (
+          <SectionCard title="Tạo gói tập mới">
+            <form action={createMembershipPlanAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormField label="Mã gói" name="code" placeholder="PLAN-3M" required />
+                <FormField label="Tên gói" name="name" required />
+                <FormField label="Loại" name="type" placeholder="MONTHLY" required />
+                <FormField label="Giá" name="price" type="number" step="1000" min={0} required />
+                <FormField label="Số ngày" name="durationDays" type="number" min={1} defaultValue={30} required />
+                <FormField label="Giới hạn lượt" name="usageLimit" type="number" min={0} />
+                <FormSelect
+                  label="Bao gồm PT"
+                  name="includesPt"
+                  defaultValue="false"
+                  required
+                  options={[
+                    { value: "false", label: "Không" },
+                    { value: "true", label: "Có" },
+                  ]}
+                />
+                <FormField label="Số buổi PT kèm theo" name="includedPtSessions" type="number" min={0} defaultValue={0} required />
+                <FormField label="Quyền lợi" name="perks" placeholder="Tập gym\nTắm nóng lạnh" required />
+                <FormSelect
+                  label="Trạng thái"
+                  name="status"
+                  defaultValue="ACTIVE"
+                  required
+                  options={[
+                    { value: "ACTIVE", label: "Đang bán" },
+                    { value: "INACTIVE", label: "Ngưng bán" },
+                  ]}
+                />
+              </FormGrid>
+              <SubmitButton label="Tạo gói" />
+            </form>
+          </SectionCard>
+        ) : null}
+        <SectionCard title="Danh mục gói tập">
           <DataTable
-            headers={[
-              "Hội viên",
-              "PT",
-              "Hoa hồng",
-              "Phân công từ",
-              "Đến ngày",
-              "Trạng thái",
-              "Hành động",
-            ]}
-            rows={snapshot.dataset.memberPtAssignments.map((assignment) => [
-              getMemberName(snapshot, assignment.memberId),
-              getTrainerName(snapshot, assignment.ptId),
-              assignment.commissionType === "PERCENT"
-                ? `${(assignment.commissionValue ?? 0) * 100}%`
-                : formatCurrency(assignment.commissionValue ?? 0),
-              formatDate(assignment.assignedFrom),
-              assignment.assignedTo ? formatDate(assignment.assignedTo) : "-",
-              <Badge
-                key={assignment.id}
-                tone={getStatusTone(assignment.status)}
-              >
-                {assignment.status}
+            headers={["Gói", "Loại", "Giá", "Kèm PT", "Quyền lợi", "Trạng thái", "Chi tiết"]}
+            rows={snapshot.dataset.membershipPlans.map((plan) => [
+              plan.name,
+              plan.type,
+              formatCurrency(plan.price),
+              plan.includesPt ? `${plan.includedPtSessions} buổi` : "Không",
+              plan.perks.join(", "),
+              <Badge key={plan.id} tone={getStatusTone(plan.status)}>
+                {humanizeStatus(plan.status)}
               </Badge>,
-              assignment.status === "ACTIVE" ? (
-                <form key={`${assignment.id}-form`} action={endAssignmentAction}>
-                  <input type="hidden" name="locale" value={locale} />
-                  <input type="hidden" name="assignmentId" value={assignment.id} />
-                  <button type="submit" className="text-sm font-semibold text-rose-600 hover:text-rose-700">Kết thúc</button>
-                </form>
-              ) : null,
+              <ActionLink key={`${plan.id}-detail`} href={`/membership-plans/${plan.id}`}>Mở gói</ActionLink>,
             ])}
+          />
+        </SectionCard>
+      </>
+    );
+  }
+
+  function buildMembershipPlanDetailPage(
+    planId: string,
+    options?: RenderGymRouteOptions,
+  ): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const plan = snapshot.dataset.membershipPlans.find((item) => item.id === planId);
+
+    if (!plan) {
+      notFound();
+    }
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Chi tiết gói tập"
+          title={plan.name}
+          actions={<ActionLink href="/membership-plans">Quay lại danh sách gói</ActionLink>}
+        />
+
+        <SectionCard title="Tóm tắt gói tập">
+          <KeyValueList
+            items={[
+              { label: "Mã gói", value: plan.code },
+              { label: "Loại", value: plan.type },
+              { label: "Giá", value: formatCurrency(plan.price) },
+              { label: "Số ngày", value: `${plan.durationDays}` },
+              { label: "Giới hạn lượt", value: plan.usageLimit === undefined ? "Không giới hạn" : `${plan.usageLimit}` },
+              { label: "Bao gồm PT", value: plan.includesPt ? "Có" : "Không" },
+              { label: "Số buổi PT", value: `${plan.includedPtSessions}` },
+              { label: "Quyền lợi", value: plan.perks.join("\n") },
+              { label: "Trạng thái", value: <Badge tone={getStatusTone(plan.status)}>{humanizeStatus(plan.status)}</Badge> },
+            ]}
           />
         </SectionCard>
 
         {canManageGym(options) ? (
-          <SectionCard
-            title="Tạo phân công"
-          >
-            <form action={createAssignmentAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormGrid>
-                <FormSelect
-                  label="Hội viên"
-                  name="memberId"
-                  options={snapshot.dataset.members.map((m) => ({
-                    value: m.id,
-                    label: m.fullName,
-                  }))}
-                  required
-                />
-                <FormSelect
-                  label="PT"
-                  name="ptId"
-                  options={snapshot.dataset.personalTrainers.filter(pt => pt.status === 'ACTIVE').map((pt) => ({
-                    value: pt.id,
-                    label: pt.fullName,
-                  }))}
-                  required
-                />
-                <FormSelect
-                  label="Gói tập"
-                  name="memberMembershipId"
-                  options={snapshot.dataset.memberMemberships.filter(m => m.status === 'ACTIVE').map((m) => ({
-                    value: m.id,
-                    label: `${getPlanName(snapshot, m.membershipPlanId)} (${getMemberName(snapshot, m.memberId)})`,
-                  }))}
-                  required
-                />
-                <FormField
-                  label="Phân công từ"
-                  name="assignedFrom"
-                  type="date"
-                  required
-                />
-                <FormField
-                  label="Phân công đến"
-                  name="assignedTo"
-                  type="date"
-                />
-                <FormSelect
-                  label="Loại hoa hồng"
-                  name="commissionType"
-                  options={[
-                    { value: "PERCENT", label: "Phần trăm" },
-                    { value: "FIXED", label: "Số tiền cố định" },
-                  ]}
-                  defaultValue="PERCENT"
-                />
-                <FormField
-                  label="Giá trị hoa hồng"
-                  name="commissionValue"
-                  type="number"
-                  step="0.01"
-                  required
-                />
-              </FormGrid>
-              <FormTextArea
-                label="Ghi chú"
-                name="note"
-                placeholder="Chi tiết cho phân công này"
-              />
-              <SubmitButton label="Tạo phân công" />
-            </form>
-          </SectionCard>
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <SectionCard title="Cập nhật gói tập">
+              <form action={updateMembershipPlanAction} className="space-y-4">
+                <input type="hidden" name="locale" value={getLocale(options)} />
+                <input type="hidden" name="planId" value={planId} />
+                <FormGrid>
+                  <FormField label="Mã gói" name="code" defaultValue={plan.code} required />
+                  <FormField label="Tên gói" name="name" defaultValue={plan.name} required />
+                  <FormField label="Loại" name="type" defaultValue={plan.type} required />
+                  <FormField label="Giá" name="price" type="number" step="1000" defaultValue={plan.price} required />
+                  <FormField label="Số ngày" name="durationDays" type="number" min={1} defaultValue={plan.durationDays} required />
+                  <FormField label="Giới hạn lượt" name="usageLimit" type="number" min={0} defaultValue={plan.usageLimit} />
+                  <FormSelect
+                    label="Bao gồm PT"
+                    name="includesPt"
+                    defaultValue={String(plan.includesPt)}
+                    required
+                    options={[
+                      { value: "false", label: "Không" },
+                      { value: "true", label: "Có" },
+                    ]}
+                  />
+                  <FormField label="Số buổi PT kèm theo" name="includedPtSessions" type="number" min={0} defaultValue={plan.includedPtSessions} required />
+                  <FormField label="Quyền lợi" name="perks" defaultValue={plan.perks.join("\n")} required />
+                  <FormSelect
+                    label="Trạng thái"
+                    name="status"
+                    defaultValue={plan.status}
+                    required
+                    options={[
+                      { value: "ACTIVE", label: "Đang bán" },
+                      { value: "INACTIVE", label: "Ngưng bán" },
+                    ]}
+                  />
+                </FormGrid>
+                <SubmitButton label="Lưu gói" />
+              </form>
+            </SectionCard>
+
+            <SectionCard title="Xóa gói tập">
+              <form action={deleteMembershipPlanAction} className="space-y-4">
+                <input type="hidden" name="locale" value={getLocale(options)} />
+                <input type="hidden" name="planId" value={planId} />
+                <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  Xóa gói sẽ loại bỏ nó khỏi danh mục bán cho hội viên.
+                </p>
+                <button type="submit" className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700">
+                  Xóa gói
+                </button>
+              </form>
+            </SectionCard>
+          </div>
         ) : null}
-      </div>
-    </>
-  );
-}
-
-function buildMembershipPlansPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Danh mục"
-        title="Gói tập"
-      />
-      <SectionCard title="Danh mục gói tập">
-        <DataTable
-          headers={["Gói", "Loại", "Giá", "Kèm PT", "Quyền lợi", "Trạng thái"]}
-          rows={snapshot.dataset.membershipPlans.map((plan) => [
-            plan.name,
-            plan.type,
-            formatCurrency(plan.price),
-            plan.includesPt ? `${plan.includedPtSessions} buổi` : "Không",
-            plan.perks.join(", "),
-            <Badge key={plan.id} tone={getStatusTone(plan.status)}>
-              {humanizeStatus(plan.status)}
-            </Badge>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildMembershipInvoicesPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Thanh toán gói tập"
-        title="Hóa đơn gói tập"
-      />
-      <SectionCard title="Danh sách hóa đơn gói tập">
-        <DataTable
-          headers={["Mã", "Hội viên", "Ngày", "Số tiền", "Thanh toán", "Trạng thái"]}
-          rows={snapshot.dataset.membershipInvoices.map((invoice) => [
-            invoice.code,
-            getMemberName(snapshot, invoice.memberId),
-            formatDateTime(invoice.invoiceDate),
-            formatCurrency(invoice.totalAmount),
-            invoice.paymentMethod,
-            <Badge key={invoice.id} tone={getStatusTone(invoice.status)}>
-              {humanizeStatus(invoice.status)}
-            </Badge>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildProductsPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Danh mục bán lẻ"
-        title="Sản phẩm"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Tổng sản phẩm",
-            value: `${snapshot.inventoryOverview.totalProducts}`,
-            note: "Số SKU đang được theo dõi trong phòng gym.",
-          },
-          {
-            label: "Tồn kho thấp",
-            value: `${snapshot.inventoryOverview.lowStockCount}`,
-            note: "Cần nhập bổ sung ngay trong kỳ.",
-          },
-          {
-            label: "Giá trị tồn kho",
-            value: formatCurrency(snapshot.inventoryOverview.stockValue),
-            note: "Tồn kho tính theo đơn giá vốn.",
-          },
-          {
-            label: "Doanh thu dịch vụ",
-            value: formatCurrency(snapshot.revenueReport.servicesRevenue),
-            note: "Doanh thu từ hóa đơn bán hàng đã xác nhận.",
-          },
-        ]}
-      />
-
-      <SectionCard title="Danh sách sản phẩm">
-        <DataTable
-          headers={[
-            "Sản phẩm",
-            "Danh mục",
-            "Đơn giá vốn",
-            "Giá bán",
-            "Tồn kho",
-            "Ngưỡng",
-          ]}
-          rows={sortProductsByStock(snapshot.dataset.products).map(
-            (product) => [
-              product.name,
-              product.category,
-              formatCurrency(product.unitCost),
-              formatCurrency(product.salePrice),
-              `${product.stockOnHand}`,
-              `${product.minimumStockLevel}`,
-            ],
-          )}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const locale = getLocale(options);
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Kho hàng"
-        title="Giao dịch kho"
-        actions={<ActionLink href="/inventory/import">Mở phiếu nhập</ActionLink>}
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Giá trị tồn kho",
-            value: formatCurrency(snapshot.inventoryOverview.stockValue),
-            note: "Tính theo đơn giá vốn.",
-          },
-          {
-            label: "Giao dịch gần đây",
-            value: `${snapshot.inventoryOverview.recentTransactions.length}`,
-            note: "6 giao dịch gần nhất.",
-          },
-          {
-            label: "Sản phẩm bán chạy nhất",
-            value:
-              snapshot.inventoryOverview.topSellingProducts[0]?.product.name ??
-              "Không có",
-            note: "Sản phẩm bán chạy nhất.",
-          },
-          {
-            label: "Số SKU tồn thấp",
-            value: `${snapshot.inventoryOverview.lowStockCount}`,
-            note: "Số SKU đang cảnh báo.",
-          },
-        ]}
-      />
-
-      {canManageGym(options) ? (
-        <SectionCard
-          title="Tạo phiếu nhập"
-        >
-          <form action={importInventoryAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
-              <FormSelect
-                label="Sản phẩm"
-                name="productId"
-                required
-                options={snapshot.dataset.products.map((product) => ({
-                  value: product.id,
-                  label: `${product.code} | ${product.name}`,
-                }))}
-              />
-              <FormField
-                label="Số lượng"
-                name="quantity"
-                type="number"
-                min={1}
-                defaultValue={10}
-                required
-              />
-              <FormField
-                label="Đơn giá vốn"
-                name="unitCost"
-                type="number"
-                min={0}
-                step="1000"
-                required
-              />
-              <FormField
-                label="Mã tham chiếu"
-                name="referenceCode"
-                placeholder="PO-2026-04-01"
-              />
-            </FormGrid>
-            <SubmitButton label="Tạo phiếu nhập" />
-          </form>
-        </SectionCard>
-      ) : null}
-
-      <SectionCard title="Sổ kho">
-        <DataTable
-          headers={["Ngày", "Sản phẩm", "Loại", "SL", "Tham chiếu", "Ghi chú"]}
-          rows={snapshot.dataset.inventoryTransactions.map((transaction) => [
-            formatDateTime(transaction.transactionDate),
-            getProductName(snapshot, transaction.productId),
-            transaction.type,
-            `${transaction.quantity}`,
-            transaction.referenceCode,
-            transaction.note,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildInventoryImportPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const importTransactions = snapshot.dataset.inventoryTransactions.filter(
-    (transaction) => transaction.type === "IMPORT",
-  );
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Nhập hàng"
-        title="Theo dõi nhập kho"
-      />
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Giao dịch nhập kho">
-          <DataTable
-            headers={["Ngày", "Sản phẩm", "SL", "Đơn giá vốn", "Tham chiếu"]}
-            rows={importTransactions.map((transaction) => [
-              formatDateTime(transaction.transactionDate),
-              getProductName(snapshot, transaction.productId),
-              `${transaction.quantity}`,
-              formatCurrency(transaction.unitCost),
-              transaction.referenceCode,
-            ])}
-          />
-        </SectionCard>
-
-        <SectionCard title="Danh sách gợi ý nhập bổ sung">
-          <DataTable
-            headers={[
-              "Sản phẩm",
-              "Tồn kho hiện tại",
-              "Ngưỡng",
-              "Gợi ý hành động",
-            ]}
-            rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
-              (product) => [
-                product.name,
-                `${product.stockOnHand}`,
-                `${product.minimumStockLevel}`,
-                "Tạo yêu cầu nhập",
-              ],
-            )}
-          />
-        </SectionCard>
-      </div>
-    </>
-  );
-}
-
-function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const locale = getLocale(options);
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Bán hàng"
-        title="Hóa đơn dịch vụ"
-      />
-
-      {canManageGym(options) ? (
-        <SectionCard
-          title="Tạo hóa đơn bán hàng"
-        >
-          <form action={createSalesInvoiceAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
-              <FormSelect
-                label="Loại khách hàng"
-                name="memberId"
-                defaultValue=""
-                options={[
-                  { value: "", label: "Khách lẻ" },
-                  ...snapshot.dataset.members.map((member) => ({
-                    value: member.id,
-                    label: `${member.code} | ${member.fullName}`,
-                  })),
-                ]}
-              />
-              <FormField
-                label="Tên khách hàng"
-                name="customerName"
-                placeholder="Trần Văn A"
-                required
-              />
-              <FormSelect
-                label="Sản phẩm"
-                name="productId"
-                required
-                options={snapshot.dataset.products.map((product) => ({
-                  value: product.id,
-                  label: `${product.code} | ${product.name} | ${formatCurrency(product.salePrice)}`,
-                }))}
-              />
-              <FormField
-                label="Số lượng"
-                name="quantity"
-                type="number"
-                min={1}
-                defaultValue={1}
-                required
-              />
-              <FormSelect
-                label="Phương thức thanh toán"
-                name="paymentMethod"
-                defaultValue="CASH"
-                required
-                options={[
-                  { value: "CASH", label: "Tiền mặt" },
-                  { value: "CARD", label: "Thẻ" },
-                  { value: "BANK_TRANSFER", label: "Chuyển khoản" },
-                ]}
-              />
-              <FormField
-                label="Số tiền giảm"
-                name="discountAmount"
-                type="number"
-                min={0}
-                step="1000"
-                defaultValue={0}
-              />
-            </FormGrid>
-            <SubmitButton label="Tạo hóa đơn" />
-          </form>
-        </SectionCard>
-      ) : null}
-
-      <SectionCard title="Hóa đơn bán hàng">
-        <DataTable
-          headers={[
-            "Mã",
-            "Khách hàng",
-            "Ngày",
-            "Tổng",
-            "Thanh toán",
-            "Trạng thái",
-            "Chi tiết",
-          ]}
-          rows={snapshot.dataset.salesInvoices.map((invoice) => [
-            invoice.code,
-            invoice.customerName,
-            formatDateTime(invoice.invoiceDate),
-            formatCurrency(invoice.totalAmount),
-            invoice.paymentMethod,
-            <Badge key={invoice.id} tone={getStatusTone(invoice.status)}>
-              {humanizeStatus(invoice.status)}
-            </Badge>,
-            <ActionLink
-              key={`${invoice.id}-detail`}
-              href={`/invoices/${invoice.id}`}
-            >
-              Mở hóa đơn
-            </ActionLink>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildInvoiceDetailPage(invoiceId: string): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const invoice = snapshot.dataset.salesInvoices.find(
-    (item) => item.id === invoiceId,
-  );
-
-  if (!invoice) {
-    notFound();
+      </>
+    );
   }
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Chi tiết hóa đơn bán hàng"
-        title={invoice.code}
-        actions={<ActionLink href="/invoices">Quay lại danh sách hóa đơn</ActionLink>}
-      />
-      <SectionCard title="Tóm tắt hóa đơn">
-        <KeyValueList
-          items={[
-            { label: "Khách hàng", value: invoice.customerName },
-            {
-              label: "Hội viên",
-              value: invoice.memberId
-                ? getMemberName(snapshot, invoice.memberId)
-                : "Khách lẻ",
-            },
-            { label: "Phương thức thanh toán", value: invoice.paymentMethod },
-            {
-              label: "Giảm giá",
-              value: formatCurrency(invoice.discountAmount),
-            },
-            { label: "Tổng", value: formatCurrency(invoice.totalAmount) },
-            {
-              label: "Trạng thái",
-              value: (
-                <Badge tone={getStatusTone(invoice.status)}>
-                  {humanizeStatus(invoice.status)}
-                </Badge>
-              ),
-            },
-          ]}
+  function buildMembershipInvoicesPage(): JSX.Element {
+    const snapshot = getGymSnapshot();
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Thanh toán gói tập"
+          title="Hóa đơn gói tập"
         />
-      </SectionCard>
-
-      <SectionCard title="Chi tiết hóa đơn">
-        <DataTable
-          headers={["Sản phẩm", "SL", "Đơn giá", "Đơn giá vốn", "Thành tiền"]}
-          rows={invoice.items.map((item) => [
-            getProductName(snapshot, item.productId),
-            `${item.quantity}`,
-            formatCurrency(item.unitPrice),
-            formatCurrency(item.unitCost),
-            <span
-              key={`${invoice.id}-${item.productId}`}
-              className="font-semibold text-slate-900"
-            >
-              {formatCurrency(item.lineTotal)}
-            </span>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildExpensesPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Chi phí vận hành"
-        title="Phiếu đề nghị chi"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Chi phí được tính",
-            value: formatCurrency(snapshot.expenseReport.totalExpense),
-            note: "Chỉ tính các phiếu đã duyệt và đã chi.",
-          },
-          {
-            label: "Chờ duyệt",
-            value: `${snapshot.expenseReport.pendingApprovalCount}`,
-            note: "Cần quản trị viên rà soát.",
-          },
-          {
-            label: "Phiếu đã chi",
-            value: `${snapshot.expenseReport.paidCount}`,
-            note: "Đã thanh toán xong.",
-          },
-          {
-            label: "Danh mục lớn nhất",
-            value: "Sửa chữa",
-            note: "Chi phí sửa chữa đang chiếm tỷ trọng lớn nhất trong kỳ.",
-          },
-        ]}
-      />
-
-      <SectionCard title="Phiếu chi">
-        <DataTable
-          headers={[
-            "Mã",
-            "Ngày",
-            "Danh mục",
-            "Thiết bị",
-            "Số tiền",
-            "Trạng thái",
-            "Chi tiết",
-          ]}
-          rows={snapshot.dataset.operatingExpenses.map((expense) => [
-            expense.code,
-            formatDate(expense.expenseDate),
-            expense.category,
-            getEquipmentName(snapshot, expense.equipmentAssetId ?? undefined),
-            formatCurrency(expense.amount),
-            <Badge key={expense.id} tone={getStatusTone(expense.status)}>
-              {humanizeStatus(expense.status)}
-            </Badge>,
-            <ActionLink
-              key={`${expense.id}-detail`}
-              href={`/expenses/${expense.id}`}
-            >
-              Mở phiếu
-            </ActionLink>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildExpenseDetailPage(expenseId: string): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const expense = snapshot.dataset.operatingExpenses.find(
-    (item) => item.id === expenseId,
-  );
-
-  if (!expense) {
-    notFound();
-  }
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Chi tiết phiếu chi"
-        title={expense.code}
-        actions={<ActionLink href="/expenses">Quay lại danh sách phiếu chi</ActionLink>}
-      />
-      <SectionCard title="Tóm tắt chi phí">
-        <KeyValueList
-          items={[
-            { label: "Ngày chi", value: formatDate(expense.expenseDate) },
-            { label: "Nhà cung cấp", value: expense.vendorName },
-            {
-              label: "Thiết bị",
-              value: getEquipmentName(
-                snapshot,
-                expense.equipmentAssetId ?? undefined,
-              ),
-            },
-            { label: "Số tiền", value: formatCurrency(expense.amount) },
-            { label: "Mô tả", value: expense.description },
-            {
-              label: "Trạng thái",
-              value: (
-                <Badge tone={getStatusTone(expense.status)}>
-                  {humanizeStatus(expense.status)}
-                </Badge>
-              ),
-            },
-          ]}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildEquipmentPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Tài sản"
-        title="Danh mục thiết bị"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Thiết bị đang theo dõi",
-            value: `${snapshot.dataset.equipmentAssets.length}`,
-            note: "Tổng số thiết bị trong danh mục.",
-          },
-          {
-            label: "Cần chú ý",
-            value: `${snapshot.dataset.equipmentAssets.filter((asset) => asset.condition !== "GOOD").length}`,
-            note: "Thiết bị cần bảo trì hoặc thay thế.",
-          },
-          {
-            label: "Bản ghi bảo trì",
-            value: `${snapshot.dataset.maintenanceRecords.length}`,
-            note: "Tổng sự kiện bảo trì đã ghi nhận.",
-          },
-          {
-            label: "Cảnh báo mở",
-            value: `${snapshot.dashboard.maintenanceAlerts.length}`,
-            note: "Cần xử lý trong 14 ngày.",
-          },
-        ]}
-      />
-
-      <SectionCard title="Danh sách thiết bị">
-        <DataTable
-          headers={[
-            "Thiết bị",
-            "Ngày mua",
-            "Giá trị",
-            "Tình trạng",
-            "Bảo trì tiếp theo",
-            "Chi tiết",
-          ]}
-          rows={sortEquipmentByMaintenance(
-            snapshot.dataset.equipmentAssets,
-          ).map((equipmentAsset) => [
-            equipmentAsset.name,
-            formatDate(equipmentAsset.purchasedAt),
-            formatCurrency(equipmentAsset.purchaseValue),
-            <Badge
-              key={equipmentAsset.id}
-              tone={getStatusTone(equipmentAsset.condition)}
-            >
-              {humanizeStatus(equipmentAsset.condition)}
-            </Badge>,
-            formatDate(equipmentAsset.nextMaintenanceAt),
-            <ActionLink
-              key={`${equipmentAsset.id}-detail`}
-              href={`/equipment/${equipmentAsset.id}`}
-            >
-              Mở tài sản
-            </ActionLink>,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildEquipmentDetailPage(equipmentId: string): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const equipmentAsset = snapshot.dataset.equipmentAssets.find(
-    (item) => item.id === equipmentId,
-  );
-
-  if (!equipmentAsset) {
-    notFound();
-  }
-
-  const maintenanceRecords = snapshot.dataset.maintenanceRecords.filter(
-    (record) => record.equipmentAssetId === equipmentId,
-  );
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Chi tiết thiết bị"
-        title={equipmentAsset.name}
-        actions={<ActionLink href="/equipment">Quay lại danh sách thiết bị</ActionLink>}
-      />
-      <SectionCard title="Tóm tắt tài sản">
-        <KeyValueList
-          items={[
-            { label: "Mã", value: equipmentAsset.code },
-            {
-              label: "Ngày mua",
-              value: formatDate(equipmentAsset.purchasedAt),
-            },
-            {
-              label: "Giá trị mua",
-              value: formatCurrency(equipmentAsset.purchaseValue),
-            },
-            {
-              label: "Tình trạng",
-              value: (
-                <Badge tone={getStatusTone(equipmentAsset.condition)}>
-                  {humanizeStatus(equipmentAsset.condition)}
-                </Badge>
-              ),
-            },
-            {
-              label: "Bảo trì tiếp theo",
-              value: formatDate(equipmentAsset.nextMaintenanceAt),
-            },
-            { label: "Ghi chú", value: equipmentAsset.note },
-          ]}
-        />
-      </SectionCard>
-
-      <SectionCard title="Lịch sử bảo trì">
-        <DataTable
-          headers={["Ngày", "Nhà cung cấp", "Mô tả", "Số tiền"]}
-          rows={maintenanceRecords.map((record) => [
-            formatDate(record.maintenanceDate),
-            record.vendorName,
-            record.description,
-            formatCurrency(record.amount),
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildMaintenancePage(options?: RenderGymRouteOptions): JSX.Element {
-  const snapshot = getGymSnapshot();
-  const locale = getLocale(options);
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Nhật ký bảo trì"
-        title="Lịch sử bảo trì"
-      />
-
-      {canManageGym(options) ? (
-        <SectionCard
-          title="Ghi nhận bảo trì"
-        >
-          <form action={createMaintenanceAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
-              <FormSelect
-                label="Thiết bị"
-                name="equipmentAssetId"
-                required
-                options={snapshot.dataset.equipmentAssets.map((equipmentAsset) => ({
-                  value: equipmentAsset.id,
-                  label: `${equipmentAsset.code} | ${equipmentAsset.name}`,
-                }))}
-              />
-              <FormSelect
-                label="Loại bảo trì"
-                name="maintenanceType"
-                defaultValue="PREVENTIVE"
-                options={[
-                  { value: "PREVENTIVE", label: "Phòng ngừa" },
-                  { value: "CORRECTIVE", label: "Khắc phục" },
-                  { value: "INSPECTION", label: "Kiểm tra" },
-                ]}
-              />
-              <FormField
-                label="Ngày bảo trì"
-                name="maintenanceDate"
-                type="date"
-                required
-              />
-              <FormField
-                label="Tên nhà cung cấp"
-                name="vendorName"
-                placeholder="Công ty Dịch vụ Fit"
-                required
-              />
-              <FormField
-                label="Số tiền"
-                name="amount"
-                type="number"
-                min={0}
-                step="1000"
-                required
-              />
-              <FormSelect
-                label="Kết quả"
-                name="resultStatus"
-                defaultValue="COMPLETED"
-                options={[
-                  { value: "COMPLETED", label: "Hoàn tất" },
-                  { value: "FOLLOW_UP_REQUIRED", label: "Cần theo dõi thêm" },
-                  { value: "REPLACEMENT_RECOMMENDED", label: "Khuyến nghị thay thế" },
-                ]}
-              />
-              <FormField
-                label="Bảo trì tiếp theo"
-                name="nextMaintenanceAt"
-                type="date"
-              />
-            </FormGrid>
-            <FormTextArea
-              label="Mô tả"
-              name="description"
-              placeholder="Mô tả công việc đã thực hiện"
-              rows={3}
-            />
-            <SubmitButton label="Tạo bản ghi bảo trì" />
-          </form>
-        </SectionCard>
-      ) : null}
-
-      <SectionCard title="Bản ghi bảo trì">
-        <DataTable
-          headers={[
-            "Ngày",
-            "Thiết bị",
-            "Loại",
-            "Nhà cung cấp",
-            "Result",
-            "Số tiền",
-          ]}
-          rows={snapshot.dataset.maintenanceRecords.map((record) => [
-            formatDate(record.maintenanceDate),
-            getEquipmentName(snapshot, record.equipmentAssetId ?? undefined),
-            humanizeStatus(record.maintenanceType ?? "PREVENTIVE"),
-            record.vendorName,
-            humanizeStatus(record.resultStatus ?? "COMPLETED"),
-            formatCurrency(record.amount),
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildRevenueReportPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Báo cáo"
-        title="Báo cáo doanh thu"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Tổng doanh thu",
-            value: formatCurrency(snapshot.revenueReport.totalRevenue),
-            note: "Gói tập và bán lẻ đã xác nhận.",
-          },
-          {
-            label: "Doanh thu gói tập",
-            value: formatCurrency(snapshot.revenueReport.membershipRevenue),
-            note: "Thứ tự hóa đơn gói tập.",
-          },
-          {
-            label: "Doanh thu dịch vụ",
-            value: formatCurrency(snapshot.revenueReport.servicesRevenue),
-            note: "Thứ tự hóa đơn bán hàng.",
-          },
-          {
-            label: "Số lượng hóa đơn",
-            value: `${snapshot.revenueReport.membershipInvoiceCount + snapshot.revenueReport.salesInvoiceCount}`,
-            note: "Tổng hóa đơn đã xác nhận.",
-          },
-        ]}
-      />
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        <SectionCard title="Hóa đơn gói tập">
+        <SectionCard title="Danh sách hóa đơn gói tập">
           <DataTable
-            headers={["Mã", "Hội viên", "Ngày", "Số tiền"]}
+            headers={["Mã", "Hội viên", "Ngày", "Số tiền", "Thanh toán", "Trạng thái"]}
             rows={snapshot.dataset.membershipInvoices.map((invoice) => [
               invoice.code,
               getMemberName(snapshot, invoice.memberId),
               formatDateTime(invoice.invoiceDate),
               formatCurrency(invoice.totalAmount),
+              invoice.paymentMethod,
+              <Badge key={invoice.id} tone={getStatusTone(invoice.status)}>
+                {humanizeStatus(invoice.status)}
+              </Badge>,
             ])}
           />
         </SectionCard>
-        <SectionCard title="Hóa đơn bán lẻ">
-          <DataTable
-            headers={["Mã", "Khách hàng", "Ngày", "Số tiền"]}
-            rows={snapshot.dataset.salesInvoices
-              .filter((invoice) => invoice.status === "CONFIRMED")
-              .map((invoice) => [
-                invoice.code,
-                invoice.customerName,
-                formatDateTime(invoice.invoiceDate),
-                formatCurrency(invoice.totalAmount),
-              ])}
-          />
-        </SectionCard>
-      </div>
-    </>
-  );
-}
+      </>
+    );
+  }
 
-function buildPayrollReportPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
+  function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const locale = getLocale(options);
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Báo cáo"
-        title="Báo cáo lương"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Tổng lương",
-            value: formatCurrency(snapshot.payrollReport.totalPayroll),
-            note: "Tổng thực lĩnh toàn bộ lịch sử.",
-          },
-          {
-            label: "Đã duyệt",
-            value: formatCurrency(snapshot.payrollReport.approvedPayroll),
-            note: "Đã duyệt hoặc đã chi.",
-          },
-          {
-            label: "Đang chờ",
-            value: formatCurrency(snapshot.payrollReport.pendingPayroll),
-            note: "Đang chờ duyệt.",
-          },
-          {
-            label: "Bản ghi",
-            value: `${snapshot.payrollReport.byTrainer.length}`,
-            note: "Số dòng bảng lương trong dữ liệu mẫu.",
-          },
-        ]}
-      />
-      <SectionCard title="Bảng lương theo PT">
-        <DataTable
-          headers={["PT", "Kỳ", "Thực lĩnh", "Trạng thái"]}
-          rows={snapshot.payrollReport.byTrainer.map((item) => [
-            item.ptName,
-            item.payrollPeriodCode,
-            formatCurrency(item.netPay),
-            <Badge
-              key={`${item.ptId}-${item.payrollPeriodId}`}
-              tone={getStatusTone(item.status)}
-            >
-              {humanizeStatus(item.status)}
-            </Badge>,
-          ])}
+    return (
+      <>
+        <PageHeader
+          eyebrow="Danh mục bán lẻ"
+          title="Sản phẩm"
         />
-      </SectionCard>
-    </>
-  );
-}
+        {canManageGym(options) ? (
+          <SectionCard title="Tạo sản phẩm mới">
+            <form action={createProductAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormField label="Mã sản phẩm" name="code" placeholder="PROD-001" required />
+                <FormField label="Tên sản phẩm" name="name" required />
+                <FormField label="Danh mục" name="category" required />
+                <FormField label="Đơn giá vốn" name="unitCost" type="number" step="1000" min={0} required />
+                <FormField label="Giá bán" name="salePrice" type="number" step="1000" min={0} required />
+                <FormField label="Tồn kho" name="stockOnHand" type="number" min={0} defaultValue={0} required />
+                <FormField label="Ngưỡng tồn" name="minimumStockLevel" type="number" min={0} defaultValue={0} required />
+                <FormSelect
+                  label="Trạng thái"
+                  name="status"
+                  defaultValue="ACTIVE"
+                  required
+                  options={[
+                    { value: "ACTIVE", label: "Đang bán" },
+                    { value: "INACTIVE", label: "Ngưng bán" },
+                  ]}
+                />
+              </FormGrid>
+              <SubmitButton label="Tạo sản phẩm" />
+            </form>
+          </SectionCard>
+        ) : null}
+        <StatsGrid
+          items={[
+            {
+              label: "Tổng sản phẩm",
+              value: `${snapshot.inventoryOverview.totalProducts}`,
+              note: "Số SKU đang được theo dõi trong phòng gym.",
+            },
+            {
+              label: "Tồn kho thấp",
+              value: `${snapshot.inventoryOverview.lowStockCount}`,
+              note: "Cần nhập bổ sung ngay trong kỳ.",
+            },
+            {
+              label: "Giá trị tồn kho",
+              value: formatCurrency(snapshot.inventoryOverview.stockValue),
+              note: "Tồn kho tính theo đơn giá vốn.",
+            },
+            {
+              label: "Doanh thu dịch vụ",
+              value: formatCurrency(snapshot.revenueReport.servicesRevenue),
+              note: "Doanh thu từ hóa đơn bán hàng đã xác nhận.",
+            },
+          ]}
+        />
 
-function buildInventoryReportPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Báo cáo"
-        title="Báo cáo tồn kho"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Giá trị tồn kho",
-            value: formatCurrency(snapshot.inventoryOverview.stockValue),
-            note: "Tồn kho theo giá vốn.",
-          },
-          {
-            label: "Số SKU tồn thấp",
-            value: `${snapshot.inventoryOverview.lowStockCount}`,
-            note: "SKU đang cần cảnh báo.",
-          },
-          {
-            label: "Sản phẩm đang theo dõi",
-            value: `${snapshot.inventoryOverview.totalProducts}`,
-            note: "Tổng SKU đang hoạt động.",
-          },
-          {
-            label: "Biến động gần đây",
-            value: `${snapshot.inventoryOverview.recentTransactions.length}`,
-            note: "6 giao dịch gần nhất.",
-          },
-        ]}
-      />
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Sản phẩm bán chạy">
+        <SectionCard title="Danh sách sản phẩm">
           <DataTable
-            headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
-            rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
-              entry.product.name,
-              `${entry.soldQuantity}`,
-              `${entry.product.stockOnHand}`,
-            ])}
-          />
-        </SectionCard>
-        <SectionCard title="Giao dịch kho gần đây">
-          <DataTable
-            headers={["Ngày", "Sản phẩm", "Loại", "SL"]}
-            rows={snapshot.inventoryOverview.recentTransactions.map(
-              (transaction) => [
-                formatDateTime(transaction.transactionDate),
-                getProductName(snapshot, transaction.productId),
-                transaction.type,
-                `${transaction.quantity}`,
+            headers={[
+              "Sản phẩm",
+              "Danh mục",
+              "Đơn giá vốn",
+              "Giá bán",
+              "Tồn kho",
+              "Ngưỡng",
+              "Chi tiết",
+            ]}
+            rows={sortProductsByStock(snapshot.dataset.products).map(
+              (product) => [
+                product.name,
+                product.category,
+                formatCurrency(product.unitCost),
+                formatCurrency(product.salePrice),
+                `${product.stockOnHand}`,
+                `${product.minimumStockLevel}`,
+                <ActionLink key={`${product.id}-detail`} href={`/products/${product.id}`}>Mở sản phẩm</ActionLink>,
               ],
             )}
           />
         </SectionCard>
-      </div>
-    </>
-  );
-}
+      </>
+    );
+  }
 
-function buildExpenseReportPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
+  function buildProductDetailPage(
+    productId: string,
+    options?: RenderGymRouteOptions,
+  ): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const product = snapshot.dataset.products.find((item) => item.id === productId);
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Báo cáo"
-        title="Báo cáo chi phí"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Chi phí được tính",
-            value: formatCurrency(snapshot.expenseReport.totalExpense),
-            note: "Chỉ tính các phiếu đã duyệt và đã chi.",
-          },
-          {
-            label: "Chờ duyệt",
-            value: `${snapshot.expenseReport.pendingApprovalCount}`,
-            note: "Cần duyệt bổ sung.",
-          },
-          {
-            label: "Số phiếu đã chi",
-            value: `${snapshot.expenseReport.paidCount}`,
-            note: "Đã đánh dấu đã chi.",
-          },
-          {
-            label: "Danh mục cao nhất",
-            value: "Sửa chữa",
-            note: "Danh mục có tổng số tiền lớn nhất hiện tại.",
-          },
-        ]}
-      />
-      <SectionCard title="Chi phí theo danh mục">
-        <DataTable
-          headers={["Danh mục", "Số tiền"]}
-          rows={Object.entries(snapshot.expenseReport.byCategory).map(
-            ([category, amount]) => [category, formatCurrency(amount)],
-          )}
+    if (!product) {
+      notFound();
+    }
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Chi tiết sản phẩm"
+          title={product.name}
+          actions={<ActionLink href="/products">Quay lại danh sách sản phẩm</ActionLink>}
         />
-      </SectionCard>
-    </>
-  );
-}
 
-function buildProfitReportPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
+        <SectionCard title="Tóm tắt sản phẩm">
+          <KeyValueList
+            items={[
+              { label: "Mã", value: product.code },
+              { label: "Danh mục", value: product.category },
+              { label: "Đơn giá vốn", value: formatCurrency(product.unitCost) },
+              { label: "Giá bán", value: formatCurrency(product.salePrice) },
+              { label: "Tồn kho", value: `${product.stockOnHand}` },
+              { label: "Ngưỡng tồn", value: `${product.minimumStockLevel}` },
+              { label: "Trạng thái", value: <Badge tone={getStatusTone(product.status)}>{humanizeStatus(product.status)}</Badge> },
+            ]}
+          />
+        </SectionCard>
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Báo cáo"
-        title="Báo cáo lợi nhuận"
-      />
-      <StatsGrid
-        items={[
-          {
-            label: "Doanh thu",
-            value: formatCurrency(snapshot.profitReport.totalRevenue),
-            note: "Tổng doanh thu đã xác nhận.",
-          },
-          {
-            label: "Giá vốn",
-            value: formatCurrency(snapshot.profitReport.cogs),
-            note: "Giá vốn từ các mặt hàng bán lẻ đã bán.",
-          },
-          {
-            label: "Lương PT",
-            value: formatCurrency(snapshot.profitReport.ptPayroll),
-            note: "Kỳ lương hiện tại.",
-          },
-          {
-            label: "Lợi nhuận ròng",
-            value: formatCurrency(snapshot.profitReport.netProfit),
-            note: "Kết quả sau khi trừ chi phí và lương.",
-          },
-        ]}
-      />
-      <SectionCard title="Công thức lợi nhuận">
-        <KeyValueList
+        {canManageGym(options) ? (
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+            <SectionCard title="Cập nhật sản phẩm">
+              <form action={updateProductAction} className="space-y-4">
+                <input type="hidden" name="locale" value={getLocale(options)} />
+                <input type="hidden" name="productId" value={productId} />
+                <FormGrid>
+                  <FormField label="Mã sản phẩm" name="code" defaultValue={product.code} required />
+                  <FormField label="Tên sản phẩm" name="name" defaultValue={product.name} required />
+                  <FormField label="Danh mục" name="category" defaultValue={product.category} required />
+                  <FormField label="Đơn giá vốn" name="unitCost" type="number" step="1000" defaultValue={product.unitCost} required />
+                  <FormField label="Giá bán" name="salePrice" type="number" step="1000" defaultValue={product.salePrice} required />
+                  <FormField label="Tồn kho" name="stockOnHand" type="number" min={0} defaultValue={product.stockOnHand} required />
+                  <FormField label="Ngưỡng tồn" name="minimumStockLevel" type="number" min={0} defaultValue={product.minimumStockLevel} required />
+                  <FormSelect
+                    label="Trạng thái"
+                    name="status"
+                    defaultValue={product.status}
+                    required
+                    options={[
+                      { value: "ACTIVE", label: "Đang bán" },
+                      { value: "INACTIVE", label: "Ngưng bán" },
+                    ]}
+                  />
+                </FormGrid>
+                <SubmitButton label="Lưu sản phẩm" />
+              </form>
+            </SectionCard>
+
+            <SectionCard title="Xóa sản phẩm">
+              <form action={deleteProductAction} className="space-y-4">
+                <input type="hidden" name="locale" value={getLocale(options)} />
+                <input type="hidden" name="productId" value={productId} />
+                <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  Xóa sản phẩm sẽ ẩn nó khỏi danh sách quản lý kho và bán hàng.
+                </p>
+                <button type="submit" className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700">
+                  Xóa sản phẩm
+                </button>
+              </form>
+            </SectionCard>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const locale = getLocale(options);
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Kho hàng"
+          title="Giao dịch kho"
+          actions={<ActionLink href="/inventory/import">Mở phiếu nhập</ActionLink>}
+        />
+        <StatsGrid
           items={[
             {
-              label: "Tổng doanh thu",
-              value: formatCurrency(snapshot.profitReport.totalRevenue),
+              label: "Giá trị tồn kho",
+              value: formatCurrency(snapshot.inventoryOverview.stockValue),
+              note: "Tính theo đơn giá vốn.",
             },
             {
-              label: "Trừ giá vốn",
-              value: formatCurrency(snapshot.profitReport.cogs),
+              label: "Giao dịch gần đây",
+              value: `${snapshot.inventoryOverview.recentTransactions.length}`,
+              note: "6 giao dịch gần nhất.",
             },
             {
-              label: "Trừ lương PT",
-              value: formatCurrency(snapshot.profitReport.ptPayroll),
+              label: "Sản phẩm bán chạy nhất",
+              value:
+                snapshot.inventoryOverview.topSellingProducts[0]?.product.name ??
+                "Không có",
+              note: "Sản phẩm bán chạy nhất.",
             },
             {
-              label: "Trừ chi phí vận hành",
-              value: formatCurrency(snapshot.profitReport.operatingExpense),
-            },
-            {
-              label: "Kết quả ròng",
-              value: (
-                <span className="font-semibold text-slate-950">
-                  {formatCurrency(snapshot.profitReport.netProfit)}
-                </span>
-              ),
+              label: "Số SKU tồn thấp",
+              value: `${snapshot.inventoryOverview.lowStockCount}`,
+              note: "Số SKU đang cảnh báo.",
             },
           ]}
         />
-      </SectionCard>
-    </>
-  );
-}
 
-function buildSettingsPage(): JSX.Element {
-  const snapshot = getGymSnapshot();
+        {canManageGym(options) ? (
+          <SectionCard
+            title="Tạo phiếu nhập"
+          >
+            <form action={importInventoryAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormSelect
+                  label="Sản phẩm"
+                  name="productId"
+                  required
+                  options={snapshot.dataset.products.map((product) => ({
+                    value: product.id,
+                    label: `${product.code} | ${product.name}`,
+                  }))}
+                />
+                <FormField
+                  label="Số lượng"
+                  name="quantity"
+                  type="number"
+                  min={1}
+                  defaultValue={10}
+                  required
+                />
+                <FormField
+                  label="Đơn giá vốn"
+                  name="unitCost"
+                  type="number"
+                  min={0}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Mã tham chiếu"
+                  name="referenceCode"
+                  placeholder="PO-2026-04-01"
+                />
+              </FormGrid>
+              <SubmitButton label="Tạo phiếu nhập" />
+            </form>
+          </SectionCard>
+        ) : null}
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Cấu hình hệ thống"
-        title="Cấu hình"
-      />
-      <SectionCard title="Cấu hình hệ thống">
-        <DataTable
-          headers={["Khóa", "Nhãn", "Giá trị", "Mô tả"]}
-          rows={snapshot.dataset.systemConfigs.map((config) => [
-            config.key,
-            config.label,
-            config.value,
-            config.description,
-          ])}
-        />
-      </SectionCard>
-    </>
-  );
-}
-
-function buildLoginPage(options?: RenderGymRouteOptions): JSX.Element {
-  const locale = getLocale(options);
-  const hasInvalidCredentials =
-    getSearchParam(options?.searchParams, "error") === "invalid";
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Đăng nhập an toàn"
-        title="Đăng nhập"
-      />
-
-      <div className="mx-auto grid w-full max-w-2xl gap-6">
-        <SectionCard
-          title="Biểu mẫu đăng nhập"
-        >
-          {hasInvalidCredentials ? (
-            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              Email hoặc mật khẩu không đúng. Vui lòng thử lại.
-            </div>
-          ) : null}
-
-          <form action={loginAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormField
-              label="Thư điện tử"
-              name="email"
-              type="email"
-              required
-            />
-            <FormField
-              label="Mật khẩu"
-              name="password"
-              type="password"
-              required
-            />
-            <SubmitButton label="Đăng nhập" />
-          </form>
+        <SectionCard title="Sổ kho">
+          <DataTable
+            headers={["Ngày", "Sản phẩm", "Loại", "SL", "Tham chiếu", "Ghi chú"]}
+            rows={snapshot.dataset.inventoryTransactions.map((transaction) => [
+              formatDateTime(transaction.transactionDate),
+              getProductName(snapshot, transaction.productId),
+              transaction.type,
+              `${transaction.quantity}`,
+              transaction.referenceCode,
+              transaction.note,
+            ])}
+          />
         </SectionCard>
-      </div>
-    </>
-  );
-}
+      </>
+    );
+  }
 
-export function renderGymRoute(
-  slug: string[],
-  options?: RenderGymRouteOptions,
-): JSX.Element {
-  const section = slug[0];
-  const entityId = slug[1];
-  const nestedSection = slug[2];
-  const locale: UiLocale = getLocale(options) === "vi" ? "vi" : "en";
-  let content: JSX.Element | undefined;
+  function buildInventoryImportPage(): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const importTransactions = snapshot.dataset.inventoryTransactions.filter(
+      (transaction) => transaction.type === "IMPORT",
+    );
 
-  setActiveUiLocale(locale);
+    return (
+      <>
+        <PageHeader
+          eyebrow="Nhập hàng"
+          title="Theo dõi nhập kho"
+        />
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <SectionCard title="Giao dịch nhập kho">
+            <DataTable
+              headers={["Ngày", "Sản phẩm", "SL", "Đơn giá vốn", "Tham chiếu"]}
+              rows={importTransactions.map((transaction) => [
+                formatDateTime(transaction.transactionDate),
+                getProductName(snapshot, transaction.productId),
+                `${transaction.quantity}`,
+                formatCurrency(transaction.unitCost),
+                transaction.referenceCode,
+              ])}
+            />
+          </SectionCard>
 
-  if (options?.currentUser?.role === "PT") {
-    if (section === "pts" && entityId === "attendance") {
-      content = buildPtSelfAttendancePage(options);
+          <SectionCard title="Danh sách gợi ý nhập bổ sung">
+            <DataTable
+              headers={[
+                "Sản phẩm",
+                "Tồn kho hiện tại",
+                "Ngưỡng",
+                "Gợi ý hành động",
+              ]}
+              rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
+                (product) => [
+                  product.name,
+                  `${product.stockOnHand}`,
+                  `${product.minimumStockLevel}`,
+                  "Tạo yêu cầu nhập",
+                ],
+              )}
+            />
+          </SectionCard>
+        </div>
+      </>
+    );
+  }
+
+  function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const locale = getLocale(options);
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Bán hàng"
+          title="Hóa đơn dịch vụ"
+        />
+
+        {canManageGym(options) ? (
+          <SectionCard
+            title="Tạo hóa đơn bán hàng"
+          >
+            <form action={createSalesInvoiceAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormSelect
+                  label="Loại khách hàng"
+                  name="memberId"
+                  defaultValue=""
+                  options={[
+                    { value: "", label: "Khách lẻ" },
+                    ...snapshot.dataset.members.map((member) => ({
+                      value: member.id,
+                      label: `${member.code} | ${member.fullName}`,
+                    })),
+                  ]}
+                />
+                <FormField
+                  label="Tên khách hàng"
+                  name="customerName"
+                  placeholder="Trần Văn A"
+                  required
+                />
+                <FormSelect
+                  label="Sản phẩm"
+                  name="productId"
+                  required
+                  options={snapshot.dataset.products.map((product) => ({
+                    value: product.id,
+                    label: `${product.code} | ${product.name} | ${formatCurrency(product.salePrice)}`,
+                  }))}
+                />
+                <FormField
+                  label="Số lượng"
+                  name="quantity"
+                  type="number"
+                  min={1}
+                  defaultValue={1}
+                  required
+                />
+                <FormSelect
+                  label="Phương thức thanh toán"
+                  name="paymentMethod"
+                  defaultValue="CASH"
+                  required
+                  options={[
+                    { value: "CASH", label: "Tiền mặt" },
+                    { value: "CARD", label: "Thẻ" },
+                    { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+                  ]}
+                />
+                <FormField
+                  label="Số tiền giảm"
+                  name="discountAmount"
+                  type="number"
+                  min={0}
+                  step="1000"
+                  defaultValue={0}
+                />
+              </FormGrid>
+              <SubmitButton label="Tạo hóa đơn" />
+            </form>
+          </SectionCard>
+        ) : null}
+
+        <SectionCard title="Hóa đơn bán hàng">
+          <DataTable
+            headers={[
+              "Mã",
+              "Khách hàng",
+              "Ngày",
+              "Tổng",
+              "Thanh toán",
+              "Trạng thái",
+              "Chi tiết",
+            ]}
+            rows={snapshot.dataset.salesInvoices.map((invoice) => [
+              invoice.code,
+              invoice.customerName,
+              formatDateTime(invoice.invoiceDate),
+              formatCurrency(invoice.totalAmount),
+              invoice.paymentMethod,
+              <Badge key={invoice.id} tone={getStatusTone(invoice.status)}>
+                {humanizeStatus(invoice.status)}
+              </Badge>,
+              <ActionLink
+                key={`${invoice.id}-detail`}
+                href={`/invoices/${invoice.id}`}
+              >
+                Mở hóa đơn
+              </ActionLink>,
+            ])}
+          />
+        </SectionCard>
+      </>
+    );
+  }
+
+  function buildInvoiceDetailPage(invoiceId: string): JSX.Element {
+    const snapshot = getGymSnapshot();
+    const invoice = snapshot.dataset.salesInvoices.find(
+      (item) => item.id === invoiceId,
+    );
+
+    if (!invoice) {
+      notFound();
+    }
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Chi tiết hóa đơn bán hàng"
+          title={invoice.code}
+          actions={<ActionLink href="/invoices">Quay lại danh sách hóa đơn</ActionLink>}
+        />
+        <SectionCard title="Tóm tắt hóa đơn">
+          <KeyValueList
+            items={[
+              { label: "Khách hàng", value: invoice.customerName },
+              {
+                label: "Hội viên",
+                value: invoice.memberId
+                  ? getMemberName(snapshot, invoice.memberId)
+                  : "Khách lẻ",
+              },
+              { label: "Phương thức thanh toán", value: invoice.paymentMethod },
+              {
+                label: "Giảm giá",
+                value: formatCurrency(invoice.discountAmount),
+              },
+              { label: "Tổng", value: formatCurrency(invoice.totalAmount) },
+              {
+                label: "Trạng thái",
+                value: (
+                  <Badge tone={getStatusTone(invoice.status)}>
+                    {humanizeStatus(invoice.status)}
+                  </Badge>
+                ),
+              },
+            ]}
+          />
+        </SectionCard>
+
+        <SectionCard title="Chi tiết hóa đơn">
+          <DataTable
+            headers={["Sản phẩm", "SL", "Đơn giá", "Đơn giá vốn", "Thành tiền"]}
+            rows={invoice.items.map((item) => [
+              getProductName(snapshot, item.productId),
+              `${item.quantity}`,
+              formatCurrency(item.unitPrice),
+              formatCurrency(item.unitCost),
+              <span
+                key={`${invoice.id}-${item.productId}`}
+                className="font-semibold text-slate-900"
+              >
+                {formatCurrency(item.lineTotal)}
+              </span>,
+            ])}
+          />
+        </SectionCard>
+      </>
+    );
+  }
+
+  function buildRevenueReportPage(): JSX.Element {
+    const snapshot = getGymSnapshot();
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Báo cáo"
+          title="Báo cáo doanh thu"
+        />
+        <StatsGrid
+          items={[
+            {
+              label: "Tổng doanh thu",
+              value: formatCurrency(snapshot.revenueReport.totalRevenue),
+              note: "Gói tập và bán lẻ đã xác nhận.",
+            },
+            {
+              label: "Doanh thu gói tập",
+              value: formatCurrency(snapshot.revenueReport.membershipRevenue),
+              note: "Thứ tự hóa đơn gói tập.",
+            },
+            {
+              label: "Doanh thu dịch vụ",
+              value: formatCurrency(snapshot.revenueReport.servicesRevenue),
+              note: "Thứ tự hóa đơn bán hàng.",
+            },
+            {
+              label: "Số lượng hóa đơn",
+              value: `${snapshot.revenueReport.membershipInvoiceCount + snapshot.revenueReport.salesInvoiceCount}`,
+              note: "Tổng hóa đơn đã xác nhận.",
+            },
+          ]}
+        />
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <SectionCard title="Hóa đơn gói tập">
+            <DataTable
+              headers={["Mã", "Hội viên", "Ngày", "Số tiền"]}
+              rows={snapshot.dataset.membershipInvoices.map((invoice) => [
+                invoice.code,
+                getMemberName(snapshot, invoice.memberId),
+                formatDateTime(invoice.invoiceDate),
+                formatCurrency(invoice.totalAmount),
+              ])}
+            />
+          </SectionCard>
+          <SectionCard title="Hóa đơn bán lẻ">
+            <DataTable
+              headers={["Mã", "Khách hàng", "Ngày", "Số tiền"]}
+              rows={snapshot.dataset.salesInvoices
+                .filter((invoice) => invoice.status === "CONFIRMED")
+                .map((invoice) => [
+                  invoice.code,
+                  invoice.customerName,
+                  formatDateTime(invoice.invoiceDate),
+                  formatCurrency(invoice.totalAmount),
+                ])}
+            />
+          </SectionCard>
+        </div>
+      </>
+    );
+  }
+
+  function buildPayrollReportPage(): JSX.Element {
+    const snapshot = getGymSnapshot();
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Báo cáo"
+          title="Báo cáo lương"
+        />
+        <StatsGrid
+          items={[
+            {
+              label: "Tổng lương",
+              value: formatCurrency(snapshot.payrollReport.totalPayroll),
+              note: "Tổng thực lĩnh toàn bộ lịch sử.",
+            },
+            {
+              label: "Đã duyệt",
+              value: formatCurrency(snapshot.payrollReport.approvedPayroll),
+              note: "Đã duyệt hoặc đã chi.",
+            },
+            {
+              label: "Đang chờ",
+              value: formatCurrency(snapshot.payrollReport.pendingPayroll),
+              note: "Đang chờ duyệt.",
+            },
+            {
+              label: "Bản ghi",
+              value: `${snapshot.payrollReport.byTrainer.length}`,
+              note: "Số dòng bảng lương trong dữ liệu mẫu.",
+            },
+          ]}
+        />
+        <SectionCard title="Bảng lương theo PT">
+          <DataTable
+            headers={["PT", "Kỳ", "Thực lĩnh", "Trạng thái"]}
+            rows={snapshot.payrollReport.byTrainer.map((item) => [
+              item.ptName,
+              item.payrollPeriodCode,
+              formatCurrency(item.netPay),
+              <Badge
+                key={`${item.ptId}-${item.payrollPeriodId}`}
+                tone={getStatusTone(item.status)}
+              >
+                {humanizeStatus(item.status)}
+              </Badge>,
+            ])}
+          />
+        </SectionCard>
+      </>
+    );
+  }
+
+  function buildInventoryReportPage(): JSX.Element {
+    const snapshot = getGymSnapshot();
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Báo cáo"
+          title="Báo cáo tồn kho"
+        />
+        <StatsGrid
+          items={[
+            {
+              label: "Giá trị tồn kho",
+              value: formatCurrency(snapshot.inventoryOverview.stockValue),
+              note: "Tồn kho theo giá vốn.",
+            },
+            {
+              label: "Số SKU tồn thấp",
+              value: `${snapshot.inventoryOverview.lowStockCount}`,
+              note: "SKU đang cần cảnh báo.",
+            },
+            {
+              label: "Sản phẩm đang theo dõi",
+              value: `${snapshot.inventoryOverview.totalProducts}`,
+              note: "Tổng SKU đang hoạt động.",
+            },
+            {
+              label: "Biến động gần đây",
+              value: `${snapshot.inventoryOverview.recentTransactions.length}`,
+              note: "6 giao dịch gần nhất.",
+            },
+          ]}
+        />
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <SectionCard title="Sản phẩm bán chạy">
+            <DataTable
+              headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
+              rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
+                entry.product.name,
+                `${entry.soldQuantity}`,
+                `${entry.product.stockOnHand}`,
+              ])}
+            />
+          </SectionCard>
+          <SectionCard title="Giao dịch kho gần đây">
+            <DataTable
+              headers={["Ngày", "Sản phẩm", "Loại", "SL"]}
+              rows={snapshot.inventoryOverview.recentTransactions.map(
+                (transaction) => [
+                  formatDateTime(transaction.transactionDate),
+                  getProductName(snapshot, transaction.productId),
+                  transaction.type,
+                  `${transaction.quantity}`,
+                ],
+              )}
+            />
+          </SectionCard>
+        </div>
+      </>
+    );
+  }
+
+  function buildProfitReportPage(): JSX.Element {
+    const snapshot = getGymSnapshot();
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Báo cáo"
+          title="Báo cáo lợi nhuận"
+        />
+        <StatsGrid
+          items={[
+            {
+              label: "Doanh thu",
+              value: formatCurrency(snapshot.profitReport.totalRevenue),
+              note: "Tổng doanh thu đã xác nhận.",
+            },
+            {
+              label: "Giá vốn",
+              value: formatCurrency(snapshot.profitReport.cogs),
+              note: "Giá vốn từ các mặt hàng bán lẻ đã bán.",
+            },
+            {
+              label: "Lương PT",
+              value: formatCurrency(snapshot.profitReport.ptPayroll),
+              note: "Kỳ lương hiện tại.",
+            },
+            {
+              label: "Lợi nhuận ròng",
+              value: formatCurrency(snapshot.profitReport.netProfit),
+              note: "Kết quả sau khi trừ chi phí và lương.",
+            },
+          ]}
+        />
+        <SectionCard title="Công thức lợi nhuận">
+          <KeyValueList
+            items={[
+              {
+                label: "Tổng doanh thu",
+                value: formatCurrency(snapshot.profitReport.totalRevenue),
+              },
+              {
+                label: "Trừ giá vốn",
+                value: formatCurrency(snapshot.profitReport.cogs),
+              },
+              {
+                label: "Trừ lương PT",
+                value: formatCurrency(snapshot.profitReport.ptPayroll),
+              },
+              {
+                label: "Trừ chi phí vận hành",
+                value: formatCurrency(snapshot.profitReport.operatingExpense),
+              },
+              {
+                label: "Kết quả ròng",
+                value: (
+                  <span className="font-semibold text-slate-950">
+                    {formatCurrency(snapshot.profitReport.netProfit)}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        </SectionCard>
+      </>
+    );
+  }
+
+  function buildSettingsPage(): JSX.Element {
+    const snapshot = getGymSnapshot();
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Cấu hình hệ thống"
+          title="Cấu hình"
+        />
+        <SectionCard title="Cấu hình hệ thống">
+          <DataTable
+            headers={["Khóa", "Nhãn", "Giá trị", "Mô tả"]}
+            rows={snapshot.dataset.systemConfigs.map((config) => [
+              config.key,
+              config.label,
+              config.value,
+              config.description,
+            ])}
+          />
+        </SectionCard>
+      </>
+    );
+  }
+
+  function buildLoginPage(options?: RenderGymRouteOptions): JSX.Element {
+    const locale = getLocale(options);
+    const hasInvalidCredentials =
+      getSearchParam(options?.searchParams, "error") === "invalid";
+
+    return (
+      <>
+        <PageHeader
+          eyebrow="Đăng nhập an toàn"
+          title="Đăng nhập"
+        />
+
+        <div className="mx-auto grid w-full max-w-2xl gap-6">
+          <SectionCard
+            title="Biểu mẫu đăng nhập"
+          >
+            {hasInvalidCredentials ? (
+              <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                Email hoặc mật khẩu không đúng. Vui lòng thử lại.
+              </div>
+            ) : null}
+
+            <form action={loginAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormField
+                label="Thư điện tử"
+                name="email"
+                type="email"
+                required
+              />
+              <FormField
+                label="Mật khẩu"
+                name="password"
+                type="password"
+                required
+              />
+              <SubmitButton label="Đăng nhập" />
+            </form>
+          </SectionCard>
+        </div>
+      </>
+    );
+  }
+
+  export function renderGymRoute(
+    slug: string[],
+    options?: RenderGymRouteOptions,
+  ): JSX.Element {
+    const section = slug[0];
+    const entityId = slug[1];
+    const locale: UiLocale = getLocale(options) === "vi" ? "vi" : "en";
+    let content: JSX.Element | undefined;
+
+    setActiveUiLocale(locale);
+
+    if (options?.currentUser?.role === "PT") {
+      if (section === "pts" && entityId === "attendance") {
+        content = buildPtSelfAttendancePage(options);
+      }
+
+      if (!content && section === "payroll" && slug.length === 1) {
+        content = buildPtSelfPayrollPage(options);
+      }
+    }
+
+    if (!content && (slug.length === 0 || section === "dashboard")) {
+      content = buildDashboardPage();
+    }
+
+    if (!content && section === "login") {
+      content = buildLoginPage(options);
+    }
+
+    if (!content && section === "pts" && slug.length === 1) {
+      content = buildPtsPage(options);
+    }
+
+    if (!content && section === "pts" && entityId === "attendance") {
+      content = buildAttendancePage(options);
+    }
+
+    if (!content && section === "pts" && slug.length === 2 && entityId) {
+      content = buildPtDetailPage(entityId, options);
     }
 
     if (!content && section === "payroll" && slug.length === 1) {
-      content = buildPtSelfPayrollPage(options);
+      content = buildPayrollPage(options);
     }
-  }
 
-  if (!content && (slug.length === 0 || section === "dashboard")) {
-    content = buildDashboardPage();
-  }
+    if (!content && section === "payroll" && slug.length === 2 && entityId) {
+      content = buildPayrollPeriodPage(entityId);
+    }
 
-  if (!content && section === "login") {
-    content = buildLoginPage(options);
-  }
+    if (!content && section === "members" && slug.length === 1) {
+      content = buildMembersPage(options);
+    }
 
-  if (!content && section === "pts" && slug.length === 1) {
-    content = buildPtsPage();
-  }
+    if (!content && section === "members" && entityId === "memberships") {
+      content = buildMembershipOverviewPage(options);
+    }
 
-  if (!content && section === "pts" && entityId === "attendance") {
-    content = buildAttendancePage(options);
-  }
+    if (!content && section === "members" && slug.length === 2 && entityId) {
+      content = buildMemberDetailPage(entityId, options);
+    }
 
-  if (!content && section === "pts" && slug.length === 2 && entityId) {
-    content = buildPtDetailPage(entityId);
-  }
+    if (!content && section === "member-assignments" && slug.length === 1) {
+      content = buildMemberAssignmentsPage(options);
+    }
 
-  if (
-    !content &&
-    section === "pts" &&
-    slug.length === 3 &&
-    entityId &&
-    nestedSection === "contracts"
-  ) {
-    content = buildPtContractsPage(entityId, options);
-  }
+    if (!content && section === "membership-plans") {
+      if (slug.length === 1) {
+        content = buildMembershipPlansPage(options);
+      }
 
-  if (!content && section === "payroll" && slug.length === 1) {
-    content = buildPayrollPage(options);
-  }
+      if (!content && slug.length === 2 && entityId) {
+        content = buildMembershipPlanDetailPage(entityId, options);
+      }
+    }
 
-  if (!content && section === "payroll" && slug.length === 2 && entityId) {
-    content = buildPayrollPeriodPage(entityId);
-  }
+    if (!content && section === "membership-invoices") {
+      content = buildMembershipInvoicesPage();
+    }
 
-  if (!content && section === "members" && slug.length === 1) {
-    content = buildMembersPage();
-  }
+    if (!content && section === "products") {
+      if (slug.length === 1) {
+        content = buildProductsPage(options);
+      }
 
-  if (!content && section === "members" && entityId === "memberships") {
-    content = buildMembershipOverviewPage(options);
-  }
+      if (!content && slug.length === 2 && entityId) {
+        content = buildProductDetailPage(entityId, options);
+      }
+    }
 
-  if (!content && section === "members" && slug.length === 2 && entityId) {
-    content = buildMemberDetailPage(entityId);
-  }
+    if (!content && section === "inventory" && slug.length === 1) {
+      content = buildInventoryPage(options);
+    }
 
-  if (!content && section === "member-assignments" && slug.length === 1) {
-    content = buildMemberAssignmentsPage(options);
-  }
+    if (!content && section === "inventory" && entityId === "import") {
+      content = buildInventoryImportPage();
+    }
 
-  if (!content && section === "membership-plans") {
-    content = buildMembershipPlansPage();
-  }
+    if (!content && section === "invoices" && slug.length === 1) {
+      content = buildInvoicesPage(options);
+    }
 
-  if (!content && section === "membership-invoices") {
-    content = buildMembershipInvoicesPage();
-  }
+    if (!content && section === "invoices" && slug.length === 2 && entityId) {
+      content = buildInvoiceDetailPage(entityId);
+    }
 
-  if (!content && section === "products") {
-    content = buildProductsPage();
-  }
+    if (!content && section === "reports" && entityId === "revenue") {
+      content = buildRevenueReportPage();
+    }
 
-  if (!content && section === "inventory" && slug.length === 1) {
-    content = buildInventoryPage(options);
-  }
+    if (!content && section === "reports" && entityId === "payroll") {
+      content = buildPayrollReportPage();
+    }
 
-  if (!content && section === "inventory" && entityId === "import") {
-    content = buildInventoryImportPage();
-  }
+    if (!content && section === "reports" && entityId === "inventory") {
+      content = buildInventoryReportPage();
+    }
 
-  if (!content && section === "invoices" && slug.length === 1) {
-    content = buildInvoicesPage(options);
-  }
+    if (!content && section === "reports" && entityId === "profit") {
+      content = buildProfitReportPage();
+    }
 
-  if (!content && section === "invoices" && slug.length === 2 && entityId) {
-    content = buildInvoiceDetailPage(entityId);
-  }
+    if (!content && section === "settings") {
+      content = buildSettingsPage();
+    }
 
-  if (!content && section === "expenses" && slug.length === 1) {
-    content = buildExpensesPage();
-  }
+    if (!content) {
+      notFound();
+    }
 
-  if (!content && section === "expenses" && slug.length === 2 && entityId) {
-    content = buildExpenseDetailPage(entityId);
+    return content;
   }
-
-  if (!content && section === "equipment" && slug.length === 1) {
-    content = buildEquipmentPage();
-  }
-
-  if (!content && section === "equipment" && slug.length === 2 && entityId) {
-    content = buildEquipmentDetailPage(entityId);
-  }
-
-  if (!content && section === "maintenance") {
-    content = buildMaintenancePage(options);
-  }
-
-  if (!content && section === "reports" && entityId === "revenue") {
-    content = buildRevenueReportPage();
-  }
-
-  if (!content && section === "reports" && entityId === "payroll") {
-    content = buildPayrollReportPage();
-  }
-
-  if (!content && section === "reports" && entityId === "inventory") {
-    content = buildInventoryReportPage();
-  }
-
-  if (!content && section === "reports" && entityId === "expenses") {
-    content = buildExpenseReportPage();
-  }
-
-  if (!content && section === "reports" && entityId === "profit") {
-    content = buildProfitReportPage();
-  }
-
-  if (!content && section === "settings") {
-    content = buildSettingsPage();
-  }
-
-  if (!content) {
-    notFound();
-  }
-
-  return content;
-}
 

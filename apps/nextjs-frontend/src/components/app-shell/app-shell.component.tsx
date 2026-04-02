@@ -28,8 +28,6 @@ function getNavigationByRole(t: (key: string) => string, role?: string): {
     { href: '/members', label: t('Members'), iconClassName: 'pi pi-id-card' },
     { href: '/membership-plans', label: t('Plans'), iconClassName: 'pi pi-ticket' },
     { href: '/products', label: t('Products'), iconClassName: 'pi pi-shopping-bag' },
-    { href: '/expenses', label: t('Expenses'), iconClassName: 'pi pi-wallet' },
-    { href: '/equipment', label: t('Equipment'), iconClassName: 'pi pi-cog' },
     { href: '/reports/revenue', label: t('Reports'), iconClassName: 'pi pi-chart-line' },
   ];
 
@@ -41,14 +39,12 @@ function getNavigationByRole(t: (key: string) => string, role?: string): {
     { href: '/membership-invoices', label: t('MembershipInvoices'), iconClassName: 'pi pi-file' },
     { href: '/inventory', label: t('Inventory'), iconClassName: 'pi pi-box' },
     { href: '/invoices', label: t('SalesInvoices'), iconClassName: 'pi pi-receipt' },
-    { href: '/maintenance', label: t('Maintenance'), iconClassName: 'pi pi-wrench' },
     { href: '/settings', label: t('Settings'), iconClassName: 'pi pi-sliders-h' },
   ];
 
   const staffMainNavigation: NavItem[] = [
     { href: '/dashboard', label: t('Dashboard'), iconClassName: 'pi pi-home' },
     { href: '/members', label: t('Members'), iconClassName: 'pi pi-id-card' },
-    { href: '/expenses', label: t('Expenses'), iconClassName: 'pi pi-wallet' },
     { href: '/reports/revenue', label: t('Reports'), iconClassName: 'pi pi-chart-line' },
   ];
 
@@ -60,7 +56,6 @@ function getNavigationByRole(t: (key: string) => string, role?: string): {
     { href: '/membership-invoices', label: t('MembershipInvoices'), iconClassName: 'pi pi-file' },
     { href: '/inventory', label: t('Inventory'), iconClassName: 'pi pi-box' },
     { href: '/invoices', label: t('SalesInvoices'), iconClassName: 'pi pi-receipt' },
-    { href: '/maintenance', label: t('Maintenance'), iconClassName: 'pi pi-wrench' },
   ];
 
   if (role === 'PT') {
@@ -114,7 +109,7 @@ function NavigationGroup({
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${active
                 ? 'bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
                 : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'
-              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
             >
               <span className={`text-sm ${item.iconClassName}`} />
               <span className="font-medium">{item.label}</span>
@@ -242,7 +237,7 @@ export function AppShell({
                     className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition ${active
                       ? 'border-slate-900 bg-slate-900 text-white'
                       : 'border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {item.label}
                   </Link>

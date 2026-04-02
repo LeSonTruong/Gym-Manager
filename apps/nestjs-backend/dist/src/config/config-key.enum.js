@@ -17,10 +17,5 @@ var ConfigKey;
     ConfigKey["REDIS_HOST"] = "REDIS_HOST";
     ConfigKey["REDIS_PORT"] = "REDIS_PORT";
     ConfigKey["REDIS_PASSWORD"] = "REDIS_PASSWORD";
-    ConfigKey["MAIL_HOST"] = "MAIL_HOST";
-    ConfigKey["MAIL_PORT"] = "MAIL_PORT";
-    ConfigKey["MAIL_USER"] = "MAIL_USER";
-    ConfigKey["MAIL_PASS"] = "MAIL_PASS";
-    ConfigKey["MAILDEV_WEB_PORT"] = "MAILDEV_WEB_PORT";
 })(ConfigKey || (exports.ConfigKey = ConfigKey = {}));
 //# sourceMappingURL=config-key.enum.js.map
