@@ -6,7 +6,10 @@ type RouteCheck = {
   en: string[];
 };
 
-const demoEmail = process.env.GYM_FRONTEND_DEMO_EMAIL ?? 'admin@gymmanager.local';
+const demoUsername =
+  process.env.GYM_FRONTEND_DEMO_USERNAME
+  ?? process.env.GYM_FRONTEND_DEMO_EMAIL
+  ?? 'admin';
 const demoPassword = process.env.GYM_FRONTEND_DEMO_PASSWORD ?? 'demo123';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -33,9 +36,9 @@ async function loginAsAdmin(page: Page): Promise<void> {
     ?? 'http://127.0.0.1:4000';
 
   const candidates = [
-    { email: demoEmail, password: demoPassword },
-    { email: 'admin@gymmanager.local', password: 'demo123' },
-    { email: 'staff@gymmanager.local', password: 'demo123' },
+    { username: demoUsername, password: demoPassword },
+    { username: 'admin', password: 'demo123' },
+    { username: 'staff', password: 'demo123' },
   ];
 
   const tryCandidate = async (index: number): Promise<void> => {
@@ -47,7 +50,7 @@ async function loginAsAdmin(page: Page): Promise<void> {
 
     const loginResponse = await page.request.post(`${backendUrl}/api/auth/login`, {
       data: {
-        email: candidate.email,
+        username: candidate.username,
         password: candidate.password,
       },
     });

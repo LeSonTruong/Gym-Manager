@@ -175,7 +175,6 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   let adminToken: string;
   let adminRefreshToken: string;
   let staffToken: string;
-  let ptToken: string;
   let payrollPeriodId: string;
   let expenseApproveFlowId: string;
   let expenseRejectFlowId: string;
@@ -269,7 +268,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
 
     const adminLogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
 
     const adminLoginData = getResponseDataRecord(adminLogin);
@@ -286,17 +285,10 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
 
     const staffLogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "staff@gym.local", password: "password" })
+      .send({ username: "staff", password: "password" })
       .expect(201);
 
     staffToken = getAccessToken(staffLogin);
-
-    const ptLogin = await request(app.getHttpServer())
-      .post("/auth/login")
-      .send({ email: "pt@gym.local", password: "password" })
-      .expect(201);
-
-    ptToken = getAccessToken(ptLogin);
 
     const em = orm.em.fork();
 
@@ -367,30 +359,34 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .expect(401);
   });
 
-  it("blocks PT from check-in/check-out operations", async () => {
-    await request(app.getHttpServer())
+  it("allows staff to check-in/check-out operations", async () => {
+    const checkInResponse = await request(app.getHttpServer())
       .post("/attendance/check-in")
-      .set("Authorization", `Bearer ${ptToken}`)
-      .send({ ptId: "different-pt-id" })
-      .expect(403);
+      .set("Authorization", `Bearer ${staffToken}`)
+      .send({ ptId, checkInAt: toVietnamIsoAtHour(0, 9) })
+      .expect(201);
 
-    await request(app.getHttpServer())
-      .post("/attendance/check-in")
-      .set("Authorization", `Bearer ${ptToken}`)
-      .send({})
-      .expect(403);
+    const attendanceLogId = getStringField(
+      getResponseDataRecord(checkInResponse),
+      "id",
+      "response.body.data",
+    );
 
     await request(app.getHttpServer())
       .post("/attendance/check-out")
-      .set("Authorization", `Bearer ${ptToken}`)
-      .send({ ptId })
-      .expect(403);
+      .set("Authorization", `Bearer ${staffToken}`)
+      .send({
+        ptId,
+        attendanceLogId,
+        checkOutAt: toVietnamIsoAtHour(0, 15),
+      })
+      .expect(201);
   });
 
   it("blocks attendance check-in/check-out for past or future dates", async () => {
     const relogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
 
@@ -478,7 +474,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   it("applies payroll field invariants across transitions", async () => {
     const relogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
 
@@ -511,7 +507,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       { populate: ["approvedByUser"] },
     );
     expect(payrollPeriod?.approvedAt).toBeTruthy();
-    expect(payrollPeriod?.approvedByUser?.email).toBe("admin@gym.local");
+    expect(payrollPeriod?.approvedByUser?.username).toBe("admin");
 
     await request(app.getHttpServer())
       .post(`/payroll/periods/${payrollPeriodId}/mark-paid`)
@@ -535,7 +531,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
 
     const relogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
 
@@ -582,7 +578,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
     expect(approvedExpense?.submittedAt).toBeTruthy();
     expect(approvedExpense?.approvedAt).toBeTruthy();
     expect(approvedExpense?.paidAt).toBeTruthy();
-    expect(approvedExpense?.approvedByUser?.email).toBe("admin@gym.local");
+    expect(approvedExpense?.approvedByUser?.username).toBe("admin");
 
     expect(rejectedExpense?.rejectedAt).toBeTruthy();
     expect(rejectedExpense?.rejectionReason).toBe("Invalid invoice attachment");
@@ -592,7 +588,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   it("blocks workflow fields on generic expense CRUD and reopens rejected edits as draft", async () => {
     const relogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
 
@@ -669,7 +665,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
 
     const relogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
 
@@ -698,7 +694,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   it("exports reports in PDF and XLSX", async () => {
     const relogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
 
@@ -772,7 +768,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   it("supports the new core business APIs", async () => {
     const relogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "admin@gym.local", password: "password" })
+      .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
 
@@ -973,20 +969,20 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       ),
     ).toBe("VALID");
 
-    const ptPayrollLogin = await request(app.getHttpServer())
+    const staffPayrollLogin = await request(app.getHttpServer())
       .post("/auth/login")
-      .send({ email: "pt@gym.local", password: "password" })
+      .send({ username: "staff", password: "password" })
       .expect(201);
 
     const payrollMeResponse = await request(app.getHttpServer())
       .get("/payroll/me")
       .set(
         "Authorization",
-        `Bearer ${getAccessToken(ptPayrollLogin)}`,
+        `Bearer ${getAccessToken(staffPayrollLogin)}`,
       )
       .expect(200);
 
-    expect(getResponseDataArray(payrollMeResponse).length).toBeGreaterThan(0);
+    expect(getResponseDataArray(payrollMeResponse).length).toBe(0);
   });
 });
 
@@ -995,29 +991,21 @@ async function seedData(orm: MikroORM): Promise<void> {
 
   const admin = em.create(UserEntity, {
     fullName: "Admin",
-    email: "admin@gym.local",
+    username: "admin",
     role: "ADMIN",
     status: "ACTIVE",
     passwordHash: hashPassword("password"),
   });
   const staff = em.create(UserEntity, {
     fullName: "Staff",
-    email: "staff@gym.local",
+    username: "staff",
     role: "STAFF",
-    status: "ACTIVE",
-    passwordHash: hashPassword("password"),
-  });
-  const ptUser = em.create(UserEntity, {
-    fullName: "PT User",
-    email: "pt@gym.local",
-    role: "PT",
     status: "ACTIVE",
     passwordHash: hashPassword("password"),
   });
 
   const pt = em.create(PersonalTrainerEntity, {
     code: "PT-001",
-    user: ptUser,
     fullName: "PT Demo",
     gender: "MALE",
     birthDate: new Date("1990-01-01T00:00:00.000Z"),
@@ -1171,7 +1159,6 @@ async function seedData(orm: MikroORM): Promise<void> {
   em.persist([
     admin,
     staff,
-    ptUser,
     pt,
     payrollPeriod,
     payrollEntry,
