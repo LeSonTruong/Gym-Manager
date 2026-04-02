@@ -24,8 +24,6 @@ import {
   AttendanceCheckOutDto,
   CancelMemberMembershipDto,
   CancelSalesInvoiceDto,
-  CreateMaintenanceDto,
-  CreateEquipmentDto,
   CreateMemberDto,
   CreateMemberAssignmentDto,
   CreateMemberMembershipDto,
@@ -43,7 +41,6 @@ import {
   PatchAttendanceDto,
   RejectExpenseDto,
   RenewMemberMembershipDto,
-  UpdateEquipmentDto,
   UpdateMemberDto,
   UpdateMembershipPlanDto,
   UpdateOperatingExpenseDto,
@@ -96,9 +93,6 @@ type SalesInvoiceDetail = Awaited<
 type ExpenseDetail = Awaited<
   ReturnType<GymManagementService["getExpenseDetail"]>
 >;
-type EquipmentDetail = Awaited<
-  ReturnType<GymManagementService["getEquipmentDetail"]>
->;
 type PersonalTrainerRecord = Awaited<
   ReturnType<GymManagementService["createPersonalTrainer"]>
 >;
@@ -107,9 +101,6 @@ type MembershipPlanRecord = Awaited<
   ReturnType<GymManagementService["createMembershipPlan"]>
 >;
 type ProductRecord = Awaited<ReturnType<GymManagementService["createProduct"]>>;
-type EquipmentRecord = Awaited<
-  ReturnType<GymManagementService["createEquipment"]>
->;
 type ExpenseRecord = Awaited<
   ReturnType<GymManagementService["createOperatingExpense"]>
 >;
@@ -138,9 +129,6 @@ type SalesInvoiceRecord = Awaited<
 >;
 type InventoryImportRecord = Awaited<
   ReturnType<GymManagementService["importInventory"]>
->;
-type MaintenanceRecordResponse = Awaited<
-  ReturnType<GymManagementService["createMaintenance"]>
 >;
 
 function createResponse<ResponsePayload>(
@@ -883,71 +871,6 @@ export class GymManagementController {
   ): Promise<ApiResponse<ExpenseRecord>> {
     return createResponse(
       await this.gymManagementService.markExpensePaid(expenseId),
-    );
-  }
-
-  @Get("equipment")
-  async getEquipment(): Promise<
-    ApiResponse<Snapshot["dataset"]["equipmentAssets"]>
-  > {
-    const snapshot = await this.gymManagementService.getSnapshot();
-
-    return createResponse(snapshot.dataset.equipmentAssets);
-  }
-
-  @Post("equipment")
-  @Roles("ADMIN")
-  async createEquipment(
-    @Body() createEquipmentDto: CreateEquipmentDto,
-  ): Promise<ApiResponse<EquipmentRecord>> {
-    return createResponse(
-      await this.gymManagementService.createEquipment(createEquipmentDto),
-    );
-  }
-
-  @Get("equipment/:id")
-  async getEquipmentDetail(
-    @Param("id") equipmentAssetId: string,
-  ): Promise<ApiResponse<EquipmentDetail>> {
-    return createResponse(
-      await this.gymManagementService.getEquipmentDetail(equipmentAssetId),
-    );
-  }
-
-  @Patch("equipment/:id")
-  @Roles("ADMIN")
-  async updateEquipment(
-    @Param("id") equipmentAssetId: string,
-    @Body() updateEquipmentDto: UpdateEquipmentDto,
-  ): Promise<ApiResponse<EquipmentRecord>> {
-    return createResponse(
-      await this.gymManagementService.updateEquipment(
-        equipmentAssetId,
-        updateEquipmentDto,
-      ),
-    );
-  }
-
-  @Get("maintenance")
-  async getMaintenance(): Promise<
-    ApiResponse<Snapshot["dataset"]["maintenanceRecords"]>
-  > {
-    const snapshot = await this.gymManagementService.getSnapshot();
-
-    return createResponse(snapshot.dataset.maintenanceRecords);
-  }
-
-  @Post("maintenance")
-  @AuditAction("MAINTENANCE_CREATE", "maintenance_records")
-  async createMaintenance(
-    @Body() createMaintenanceDto: CreateMaintenanceDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
-  ): Promise<ApiResponse<MaintenanceRecordResponse>> {
-    return createResponse(
-      await this.gymManagementService.createMaintenance(
-        createMaintenanceDto,
-        currentUser.user.id,
-      ),
     );
   }
 

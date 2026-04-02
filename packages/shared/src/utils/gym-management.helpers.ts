@@ -26,14 +26,8 @@ import type {
   SalesInvoice,
 } from '../contracts/gym-management';
 
-const dayInMilliseconds = 24 * 60 * 60 * 1000;
-
 function sumValues(values: number[]): number {
   return values.reduce((total, value) => total + value, 0);
-}
-
-function toTimeValue(value: string): number {
-  return new Date(value).getTime();
 }
 
 function isSameUtcDay(dateValue: string, compareValue: string): boolean {
@@ -133,21 +127,7 @@ function buildDashboardSummary(dataset: GymManagementDataset): DashboardSummary 
   const confirmedSalesInvoices = dataset.salesInvoices.filter((invoice) => isConfirmedSalesInvoice(invoice));
   const activeMemberships = dataset.memberMemberships.filter((membership) => membership.status === 'ACTIVE');
   const lowStockProducts = dataset.products.filter((product) => product.stockOnHand <= product.minimumStockLevel);
-  const maintenanceAlerts = dataset.equipmentAssets.filter((equipmentAsset) => {
-    if (equipmentAsset.condition !== 'GOOD') {
-      return true;
-    }
-
-    if (!equipmentAsset.nextMaintenanceAt) {
-      return false;
-    }
-
-    const daysUntilMaintenance = Math.floor(
-      (toTimeValue(equipmentAsset.nextMaintenanceAt) - toTimeValue(referenceDate)) / dayInMilliseconds,
-    );
-
-    return daysUntilMaintenance <= 14;
-  });
+  const maintenanceAlerts: EquipmentAsset[] = [];
 
   const activeMembershipsByType = Object.fromEntries(
     (['DAY', 'MONTH', 'YEAR'] as const).map((membershipType) => [
@@ -313,7 +293,7 @@ function buildRevenueReport(dataset: GymManagementDataset): RevenueReport {
 
 function buildExpenseReport(dataset: GymManagementDataset): ExpenseReport {
   const byCategory = Object.fromEntries(
-    (['CLEANING', 'MAINTENANCE', 'REPAIR', 'REPLACEMENT', 'UTILITY'] as const).map((category) => [category, 0]),
+    (['CLEANING', 'UTILITY', 'SALARY', 'RENT', 'OTHER'] as const).map((category) => [category, 0]),
   ) as ExpenseReport['byCategory'];
 
   for (const expense of dataset.operatingExpenses.filter((item) => isExpenseCounted(item))) {

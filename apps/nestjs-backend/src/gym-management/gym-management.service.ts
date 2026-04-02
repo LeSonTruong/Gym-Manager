@@ -4,7 +4,6 @@ import { MikroORM, type RequiredEntityData, wrap } from "@mikro-orm/core";
 import { EntityManager } from "@mikro-orm/postgresql";
 import {
   createGymManagementSnapshot,
-  findEquipmentAssetById,
   findMemberById,
   findOperatingExpenseById,
   findPayrollPeriodById,
@@ -128,7 +127,6 @@ type TrainerRecord = GymManagementDataset["personalTrainers"][number];
 type MemberRecord = GymManagementDataset["members"][number];
 type MembershipPlanRecord = GymManagementDataset["membershipPlans"][number];
 type ProductRecord = GymManagementDataset["products"][number];
-type EquipmentAssetRecord = GymManagementDataset["equipmentAssets"][number];
 type OperatingExpenseRecord = GymManagementDataset["operatingExpenses"][number];
 type SystemConfigRecord = GymManagementDataset["systemConfigs"][number];
 type AttendanceRecord = GymManagementDataset["attendanceLogs"][number];
@@ -547,8 +545,8 @@ export class GymManagementService {
   async getPtDetail(ptId: string): Promise<{
     trainer: TrainerRecord;
     contract:
-    | GymManagementSnapshot["dataset"]["ptContracts"][number]
-    | undefined;
+      | GymManagementSnapshot["dataset"]["ptContracts"][number]
+      | undefined;
     attendance: GymManagementSnapshot["dataset"]["attendanceLogs"];
     payrollEntries: GymManagementSnapshot["dataset"]["payrollEntries"];
     assignedMembers: GymManagementSnapshot["dataset"]["members"];
@@ -651,15 +649,18 @@ export class GymManagementService {
 
   async getEquipmentDetail(
     equipmentAssetId: string,
-  ): Promise<EquipmentAssetRecord> {
-    const dataset = await this.loadDataset();
-    const equipmentAsset = findEquipmentAssetById(dataset, equipmentAssetId);
+  ): Promise<Record<string, unknown>> {
+    const em = this.createEntityManager();
+    const equipmentAsset = await em.findOne(EquipmentAssetEntity, {
+      id: equipmentAssetId,
+      deletedAt: null,
+    });
 
     if (!equipmentAsset) {
       throw new NotFoundException(`Equipment ${equipmentAssetId} not found`);
     }
 
-    return equipmentAsset;
+    return mapEquipmentAssetEntity(equipmentAsset);
   }
 
   async createPtContract(
@@ -802,9 +803,9 @@ export class GymManagementService {
   async createMemberMembership(
     createMemberMembershipDto: CreateMemberMembershipDto,
   ): Promise<{
-    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-  }> {
+      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }> {
     const em = this.createEntityManager();
     const member = await this.getRequiredMemberEntity(
       em,
@@ -842,9 +843,9 @@ export class GymManagementService {
     membershipId: string,
     renewMemberMembershipDto: RenewMemberMembershipDto,
   ): Promise<{
-    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-  }> {
+      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }> {
     const em = this.createEntityManager();
     const membership = await em.findOne(
       MemberMembershipEntity,
@@ -1303,7 +1304,7 @@ export class GymManagementService {
   async createMaintenance(
     createMaintenanceDto: CreateMaintenanceDto,
     createdByUserId: string,
-  ): Promise<GymManagementSnapshot["dataset"]["maintenanceRecords"][number]> {
+  ): Promise<Record<string, unknown>> {
     const em = this.createEntityManager();
     const equipmentAsset = await this.getRequiredEquipmentAssetEntity(
       em,
@@ -1402,9 +1403,9 @@ export class GymManagementService {
     paymentMethod: string,
     totalAmount?: number,
   ): Promise<{
-    membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
-    invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
-  }> {
+      membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
+      invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    }> {
     const endDate = this.addDays(startDate, membershipPlan.durationDays - 1);
     const remainingSessions =
       membershipPlan.usageLimit ??
@@ -1992,7 +1993,7 @@ export class GymManagementService {
 
   async createEquipment(
     createEquipmentDto: CreateEquipmentDto,
-  ): Promise<EquipmentAssetRecord> {
+  ): Promise<Record<string, unknown>> {
     const em = this.createEntityManager();
     const equipmentAssetData = this.toEquipmentAssetEntityData(
       createEquipmentDto,
@@ -2008,7 +2009,7 @@ export class GymManagementService {
   async updateEquipment(
     equipmentAssetId: string,
     updateEquipmentDto: UpdateEquipmentDto,
-  ): Promise<EquipmentAssetRecord> {
+  ): Promise<Record<string, unknown>> {
     const em = this.createEntityManager();
     const equipmentAsset = await this.getRequiredEquipmentAssetEntity(
       em,
@@ -2702,8 +2703,6 @@ export class GymManagementService {
       salesInvoices,
       salesInvoiceItems,
       operatingExpenses,
-      equipmentAssets,
-      maintenanceRecords,
       systemConfigs,
     ] = await Promise.all([
       em.find(UserEntity, { deletedAt: null }, { orderBy: { createdAt: "asc", id: "asc" } }),
@@ -2750,14 +2749,6 @@ export class GymManagementService {
       em.findAll(OperatingExpenseEntity, {
         orderBy: { expenseDate: "asc", id: "asc" },
       }),
-      em.find(
-        EquipmentAssetEntity,
-        { deletedAt: null },
-        { orderBy: { code: "asc" } },
-      ),
-      em.findAll(MaintenanceRecordEntity, {
-        orderBy: { maintenanceDate: "asc", id: "asc" },
-      }),
       em.findAll(SystemConfigEntity, { orderBy: { key: "asc" } }),
     ]);
 
@@ -2778,8 +2769,6 @@ export class GymManagementService {
       salesInvoices,
       salesInvoiceItems,
       operatingExpenses,
-      equipmentAssets,
-      maintenanceRecords,
       systemConfigs,
     });
   }

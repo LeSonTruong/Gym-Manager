@@ -3,7 +3,7 @@
 # Gym Management System Specification v2.1
 
 > **Phiên bản:** 2.1 — Chuẩn hóa nghiệp vụ và schema từ v2.0
-> **Cập nhật lần cuối:** 2026-03-30
+> **Cập nhật lần cuối:** 2026-04-01
 > **Trạng thái:** Draft
 >
 > **Điểm cập nhật chính trong v2.1:**
@@ -13,6 +13,8 @@
 > - Bổ sung vòng đời phiếu chi: `DRAFT → PENDING_APPROVAL → APPROVED/REJECTED → PAID`.
 > - Siết quyền truy cập API của PT theo phạm vi “chính mình”.
 > - Chuẩn hóa báo cáo lợi nhuận có tính `COGS` cho hàng hóa bán trong phòng Gym.
+> - Chốt phạm vi MVP: tạm dời module `Equipment/Maintenance` sang Phase 2.
+> - Bổ sung luồng `Member Check-in` và `PT Booking` cho vận hành thực tế.
 
 ---
 
@@ -47,10 +49,12 @@ Mục tiêu hệ thống:
 
 - Quản lý `PT` và hợp đồng lương theo từng PT.
 - Quản lý `members`, loại vé tập và PT phụ trách.
+- Quản lý check-in của `members` tại quầy lễ tân.
 - Quản lý chấm công `Check In / Check Out` cho PT.
+- Quản lý lịch hẹn `PT Booking` giữa member và PT.
 - Quản lý bán hàng dịch vụ trong phòng Gym như nước uống, găng tay, khăn,...
 - Quản lý nhập kho, xuất kho, tồn kho.
-- Quản lý các khoản chi vận hành như dọn dẹp, bảo trì, sửa chữa, thay mới thiết bị.
+- Quản lý các khoản chi vận hành.
 - Thống kê doanh thu, chi phí, lợi nhuận, lương PT.
 
 ---
@@ -93,7 +97,7 @@ Mục tiêu hệ thống:
 
 ### 2.6 Data Retention & Soft Delete
 
-- Dữ liệu master như `users`, `members`, `personal_trainers`, `products`, `equipment_assets` dùng **soft delete** qua cột `deleted_at`.
+- Dữ liệu master như `users`, `members`, `personal_trainers`, `products` dùng **soft delete** qua cột `deleted_at`.
 - Chứng từ giao dịch và tài chính như `membership_invoices`, `sales_invoices`, `pt_payrolls`, `purchase_receipts`, `operating_expenses` **không xóa qua API**; hệ thống quản lý bằng `status` như `CANCELLED`, `REJECTED`, `PAID`.
 - Các bản ghi đã soft delete hoặc đã bị vô hiệu hóa không hiển thị trên UI mặc định nhưng vẫn truy vấn được khi cần kiểm toán.
 - Mọi thay đổi trạng thái quan trọng phải được ghi vào `audit_logs`.
@@ -114,13 +118,13 @@ Mục tiêu hệ thống:
 ### 3.2 PT
 
 - Xem thông tin cá nhân.
-- Check In và Check Out ca làm việc.
 - Xem members đang phụ trách.
 - Xem lương tạm tính, giờ tăng ca, hoa hồng.
 
 ### 3.3 Nhân viên lễ tân / bán hàng (Staff)
 
 - Tạo member mới.
+- Check In và Check Out ca làm việc.
 - Bán vé tập.
 - Tạo hóa đơn bán sản phẩm dịch vụ.
 - Ghi nhận nhập kho, xuất kho nếu được phân quyền.
@@ -130,8 +134,6 @@ Mục tiêu hệ thống:
 ## 4. Phạm vi chức năng chính
 
 ### 4.1 Authentication & Authorization
-
-> *(Phần này được bổ sung so với v1.0)*
 
 **Đăng nhập:**
 
@@ -173,7 +175,6 @@ Mục tiêu hệ thống:
 - Tổng lương PT cần chi trong kỳ.
 - Tổng chi phí vận hành.
 - Cảnh báo tồn kho thấp.
-- Cảnh báo thiết bị cần bảo trì hoặc thay mới.
 
 ### 4.3 Quản lý PT
 
@@ -291,7 +292,6 @@ Thông tin mỗi gói vé:
 - Loại vé: `DAY`, `MONTH`, `YEAR`.
 - Giá vé.
 - Thời hạn.
-- Số lượt sử dụng hoặc không giới hạn.
 - Có bao gồm PT hay không.
 - Số buổi PT đi kèm nếu có.
 - Danh sách ưu đãi.
@@ -357,35 +357,59 @@ Thông tin hóa đơn:
 Chức năng:
 
 - Nhập hàng từ nhà cung cấp.
-- Xuất hàng do bán ra hoặc sử dụng nội bộ.
+- Xuất hàng do bán ra.
 - Theo dõi số lượng tồn kho hiện tại.
 - Theo dõi lịch sử biến động kho.
 - Cảnh báo mặt hàng sắp hết.
 
-Các loại giao dịch kho:
+Các loại giao dịch kho (MVP):
 
 - `IMPORT`: nhập hàng.
 - `SALE`: xuất bán.
-- `DAMAGE`: hao hụt / hư hỏng.
-- `INTERNAL_USE`: sử dụng nội bộ.
-- `ADJUSTMENT`: điều chỉnh tồn kho.
 
-### 4.10 Quản lý chi phí vận hành
+### 4.10 Member Check-in
+
+Chức năng:
+
+- Lễ tân check-in member khi vào phòng Gym.
+- Hệ thống kiểm tra member có gói đang hiệu lực hay không.
+- Nếu member có PT booking trong ngày, hiển thị trạng thái lịch hẹn.
+- Ghi nhận lịch sử check-in để phục vụ thống kê tần suất tập.
+
+Quy tắc nghiệp vụ:
+
+- Member chỉ check-in được khi có ít nhất một `member_membership` ở trạng thái `ACTIVE` và còn hiệu lực theo ngày.
+- Mỗi member chỉ có một check-in mở tại cùng một thời điểm.
+- Check-in không trừ lượt tập trong MVP.
+- Admin có thể chỉnh sửa/hủy check-in sai dữ liệu.
+
+### 4.11 PT Booking
+
+Chức năng:
+
+- Tạo lịch hẹn PT giữa member và PT theo ngày giờ cụ thể.
+- Theo dõi trạng thái buổi hẹn: `SCHEDULED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`.
+- PT xem danh sách lịch hẹn của chính mình.
+
+Quy tắc nghiệp vụ:
+
+- Booking chỉ tạo được nếu member đang có gói active và đang được gán PT phù hợp.
+- Không cho phép PT bị double-book tại cùng time slot.
+- Có thể hủy lịch với lý do, lưu để đối soát hiệu suất PT.
+
+### 4.12 Quản lý chi phí vận hành
 
 Theo dõi các khoản chi:
 
 - Dọn dẹp.
-- Bảo trì thiết bị.
-- Sửa chữa máy móc.
-- Thay thế thiết bị không thể sửa chữa.
 - Điện, nước, internet nếu cần mở rộng.
+- Chi phí vận hành khác.
 
 Thông tin cần lưu:
 
 - Mã phiếu chi.
 - Ngày phát sinh.
 - Loại chi phí.
-- Thiết bị liên quan nếu có.
 - Nhà cung cấp / đơn vị sửa chữa.
 - Số tiền.
 - Mô tả.
@@ -393,7 +417,7 @@ Thông tin cần lưu:
 - Chứng từ đính kèm (URL file).
 - Trạng thái phiếu chi: `DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `REJECTED`, `PAID`.
 
-### 4.11 Cấu hình hệ thống (Settings)
+### 4.13 Cấu hình hệ thống (Settings)
 
 > *(Phần này được bổ sung so với v1.0)*
 
@@ -406,7 +430,7 @@ Các tham số cấu hình lưu trong DB (bảng `system_configs`), Admin có th
 - `default_timezone`: Múi giờ hiển thị (mặc định: `Asia/Ho_Chi_Minh`).
 - `allow_multiple_shifts_per_day`: Cho phép PT có nhiều ca trong một ngày hay không (mặc định: `false`).
 
-### 4.12 Báo cáo và thống kê
+### 4.14 Báo cáo và thống kê
 
 Các báo cáo quan trọng:
 
@@ -419,7 +443,6 @@ Các báo cáo quan trọng:
 - Top PT có doanh thu / hoa hồng cao nhất.
 - Top member mua nhiều dịch vụ nhất.
 - Hàng tồn kho thấp.
-- Thiết bị phát sinh chi phí sửa chữa nhiều nhất.
 
 Hỗ trợ xuất file: **PDF** và **Excel (.xlsx)** cho tất cả báo cáo.
 
@@ -494,17 +517,16 @@ Trong đó:
 - Mỗi hóa đơn có nhiều dòng sản phẩm.
 - Khi hóa đơn được xác nhận (`status = CONFIRMED`), hệ thống tự động trừ tồn kho bằng cách tạo giao dịch kho loại `SALE`.
 - Khi hóa đơn được xác nhận, hệ thống đồng thời ghi nhận `COGS` thông qua `inventory_transactions.unit_cost`.
-- Hủy hóa đơn (`status = CANCELLED`) cần tạo giao dịch kho ngược (`ADJUSTMENT`) nếu hàng chưa sử dụng.
+- Hủy hóa đơn (`status = CANCELLED`) cần có kiểm soát quyền và được xử lý hoàn kho theo quy trình nghiệp vụ đã phê duyệt.
 - Phương pháp tính giá vốn mặc định của hệ thống là `weighted average cost`.
 
 **Vòng đời hóa đơn:** `DRAFT → CONFIRMED → CANCELLED`
 
-### 5.6 Quy tắc chi phí sửa chữa và thay mới thiết bị
+### 5.6 Quy tắc chi phí vận hành
 
-- Thiết bị có thể có nhiều lần bảo trì / sửa chữa.
-- Nếu thiết bị không thể sửa chữa, tạo phiếu thay thế thiết bị và cập nhật `equipment_assets.status = REPLACED`.
-- Chi phí thay mới được đưa vào báo cáo chi phí vận hành.
-- Phiếu chi dùng vòng đời: `DRAFT → PENDING_APPROVAL → APPROVED/REJECTED → PAID`.
+- Phiếu chi vận hành bắt buộc đi theo vòng đời: `DRAFT → PENDING_APPROVAL → APPROVED/REJECTED → PAID`.
+- Chỉ phiếu `APPROVED` mới được đánh dấu `PAID`.
+- Phiếu `REJECTED` có thể sửa và gửi duyệt lại.
 
 ---
 
@@ -599,11 +621,11 @@ Trong đó:
 - `standard_shift_hours` NUMERIC(4,2) DEFAULT 8
 - `overtime_rate_per_hour` NUMERIC(15,2)
 - `attendance_bonus` NUMERIC(15,2)
-- `performance_bonus_rules` JSONB — *mô tả ngưỡng thưởng hiệu suất*
+- `performance_bonus_note` TEXT — *ghi chú quy tắc thưởng, tính thủ công ở MVP*
 - `sales_commission_percent` NUMERIC(5,2)
 - `package_commission_percent` NUMERIC(5,2)
 - `allowance_amount` NUMERIC(15,2)
-- `deduction_rules` JSONB — *mô tả quy tắc khấu trừ*
+- `deduction_note` TEXT — *ghi chú quy tắc khấu trừ, nhập tay ở MVP*
 - `effective_from` DATE NOT NULL
 - `effective_to` DATE
 - `is_active` BOOLEAN DEFAULT true
@@ -651,7 +673,9 @@ Trong đó:
 - `performance_bonus_amount` NUMERIC(15,2) — *(bổ sung so với v1.0)*
 - `package_commission_amount` NUMERIC(15,2)
 - `sales_commission_amount` NUMERIC(15,2)
+- `manual_bonus_amount` NUMERIC(15,2) DEFAULT 0
 - `allowance_amount` NUMERIC(15,2)
+- `manual_deduction_amount` NUMERIC(15,2) DEFAULT 0
 - `deduction_amount` NUMERIC(15,2)
 - `total_amount` NUMERIC(15,2)
 - `status` ENUM(`DRAFT`, `PENDING_APPROVAL`, `APPROVED`, `PAID`) DEFAULT `DRAFT` — *(bổ sung so với v1.0)*
@@ -688,7 +712,6 @@ Trong đó:
 - `plan_type` ENUM(`DAY`, `MONTH`, `YEAR`) NOT NULL
 - `price` NUMERIC(15,2) NOT NULL
 - `duration_days` INT NOT NULL
-- `visit_limit` INT
 - `is_unlimited` BOOLEAN DEFAULT false
 - `includes_pt` BOOLEAN DEFAULT false
 - `pt_session_limit` INT
@@ -703,10 +726,35 @@ Trong đó:
 - `plan_id` UUID FK → `membership_plans.id`
 - `start_date` DATE NOT NULL
 - `end_date` DATE NOT NULL
-- `remaining_visits` INT
 - `price_at_purchase` NUMERIC(15,2) NOT NULL
 - `status` ENUM(`ACTIVE`, `EXPIRED`, `CANCELLED`)
 - `created_at`, `updated_at`, `deleted_at`
+
+#### `member_checkins`
+
+- `id` UUID PK
+- `member_id` UUID FK → `members.id`
+- `membership_id` UUID FK → `member_memberships.id`
+- `check_in_at` TIMESTAMPTZ NOT NULL
+- `check_out_at` TIMESTAMPTZ
+- `status` ENUM(`OPEN`, `CLOSED`, `CANCELLED`) DEFAULT `OPEN`
+- `created_by` UUID FK → `users.id`
+- `note` TEXT
+- `created_at`, `updated_at`
+
+#### `pt_booking_sessions`
+
+- `id` UUID PK
+- `member_id` UUID FK → `members.id`
+- `pt_id` UUID FK → `personal_trainers.id`
+- `assignment_id` UUID FK → `member_pt_assignments.id`
+- `start_at` TIMESTAMPTZ NOT NULL
+- `end_at` TIMESTAMPTZ NOT NULL
+- `status` ENUM(`SCHEDULED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`) DEFAULT `SCHEDULED`
+- `cancel_reason` TEXT
+- `note` TEXT
+- `created_by` UUID FK → `users.id`
+- `created_at`, `updated_at`
 
 #### `membership_invoices`
 
@@ -778,8 +826,24 @@ Trong đó:
 - `product_id` UUID FK → `products.id`
 - `quantity` INT NOT NULL
 - `unit_price` NUMERIC(15,2) NOT NULL
+- `unit_cost` NUMERIC(15,2) NOT NULL — *snapshot giá vốn tại thời điểm bán*
 - `line_total` NUMERIC(15,2) NOT NULL
 - `created_at`
+
+#### `payment_transactions`
+
+- `id` UUID PK
+- `provider` ENUM(`MANUAL_TRANSFER`, `VIETQR`, `VNPAY`, `MOMO`)
+- `invoice_type` ENUM(`MEMBERSHIP`, `SALES`)
+- `invoice_id` UUID NOT NULL
+- `payment_method` ENUM(`CASH`, `TRANSFER`, `CARD`, `QR`)
+- `provider_transaction_id` VARCHAR
+- `request_payload` JSONB
+- `webhook_payload` JSONB
+- `status` ENUM(`PENDING`, `SUCCEEDED`, `FAILED`, `CANCELLED`) DEFAULT `PENDING`
+- `amount` NUMERIC(15,2) NOT NULL
+- `paid_at` TIMESTAMPTZ
+- `created_at`, `updated_at`
 
 ### 6.5 Nhóm bảng kho
 
@@ -787,7 +851,7 @@ Trong đó:
 
 - `id` UUID PK
 - `product_id` UUID FK → `products.id`
-- `transaction_type` ENUM(`IMPORT`, `SALE`, `DAMAGE`, `INTERNAL_USE`, `ADJUSTMENT`) NOT NULL
+- `transaction_type` ENUM(`IMPORT`, `SALE`) NOT NULL
 - `reference_type` VARCHAR — *tên bảng tham chiếu*
 - `reference_id` UUID — *id bản ghi tham chiếu*
 - `quantity` INT NOT NULL — *âm nếu xuất, dương nếu nhập*
@@ -818,30 +882,15 @@ Trong đó:
 - `unit_cost` NUMERIC(15,2)
 - `line_total` NUMERIC(15,2)
 
-### 6.6 Nhóm bảng chi phí vận hành và thiết bị
-
-#### `equipment_assets`
-
-- `id` UUID PK
-- `asset_code` VARCHAR UNIQUE NOT NULL
-- `name` VARCHAR NOT NULL
-- `category` VARCHAR
-- `purchase_date` DATE
-- `purchase_cost` NUMERIC(15,2)
-- `status` ENUM(`IN_USE`, `UNDER_MAINTENANCE`, `REPLACED`, `DISPOSED`)
-- `condition_status` ENUM(`GOOD`, `FAIR`, `POOR`)
-- `location` VARCHAR
-- `note` TEXT
-- `created_at`, `updated_at`, `deleted_at`
+### 6.6 Nhóm bảng chi phí vận hành
 
 #### `operating_expenses`
 
 - `id` UUID PK
 - `expense_no` VARCHAR UNIQUE NOT NULL
 - `expense_date` DATE NOT NULL
-- `category` ENUM(`CLEANING`, `MAINTENANCE`, `REPAIR`, `REPLACEMENT`, `UTILITY`, `OTHER`)
+- `category` ENUM(`CLEANING`, `UTILITY`, `RENT`, `MARKETING`, `OTHER`)
 - `amount` NUMERIC(15,2) NOT NULL
-- `equipment_id` UUID FK → `equipment_assets.id` (nullable)
 - `vendor_name` VARCHAR
 - `description` TEXT
 - `attachment_url` VARCHAR
@@ -852,19 +901,6 @@ Trong đó:
 - `rejected_at` TIMESTAMPTZ
 - `rejection_reason` TEXT
 - `paid_at` TIMESTAMPTZ
-- `created_by` UUID FK → `users.id`
-- `created_at`, `updated_at`
-
-#### `maintenance_logs`
-
-- `id` UUID PK
-- `equipment_id` UUID FK → `equipment_assets.id`
-- `maintenance_type` ENUM(`PREVENTIVE`, `CORRECTIVE`, `REPLACEMENT`)
-- `performed_at` DATE NOT NULL
-- `vendor_name` VARCHAR
-- `cost_amount` NUMERIC(15,2)
-- `result_status` ENUM(`RESOLVED`, `UNRESOLVED`, `REPLACED`)
-- `note` TEXT
 - `created_by` UUID FK → `users.id`
 - `created_at`, `updated_at`
 
@@ -885,13 +921,14 @@ apps/nestjs-backend/src/modules
 ├─ members
 ├─ membership-plans
 ├─ member-assignments
+├─ member-checkins
+├─ pt-bookings
 ├─ membership-invoices   ← thanh toán vé tập (bổ sung)
+├─ payments              ← webhook và đối soát cổng thanh toán (bổ sung)
 ├─ products
 ├─ inventory
 ├─ sales
 ├─ expenses
-├─ equipment
-├─ maintenance
 ├─ reports
 └─ audit          ← audit_logs (bổ sung)
 ```
@@ -996,6 +1033,25 @@ apps/nestjs-backend/src/modules
 | POST | `/member-memberships/:id/renew` | Gia hạn vé | Admin, Staff |
 | POST | `/member-memberships/:id/cancel` | Hủy vé | Admin |
 
+#### Member Check-ins *(bổ sung)*
+
+| Method | Endpoint | Mô tả | Role |
+|---|---|---|---|
+| GET | `/member-checkins` | Danh sách check-in member | Admin, Staff |
+| POST | `/member-checkins/check-in` | Check-in member tại quầy | Admin, Staff |
+| POST | `/member-checkins/:id/check-out` | Check-out member | Admin, Staff |
+| PATCH | `/member-checkins/:id/cancel` | Hủy check-in sai dữ liệu | Admin |
+
+#### PT Bookings *(bổ sung)*
+
+| Method | Endpoint | Mô tả | Role |
+|---|---|---|---|
+| GET | `/pt-bookings` | Danh sách booking (lọc theo ngày, pt, member) | Admin, Staff |
+| POST | `/pt-bookings` | Tạo lịch PT booking | Admin, Staff |
+| GET | `/pt-bookings/me` | PT xem lịch của chính mình | PT |
+| PATCH | `/pt-bookings/:id` | Cập nhật lịch hoặc trạng thái buổi | Admin, Staff |
+| POST | `/pt-bookings/:id/cancel` | Hủy lịch hẹn | Admin, Staff |
+
 #### Member PT Assignments *(bổ sung, là nguồn sự thật cho PT phụ trách)*
 
 | Method | Endpoint | Mô tả | Role |
@@ -1012,6 +1068,13 @@ apps/nestjs-backend/src/modules
 | GET | `/membership-invoices` | Danh sách hóa đơn vé | Admin |
 | GET | `/membership-invoices/:id` | Chi tiết hóa đơn vé | Admin, Staff |
 
+#### Payments *(bổ sung)*
+
+| Method | Endpoint | Mô tả | Role |
+|---|---|---|---|
+| GET | `/payments/transactions` | Danh sách giao dịch thanh toán | Admin |
+| POST | `/payments/webhook/:provider` | Nhận webhook từ cổng thanh toán | Public (signed) |
+
 #### Products and Inventory
 
 | Method | Endpoint | Mô tả | Role |
@@ -1021,7 +1084,6 @@ apps/nestjs-backend/src/modules
 | PATCH | `/products/:id` | Cập nhật sản phẩm | Admin |
 | DELETE | `/products/:id` | Soft delete sản phẩm | Admin |
 | POST | `/inventory/import` | Nhập kho | Admin, Staff |
-| POST | `/inventory/adjust` | Điều chỉnh tồn kho | Admin |
 | GET | `/inventory/transactions` | Lịch sử giao dịch kho | Admin |
 
 #### Sales
@@ -1034,7 +1096,7 @@ apps/nestjs-backend/src/modules
 | POST | `/sales/invoices/:id/confirm` | Xác nhận hóa đơn | Admin, Staff |
 | POST | `/sales/invoices/:id/cancel` | Hủy hóa đơn | Admin |
 
-#### Expenses and Maintenance
+#### Expenses
 
 | Method | Endpoint | Mô tả | Role |
 |---|---|---|---|
@@ -1046,11 +1108,6 @@ apps/nestjs-backend/src/modules
 | POST | `/expenses/:id/approve` | Duyệt phiếu chi | Admin |
 | POST | `/expenses/:id/reject` | Từ chối phiếu chi | Admin |
 | POST | `/expenses/:id/mark-paid` | Đánh dấu đã chi trả | Admin |
-| GET | `/equipment` | Danh sách thiết bị | Admin |
-| POST | `/equipment` | Thêm thiết bị | Admin |
-| PATCH | `/equipment/:id` | Cập nhật thiết bị | Admin |
-| GET | `/maintenance` | Lịch sử bảo trì | Admin |
-| POST | `/maintenance` | Ghi nhận bảo trì | Admin |
 
 #### Reports
 
@@ -1092,10 +1149,17 @@ apps/nextjs-frontend/src/app
 │  ├─ page.tsx               ← Danh sách members
 │  ├─ [id]/page.tsx          ← Chi tiết member
 │  └─ memberships/page.tsx   ← Mua / gia hạn vé
+├─ member-checkins
+│  └─ page.tsx
+├─ pt-bookings
+│  ├─ page.tsx
+│  └─ me/page.tsx
 ├─ membership-plans
 │  └─ page.tsx
 ├─ membership-invoices        ← (bổ sung)
 │  └─ page.tsx
+├─ payments
+│  └─ transactions/page.tsx
 ├─ products/page.tsx
 ├─ inventory
 │  ├─ page.tsx
@@ -1106,10 +1170,6 @@ apps/nextjs-frontend/src/app
 ├─ expenses
 │  ├─ page.tsx
 │  └─ [id]/page.tsx
-├─ equipment
-│  ├─ page.tsx
-│  └─ [id]/page.tsx
-├─ maintenance/page.tsx
 ├─ reports
 │  ├─ revenue/page.tsx
 │  ├─ payroll/page.tsx
@@ -1127,12 +1187,14 @@ apps/nextjs-frontend/src/app
 - Bảng lương PT (danh sách kỳ, chi tiết kỳ, duyệt lương).
 - Danh sách members / Chi tiết member.
 - Danh sách gói vé / Mua & gia hạn vé cho member.
+- Member check-in tại quầy.
+- PT booking (tạo lịch, theo dõi, cập nhật trạng thái).
 - Hóa đơn vé tập.
+- Giao dịch thanh toán và đối soát webhook.
 - Danh sách sản phẩm dịch vụ.
 - Nhập kho / Lịch sử giao dịch kho.
 - Hóa đơn bán hàng dịch vụ.
 - Phiếu chi vận hành.
-- Quản lý thiết bị / Lịch sử bảo trì.
 - Báo cáo thống kê (doanh thu, lương, chi phí, lợi nhuận, kho) + xuất PDF/Excel.
 - Trang cấu hình chính sách (Settings).
 
@@ -1162,7 +1224,28 @@ PT → Check Out → Hệ thống tính worked_hours
               → Nếu worked_hours > standard_shift_hours → overtime_hours = worked_hours - standard_shift_hours
 ```
 
-### 9.3 Bán sản phẩm dịch vụ
+### 9.3 Member Check-in
+
+```text
+Lễ tân → Tìm member theo mã/điện thoại
+  → Hệ thống kiểm tra membership ACTIVE và còn hạn
+  → POST /member-checkins/check-in
+  → Hệ thống tạo member_checkins (status=OPEN)
+  → Khi member rời phòng tập → POST /member-checkins/:id/check-out
+  → Hệ thống đóng bản ghi (status=CLOSED)
+```
+
+### 9.4 PT Booking
+
+```text
+Lễ tân/Admin → Chọn member + PT + khung giờ
+       → Hệ thống kiểm tra member có assignment ACTIVE và PT không trùng lịch
+       → POST /pt-bookings
+       → Tạo pt_booking_sessions (status=SCHEDULED)
+       → Sau buổi tập cập nhật COMPLETED/NO_SHOW hoặc CANCELLED
+```
+
+### 9.5 Bán sản phẩm dịch vụ
 
 ```text
 Nhân viên → Tạo hóa đơn (status=DRAFT)
@@ -1171,11 +1254,11 @@ Nhân viên → Tạo hóa đơn (status=DRAFT)
           → Hệ thống tạo inventory_transaction (type=SALE) → trừ tồn kho
 ```
 
-### 9.4 Ghi nhận chi phí sửa chữa / thay mới
+### 9.6 Ghi nhận chi phí vận hành
 
 ```text
 Nhân viên → Tạo phiếu chi
-           → Chọn loại chi phí & thiết bị liên quan
+           → Chọn loại chi phí vận hành
            → Ghi số tiền, mô tả, upload chứng từ
            → Submit duyệt → status=PENDING_APPROVAL
            → Admin duyệt hoặc từ chối
@@ -1184,12 +1267,13 @@ Nhân viên → Tạo phiếu chi
            → Hệ thống đưa vào báo cáo chi phí vận hành
 ```
 
-### 9.5 Tính lương PT cuối kỳ
+### 9.7 Tính lương PT cuối kỳ
 
 ```text
 Admin → Tạo payroll_period (OPEN)
       → POST /payroll/generate → Hệ thống tính lương từng PT
         (lấy hợp đồng hiệu lực, tổng hợp attendance, overtime, hoa hồng)
+  → Kế toán/Admin nhập tay manual_bonus_amount và manual_deduction_amount nếu có
       → Kết quả: pt_payrolls (status=PENDING_APPROVAL)
       → Admin review → POST /payroll/periods/:id/approve → status=APPROVED
       → Thanh toán thực tế → status=PAID
@@ -1235,11 +1319,10 @@ Admin → Tạo payroll_period (OPEN)
 ### 10.5 Báo cáo chi phí
 
 - Chi phí dọn dẹp.
-- Chi phí bảo trì.
-- Chi phí sửa chữa.
-- Chi phí thay mới thiết bị.
+- Chi phí thuê mặt bằng.
+- Chi phí điện nước/internet.
+- Chi phí marketing.
 - Tổng chi phí theo tháng.
-- Thiết bị phát sinh chi phí nhiều nhất.
 - Xuất file: **PDF**, **Excel**.
 
 ### 10.6 Báo cáo lợi nhuận
@@ -1275,6 +1358,7 @@ Loi_nhuan_rong =
 - Xem thông tin cá nhân (chỉ của mình).
 - Check In / Check Out.
 - Xem members được phân công.
+- Xem lịch PT booking của chính mình.
 - Xem lương của chính mình.
 - **Không được** truy cập dữ liệu tài chính, hợp đồng PT khác, hoặc cấu hình hệ thống.
 
@@ -1282,6 +1366,8 @@ Loi_nhuan_rong =
 
 - Tạo và cập nhật members.
 - Bán vé và tạo membership invoices.
+- Check-in member tại quầy.
+- Tạo và cập nhật PT booking.
 - Tạo hóa đơn dịch vụ và xác nhận thanh toán.
 - Nhập kho (nếu được phân quyền).
 - **Không được** xem hoặc sửa hợp đồng PT, bảng lương, báo cáo tài chính, Settings.
@@ -1314,8 +1400,16 @@ Loi_nhuan_rong =
 - Tạo index cho:
   - `pt_attendance_logs.attendance_date`
   - `pt_attendance_logs.pt_id`
+  - `member_checkins.member_id`
+  - `member_checkins.check_in_at`
+  - `pt_booking_sessions.pt_id`
+  - `pt_booking_sessions.member_id`
+  - `pt_booking_sessions.start_at`
   - `sales_invoices.invoice_date`
   - `membership_invoices.invoice_date`
+  - `payment_transactions.invoice_type`
+  - `payment_transactions.invoice_id`
+  - `payment_transactions.status`
   - `operating_expenses.expense_date`
   - `operating_expenses.status`
   - `member_memberships.member_id`
@@ -1336,10 +1430,13 @@ Sau khi triển khai, ứng dụng cần hỗ trợ:
 - Xác thực và phân quyền rõ ràng theo 3 role: Admin, PT, Staff.
 - Quản lý đầy đủ PT, members, vé tập.
 - Theo dõi chính xác chấm công PT và tính lương theo hợp đồng, tăng ca, hoa hồng.
+- Vận hành check-in member tại quầy nhanh và truy vết được lịch sử vào tập.
+- Quản lý lịch PT booking, tránh trùng lịch và theo dõi trạng thái buổi tập.
 - Luồng thanh toán vé tập và sản phẩm dịch vụ rõ ràng, truy vết được.
+- Sẵn sàng tích hợp cổng thanh toán qua bảng `payment_transactions` và webhook.
 - Quản lý PT phụ trách member bằng lịch sử phân công rõ ràng, không trùng nguồn dữ liệu.
 - Quản lý nhập xuất tồn kho, cảnh báo hàng sắp hết.
-- Quản lý chi phí vận hành, bảo trì và thay thế thiết bị với phiếu duyệt.
+- Quản lý chi phí vận hành với vòng đời phê duyệt rõ ràng.
 - Cung cấp báo cáo doanh thu, lợi nhuận, lương PT, kho với tính năng xuất PDF/Excel và có tính `COGS`.
 - Ghi lại audit log cho các thao tác quan trọng phục vụ kiểm toán.
 - Hệ thống cấu hình linh hoạt, Admin có thể chỉnh chính sách mà không cần deploy lại.
@@ -1348,14 +1445,14 @@ Sau khi triển khai, ứng dụng cần hỗ trợ:
 
 ## 14. Tóm tắt ngắn gọn mô hình hệ thống
 
-Ứng dụng quản lý phòng Gym gồm **7 phân hệ cốt lõi**:
+Ứng dụng quản lý phòng Gym (MVP) gồm **7 phân hệ cốt lõi**:
 
 1. `Auth & Config`: đăng nhập, phân quyền, cấu hình hệ thống.
 2. `PT Management`: hồ sơ PT, hợp đồng, chấm công, bảng lương.
-3. `Member Management`: hồ sơ member, vé tập, PT phụ trách.
+3. `Member Management`: hồ sơ member, vé tập, check-in, PT phụ trách.
 4. `Sales Management`: bán vé (kèm hóa đơn riêng), bán sản phẩm dịch vụ.
 5. `Inventory Management`: nhập kho, xuất kho, tồn kho, cảnh báo.
-6. `Expense & Equipment Management`: chi phí, bảo trì, sửa chữa, thay mới thiết bị.
+6. `PT Booking & Expense Management`: lịch hẹn PT và chi phí vận hành.
 7. `Reports & Analytics`: doanh thu, chi phí, lương PT, lợi nhuận, thống kê vận hành — xuất PDF/Excel.
 
 Tài liệu này có thể dùng làm nền tảng để tiếp tục:

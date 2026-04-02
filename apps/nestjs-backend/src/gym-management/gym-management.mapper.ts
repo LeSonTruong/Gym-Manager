@@ -1,10 +1,8 @@
 import type {
   AttendanceLog,
   DemoUser,
-  EquipmentAsset,
   GymManagementDataset,
   InventoryTransaction,
-  MaintenanceRecord,
   Member,
   MemberMembership,
   MemberPtAssignment,
@@ -125,7 +123,6 @@ export function mapPtContractEntity(entity: PtContractEntity): PtContract {
     packageCommissionRate: Number(entity.packageCommissionRate),
     salesCommissionRate: Number(entity.salesCommissionRate),
     allowances: Number(entity.allowances),
-    penaltyRules: entity.penaltyRules,
     effectiveFrom: toDateOnlyString(entity.effectiveFrom),
     effectiveTo: entity.effectiveTo ? toDateOnlyString(entity.effectiveTo) : undefined,
   };
@@ -213,7 +210,6 @@ export function mapMembershipPlanEntity(entity: MembershipPlanEntity): Membershi
     type: entity.type as MembershipPlan['type'],
     price: Number(entity.price),
     durationDays: entity.durationDays,
-    usageLimit: entity.usageLimit ?? undefined,
     includesPt: entity.includesPt,
     includedPtSessions: entity.includedPtSessions,
     perks: entity.perks,
@@ -228,7 +224,6 @@ export function mapMemberMembershipEntity(entity: MemberMembershipEntity): Membe
     membershipPlanId: entity.membershipPlan.id,
     startDate: toDateOnlyString(entity.startDate),
     endDate: toDateOnlyString(entity.endDate),
-    remainingSessions: entity.remainingSessions ?? undefined,
     status: entity.status as MemberMembership['status'],
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
@@ -321,32 +316,12 @@ export function mapSalesInvoiceEntity(entity: SalesInvoiceEntity, items: SalesIn
   };
 }
 
-export function mapEquipmentAssetEntity(entity: EquipmentAssetEntity): EquipmentAsset {
-  return {
-    id: entity.id,
-    code: entity.code,
-    name: entity.name,
-    category: entity.category ?? undefined,
-    purchasedAt: toDateOnlyString(entity.purchasedAt),
-    purchaseValue: Number(entity.purchaseValue),
-    status: (entity.status as EquipmentAsset['status']) ?? undefined,
-    condition: entity.condition as EquipmentAsset['condition'],
-    location: entity.location ?? undefined,
-    nextMaintenanceAt: entity.nextMaintenanceAt
-      ? toDateOnlyString(entity.nextMaintenanceAt)
-      : undefined,
-    note: entity.note,
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
-  };
-}
-
 export function mapOperatingExpenseEntity(entity: OperatingExpenseEntity): OperatingExpense {
   return {
     id: entity.id,
     code: entity.code,
     expenseDate: toDateOnlyString(entity.expenseDate),
     category: entity.category as OperatingExpense['category'],
-    equipmentAssetId: entity.equipmentAsset?.id ?? undefined,
     vendorName: entity.vendorName,
     amount: Number(entity.amount),
     description: entity.description,
@@ -361,16 +336,35 @@ export function mapOperatingExpenseEntity(entity: OperatingExpenseEntity): Opera
   };
 }
 
-export function mapMaintenanceRecordEntity(entity: MaintenanceRecordEntity): MaintenanceRecord {
+export function mapEquipmentAssetEntity(entity: EquipmentAssetEntity): Record<string, unknown> {
+  return {
+    id: entity.id,
+    code: entity.code,
+    name: entity.name,
+    category: entity.category ?? undefined,
+    purchasedAt: toDateOnlyString(entity.purchasedAt),
+    purchaseValue: Number(entity.purchaseValue),
+    status: entity.status ?? undefined,
+    condition: entity.condition,
+    location: entity.location ?? undefined,
+    nextMaintenanceAt: entity.nextMaintenanceAt
+      ? toDateOnlyString(entity.nextMaintenanceAt)
+      : undefined,
+    note: entity.note,
+    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
+  };
+}
+
+export function mapMaintenanceRecordEntity(entity: MaintenanceRecordEntity): Record<string, unknown> {
   return {
     id: entity.id,
     equipmentAssetId: entity.equipmentAsset.id,
     maintenanceDate: toDateOnlyString(entity.maintenanceDate),
-    maintenanceType: (entity.maintenanceType as MaintenanceRecord['maintenanceType']) ?? undefined,
+    maintenanceType: entity.maintenanceType ?? undefined,
     description: entity.description,
     vendorName: entity.vendorName,
     amount: Number(entity.amount),
-    resultStatus: (entity.resultStatus as MaintenanceRecord['resultStatus']) ?? undefined,
+    resultStatus: entity.resultStatus ?? undefined,
     note: entity.note ?? undefined,
     createdByUserId: entity.createdByUser?.id ?? undefined,
   };
@@ -404,8 +398,6 @@ export type GymManagementEntityCollections = {
   salesInvoices: SalesInvoiceEntity[];
   salesInvoiceItems: SalesInvoiceItemEntity[];
   operatingExpenses: OperatingExpenseEntity[];
-  equipmentAssets: EquipmentAssetEntity[];
-  maintenanceRecords: MaintenanceRecordEntity[];
   systemConfigs: SystemConfigEntity[];
 };
 
@@ -441,8 +433,11 @@ export function mapDatasetFromEntities(
       mapSalesInvoiceEntity(invoice, salesInvoiceItemsByInvoiceId.get(invoice.id) ?? []),
     ),
     operatingExpenses: collections.operatingExpenses.map((entity) => mapOperatingExpenseEntity(entity)),
-    equipmentAssets: collections.equipmentAssets.map((entity) => mapEquipmentAssetEntity(entity)),
-    maintenanceRecords: collections.maintenanceRecords.map((entity) => mapMaintenanceRecordEntity(entity)),
+    memberCheckIns: [],
+    ptBookingSessions: [],
+    paymentTransactions: [],
+    equipmentAssets: [],
+    maintenanceRecords: [],
     systemConfigs: collections.systemConfigs.map((entity) => mapSystemConfigEntity(entity)),
   };
 }

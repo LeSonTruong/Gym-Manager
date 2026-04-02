@@ -473,32 +473,6 @@ function buildDashboardPage(): JSX.Element {
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <SectionCard
-          title="Cảnh báo bảo trì"
-        >
-          <DataTable
-            headers={["Thiết bị", "Tình trạng", "Bảo trì tiếp theo", "Hành động"]}
-            rows={sortEquipmentByMaintenance(
-              snapshot.dashboard.maintenanceAlerts,
-            ).map((equipmentAsset) => [
-              equipmentAsset.name,
-              <Badge
-                key={equipmentAsset.id}
-                tone={getStatusTone(equipmentAsset.condition)}
-              >
-                {humanizeStatus(equipmentAsset.condition)}
-              </Badge>,
-              formatDate(equipmentAsset.nextMaintenanceAt),
-              <ActionLink
-                key={`${equipmentAsset.id}-action`}
-                href={`/equipment/${equipmentAsset.id}`}
-              >
-                Mở tài sản
-              </ActionLink>,
-            ])}
-          />
-        </SectionCard>
-
-        <SectionCard
           title="Sản phẩm bán chạy"
         >
           <DataTable
@@ -942,7 +916,7 @@ function buildPtContractsPage(
               <FormTextArea
                 label="Quy tắc phạt"
                 name="penaltyRules"
-                defaultValue={contract.penaltyRules.join("\n")}
+                defaultValue={(contract.penaltyRules ?? []).join("\n")}
                 placeholder="Mỗi dòng một quy tắc"
               />
               <SubmitButton label="Cập nhật hợp đồng" />
@@ -1060,7 +1034,7 @@ function buildPtContractsPage(
               <FormTextArea
                 label="Quy tắc phạt"
                 name="penaltyRules"
-                defaultValue={contract.penaltyRules.join("\n")}
+                defaultValue={(contract.penaltyRules ?? []).join("\n")}
                 placeholder="Mỗi dòng một quy tắc"
               />
               <p className="text-sm leading-6 text-slate-500">

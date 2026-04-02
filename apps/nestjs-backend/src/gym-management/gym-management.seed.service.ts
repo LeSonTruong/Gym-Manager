@@ -3,9 +3,7 @@ import { createGymManagementMockData } from '@next-nest-turbo-boilerplate/shared
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   AttendanceLogEntity,
-  EquipmentAssetEntity,
   InventoryTransactionEntity,
-  MaintenanceRecordEntity,
   MemberEntity,
   MemberMembershipEntity,
   MemberPtAssignmentEntity,
@@ -32,10 +30,6 @@ function toDateTime(value: string): Date {
   return new Date(value);
 }
 
-function toOptionalDateOnly(value?: string | null): Date | null {
-  return value ? toDateOnly(value) : null;
-}
-
 function toOptionalDateTime(value?: string | null): Date | null {
   return value ? toDateTime(value) : null;
 }
@@ -48,7 +42,7 @@ function toDecimal(value: number): string {
 export class GymManagementSeedService implements OnModuleInit {
   private readonly logger = new Logger(GymManagementSeedService.name);
 
-  constructor(private readonly orm: MikroORM) {}
+  constructor(private readonly orm: MikroORM) { }
 
   async onModuleInit(): Promise<void> {
     await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'
@@ -113,7 +107,6 @@ export class GymManagementSeedService implements OnModuleInit {
           type: plan.type,
           price: toDecimal(plan.price),
           durationDays: plan.durationDays,
-          usageLimit: plan.usageLimit,
           includesPt: plan.includesPt,
           includedPtSessions: plan.includedPtSessions,
           perks: plan.perks,
@@ -135,25 +128,6 @@ export class GymManagementSeedService implements OnModuleInit {
           minimumStockLevel: product.minimumStockLevel,
           status: product.status,
           deletedAt: toOptionalDateTime(product.deletedAt),
-        }),
-      ),
-    );
-
-    em.persist(
-      dataset.equipmentAssets.map((equipmentAsset) =>
-        em.create(EquipmentAssetEntity, {
-          id: equipmentAsset.id,
-          code: equipmentAsset.code,
-          name: equipmentAsset.name,
-          category: equipmentAsset.category ?? 'Strength',
-          purchasedAt: toDateOnly(equipmentAsset.purchasedAt),
-          purchaseValue: toDecimal(equipmentAsset.purchaseValue),
-          status: equipmentAsset.status ?? 'IN_USE',
-          condition: equipmentAsset.condition,
-          location: equipmentAsset.location ?? 'Main floor',
-          nextMaintenanceAt: toOptionalDateOnly(equipmentAsset.nextMaintenanceAt),
-          note: equipmentAsset.note,
-          deletedAt: toOptionalDateTime(equipmentAsset.deletedAt),
         }),
       ),
     );
@@ -211,8 +185,8 @@ export class GymManagementSeedService implements OnModuleInit {
           id: contract.id,
           personalTrainer: em.getReference(PersonalTrainerEntity, contract.ptId),
           contractCode:
-            contract.contractCode ??
-            `PTC-${contract.ptId.toUpperCase()}-${contract.id.slice(-3)}`,
+                        contract.contractCode ??
+                        `PTC-${contract.ptId.toUpperCase()}-${contract.id.slice(-3)}`,
           contractType: contract.contractType,
           salaryType: contract.salaryType,
           baseSalary: toDecimal(contract.baseSalary),
@@ -224,9 +198,9 @@ export class GymManagementSeedService implements OnModuleInit {
           packageCommissionRate: toDecimal(contract.packageCommissionRate),
           salesCommissionRate: toDecimal(contract.salesCommissionRate),
           allowances: toDecimal(contract.allowances),
-          penaltyRules: contract.penaltyRules,
+          penaltyRules: [],
           effectiveFrom: toDateOnly(contract.effectiveFrom),
-          effectiveTo: toOptionalDateOnly(contract.effectiveTo),
+          effectiveTo: contract.effectiveTo ? toDateOnly(contract.effectiveTo) : null,
         }),
       ),
     );
@@ -275,28 +249,8 @@ export class GymManagementSeedService implements OnModuleInit {
           membershipPlan: em.getReference(MembershipPlanEntity, membership.membershipPlanId),
           startDate: toDateOnly(membership.startDate),
           endDate: toDateOnly(membership.endDate),
-          remainingSessions: membership.remainingSessions,
           status: membership.status,
           deletedAt: toOptionalDateTime(membership.deletedAt),
-        }),
-      ),
-    );
-
-    em.persist(
-      dataset.maintenanceRecords.map((maintenanceRecord) =>
-        em.create(MaintenanceRecordEntity, {
-          id: maintenanceRecord.id,
-          equipmentAsset: em.getReference(EquipmentAssetEntity, maintenanceRecord.equipmentAssetId),
-          maintenanceType: maintenanceRecord.maintenanceType ?? 'PREVENTIVE',
-          maintenanceDate: toDateOnly(maintenanceRecord.maintenanceDate),
-          description: maintenanceRecord.description,
-          vendorName: maintenanceRecord.vendorName,
-          amount: toDecimal(maintenanceRecord.amount),
-          resultStatus: maintenanceRecord.resultStatus ?? 'RESOLVED',
-          note: maintenanceRecord.note ?? null,
-          createdByUser: maintenanceRecord.createdByUserId
-            ? em.getReference(UserEntity, maintenanceRecord.createdByUserId)
-            : null,
         }),
       ),
     );
@@ -346,11 +300,7 @@ export class GymManagementSeedService implements OnModuleInit {
           attendanceBonusAmount: toDecimal(entry.attendanceBonusAmount ?? 0),
           overtimeAmount: toDecimal(
             entry.overtimeAmount ??
-            Number(
-              (
-                entry.overtimeHours * (contract?.overtimeHourlyRate ?? 0)
-              ).toFixed(2),
-            ),
+            Number((entry.overtimeHours * (contract?.overtimeHourlyRate ?? 0)).toFixed(2)),
           ),
           packageCommission: toDecimal(entry.packageCommission),
           salesCommission: toDecimal(entry.salesCommission),
@@ -376,9 +326,9 @@ export class GymManagementSeedService implements OnModuleInit {
           assignedTo: assignment.assignedTo ? toDateOnly(assignment.assignedTo) : null,
           commissionType: assignment.commissionType ?? 'FIXED',
           commissionValue:
-            assignment.commissionValue === undefined || assignment.commissionValue === null
-              ? null
-              : toDecimal(assignment.commissionValue),
+                        assignment.commissionValue === undefined || assignment.commissionValue === null
+                          ? null
+                          : toDecimal(assignment.commissionValue),
           commissionAmount: toDecimal(assignment.commissionAmount),
           status: assignment.status,
           note: assignment.note ?? null,
@@ -429,9 +379,6 @@ export class GymManagementSeedService implements OnModuleInit {
           code: expense.code,
           expenseDate: toDateOnly(expense.expenseDate),
           category: expense.category,
-          equipmentAsset: expense.equipmentAssetId
-            ? em.getReference(EquipmentAssetEntity, expense.equipmentAssetId)
-            : null,
           vendorName: expense.vendorName,
           amount: toDecimal(expense.amount),
           description: expense.description,

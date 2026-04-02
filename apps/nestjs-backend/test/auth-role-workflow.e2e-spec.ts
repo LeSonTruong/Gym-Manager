@@ -709,9 +709,9 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         resultStatus: "RESOLVED",
         nextMaintenanceAt: "2026-07-02",
       })
-      .expect(201);
+      .expect(404);
 
-    expect(maintenanceResponse.body.data.resultStatus).toBe("RESOLVED");
+    expect(maintenanceResponse.body.error).toBe("Not Found");
 
     const payrollPeriodResponse = await request(app.getHttpServer())
       .post("/payroll/periods")
