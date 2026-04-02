@@ -29,12 +29,6 @@ const appConfig = (): Record<ConfigKey, unknown> => ({
   [ConfigKey.REDIS_HOST]: process.env.REDIS_HOST ?? 'localhost',
   [ConfigKey.REDIS_PORT]: readNumber(process.env.REDIS_PORT) ?? 6379,
   [ConfigKey.REDIS_PASSWORD]: process.env.REDIS_PASSWORD,
-
-  [ConfigKey.MAILDEV_WEB_PORT]: readNumber(process.env.MAILDEV_WEB_PORT) ?? 1080,
-  [ConfigKey.MAIL_HOST]: process.env.MAIL_HOST,
-  [ConfigKey.MAIL_PORT]: readNumber(process.env.MAIL_PORT) ?? 587,
-  [ConfigKey.MAIL_USER]: process.env.MAIL_USER,
-  [ConfigKey.MAIL_PASS]: process.env.MAIL_PASS,
 });
 
 export default appConfig;
