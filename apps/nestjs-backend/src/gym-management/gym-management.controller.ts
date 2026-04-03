@@ -125,6 +125,9 @@ type ExpenseRecord = Awaited<
 type SystemConfigRecord = Awaited<
   ReturnType<GymManagementService["patchSystemConfig"]>
 >;
+type CleanupSettingsTrashResult = Awaited<
+  ReturnType<GymManagementService["cleanupSystemConfigTrash"]>
+>;
 type AttendanceRecord = Awaited<
   ReturnType<GymManagementService["checkInAttendance"]>
 >;
@@ -1019,6 +1022,17 @@ export class GymManagementController {
         patchSystemConfigDto,
         currentUser.user.id,
       ),
+    );
+  }
+
+  @Post("settings/cleanup-trash")
+  @Roles("ADMIN")
+  @AuditAction("SETTINGS_CLEANUP_TRASH", "system_configs")
+  async cleanupSettingsTrash(): Promise<
+    ApiResponse<CleanupSettingsTrashResult>
+  > {
+    return createResponse(
+      await this.gymManagementService.cleanupSystemConfigTrash(),
     );
   }
 

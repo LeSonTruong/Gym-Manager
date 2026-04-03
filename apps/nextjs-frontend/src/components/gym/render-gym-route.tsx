@@ -16,6 +16,7 @@ import {
   cancelMembershipAction,
   checkInAttendanceAction,
   checkOutAttendanceAction,
+  cleanupSystemConfigTrashAction,
   createAssignmentAction,
   createMemberAction,
   createMembershipAction,
@@ -125,6 +126,23 @@ function ActionLink({
       <span className="pi pi-arrow-up-right text-[11px] text-[var(--accent-600)]" />
       {translateText(children, locale)}
     </Link>
+  );
+}
+
+function ReportDownloadActions({
+  reportType,
+}: {
+  readonly reportType: "payroll" | "revenue" | "expenses" | "profit";
+}): JSX.Element {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <ActionLink href={`/reports/${reportType}/download?format=pdf`}>
+        In PDF mẫu
+      </ActionLink>
+      <ActionLink href={`/reports/${reportType}/download?format=xlsx`}>
+        Tải Excel
+      </ActionLink>
+    </div>
   );
 }
 
@@ -1120,7 +1138,6 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
     month: "2-digit",
     day: "2-digit",
   }).format(now);
-  const minimumCheckOutHours = 5;
   const trainerOptions = snapshot.dataset.personalTrainers.map((trainer) => ({
     value: trainer.id,
     label: `${trainer.fullName} | ${trainer.code}`,
@@ -1135,12 +1152,7 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
           return false;
         }
 
-        const workedHoursSoFar = (now.getTime() - checkInAt.getTime()) / 36e5;
-
-        return (
-          attendanceLog.attendanceDate === currentVietnamDate
-          && workedHoursSoFar >= minimumCheckOutHours
-        );
+        return attendanceLog.attendanceDate === currentVietnamDate;
       })
       .map((attendanceLog) => attendanceLog.ptId),
   );
@@ -1182,7 +1194,7 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
           {
             label: "Ca HALF",
             value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.status === "HALF").length}`,
-            note: "Ca dưới chuẩn nhưng vẫn tính nửa công theo cài đặt.",
+            note: "Ca thiếu giờ được quy đổi công theo tỷ lệ giờ làm.",
           },
           {
             label: "Tăng ca",
@@ -1271,11 +1283,11 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
             </div>
             {hasIneligibleOpenShifts ? (
               <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-                Có {uniqueOpenShiftTrainerIds.size} PT đang có ca mở nhưng chưa đủ điều kiện check-out nhanh. Lý do thường gặp: chưa đủ 5 giờ từ lúc check-in hoặc ca mở không thuộc ngày hiện tại theo múi giờ Việt Nam.
+                Có {uniqueOpenShiftTrainerIds.size} PT đang có ca mở nhưng chưa đủ điều kiện check-out nhanh. Lý do thường gặp: ca mở không thuộc ngày hiện tại theo múi giờ Việt Nam.
               </p>
             ) : null}
             <p className="mt-3 text-xs text-slate-500">
-              Hệ thống tự lấy thời điểm hiện tại khi bấm nút. Chấm công ra chỉ hợp lệ sau tối thiểu 5 giờ từ lúc vào ca.
+              Hệ thống tự lấy thời điểm hiện tại khi bấm nút. Ca thiếu giờ vẫn được chốt và tự quy đổi công theo tỷ lệ để tính lương tương ứng.
             </p>
           </CollapsibleCrudPanel>
         </SectionCard>
@@ -2786,7 +2798,7 @@ function buildInvoiceDetailPage(invoiceId: string): JSX.Element {
   );
 }
 
-function buildRevenueReportPage(): JSX.Element {
+function buildRevenueReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
 
   return (
@@ -2794,6 +2806,7 @@ function buildRevenueReportPage(): JSX.Element {
       <PageHeader
         eyebrow="Báo cáo"
         title="Báo cáo doanh thu"
+        actions={isAdmin(options) ? <ReportDownloadActions reportType="revenue" /> : undefined}
       />
       <StatsGrid
         items={[
@@ -2850,7 +2863,7 @@ function buildRevenueReportPage(): JSX.Element {
   );
 }
 
-function buildPayrollReportPage(): JSX.Element {
+function buildPayrollReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
 
   return (
@@ -2858,6 +2871,7 @@ function buildPayrollReportPage(): JSX.Element {
       <PageHeader
         eyebrow="Báo cáo"
         title="Báo cáo lương"
+        actions={isAdmin(options) ? <ReportDownloadActions reportType="payroll" /> : undefined}
       />
       <StatsGrid
         items={[
@@ -2965,7 +2979,7 @@ function buildInventoryReportPage(): JSX.Element {
   );
 }
 
-function buildExpenseReportPage(): JSX.Element {
+function buildExpenseReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
 
   return (
@@ -2973,6 +2987,7 @@ function buildExpenseReportPage(): JSX.Element {
       <PageHeader
         eyebrow="Báo cáo"
         title="Báo cáo chi phí"
+        actions={isAdmin(options) ? <ReportDownloadActions reportType="expenses" /> : undefined}
       />
       <StatsGrid
         items={[
@@ -3010,7 +3025,7 @@ function buildExpenseReportPage(): JSX.Element {
   );
 }
 
-function buildProfitReportPage(): JSX.Element {
+function buildProfitReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
 
   return (
@@ -3018,6 +3033,7 @@ function buildProfitReportPage(): JSX.Element {
       <PageHeader
         eyebrow="Báo cáo"
         title="Báo cáo lợi nhuận"
+        actions={isAdmin(options) ? <ReportDownloadActions reportType="profit" /> : undefined}
       />
       <StatsGrid
         items={[
@@ -3117,6 +3133,25 @@ function buildSettingsPage(options?: RenderGymRouteOptions): JSX.Element {
           <SubmitButton label="Cập nhật tài khoản" />
         </form>
       </SectionCard>
+      {isAdmin(options) ? (
+        <SectionCard
+          title="Dọn dữ liệu cấu hình rác"
+          description="Xóa các khóa cấu hình PT đã lỗi thời và khóa cũ không còn dùng trong bản demo."
+        >
+          <form action={cleanupSystemConfigTrashAction} className="space-y-3">
+            <input type="hidden" name="locale" value={locale} />
+            <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Tác vụ này giúp dữ liệu cấu hình gọn hơn sau khi xóa PT hoặc tinh gọn tính năng.
+            </p>
+            <button
+              type="submit"
+              className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Dọn cấu hình rác
+            </button>
+          </form>
+        </SectionCard>
+      ) : null}
       <SectionCard title="Cấu hình hệ thống">
         <DataTable
           headers={["Khóa", "Nhãn", "Giá trị", "Mô tả"]}
@@ -3310,11 +3345,11 @@ export function renderGymRoute(
   }
 
   if (!content && section === "reports" && entityId === "revenue") {
-    content = buildRevenueReportPage();
+    content = buildRevenueReportPage(options);
   }
 
   if (!content && section === "reports" && entityId === "payroll") {
-    content = buildPayrollReportPage();
+    content = buildPayrollReportPage(options);
   }
 
   if (!content && section === "reports" && entityId === "inventory") {
@@ -3322,11 +3357,11 @@ export function renderGymRoute(
   }
 
   if (!content && section === "reports" && entityId === "expenses") {
-    content = buildExpenseReportPage();
+    content = buildExpenseReportPage(options);
   }
 
   if (!content && section === "reports" && entityId === "profit") {
-    content = buildProfitReportPage();
+    content = buildProfitReportPage(options);
   }
 
   if (!content && section === "settings") {

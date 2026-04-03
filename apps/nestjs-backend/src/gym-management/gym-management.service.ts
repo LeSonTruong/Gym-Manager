@@ -562,16 +562,6 @@ export class GymManagementService {
     this.assertCurrentVietnamDate(attendanceLog.attendanceDate, "attendanceDate");
     this.assertCurrentVietnamDate(checkOutAt, "checkOutAt");
 
-    const earliestCheckOutAt = new Date(
-      attendanceLog.checkInAt.getTime() + 5 * 36e5,
-    );
-
-    if (checkOutAt < earliestCheckOutAt) {
-      throw new BadRequestException(
-        "Check out is allowed only after 5 working hours from check in",
-      );
-    }
-
     if (checkOutAt <= attendanceLog.checkInAt) {
       throw new BadRequestException(
         "Check out time must be after check in time",
@@ -590,31 +580,16 @@ export class GymManagementService {
       pt.id,
       attendanceLog.attendanceDate,
     );
-    const minValidShiftHours = ptContract
+    const fullShiftHours = ptContract
       ? Number(ptContract.minValidShiftHours)
       : await this.getNumberSystemConfig(em, "min_valid_shift_hours", 5);
     const standardShiftHours = ptContract
       ? Number(ptContract.standardShiftHours)
       : 8;
-    const halfShiftPolicy = await this.getStringSystemConfig(
-      em,
-      "half_shift_policy",
-      "NO_COUNT",
+    const { status, workCredit } = this.resolveAttendanceStatusAndWorkCredit(
+      workedHours,
+      fullShiftHours,
     );
-
-    let status: AttendanceLogEntity["status"];
-    let workCredit: number;
-
-    if (workedHours >= minValidShiftHours) {
-      status = "VALID";
-      workCredit = 1;
-    } else if (halfShiftPolicy === "HALF_COUNT") {
-      status = "HALF";
-      workCredit = 0.5;
-    } else {
-      status = "INVALID";
-      workCredit = 0;
-    }
 
     const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(
       workedHours,
@@ -622,11 +597,11 @@ export class GymManagementService {
     );
 
     attendanceLog.checkOutAt = checkOutAt;
-    attendanceLog.workedHours = workedHours.toString();
-    attendanceLog.paidHours = paidHours.toString();
-    attendanceLog.overtimeHours = overtimeHours.toString();
+    attendanceLog.workedHours = toDecimalString(workedHours);
+    attendanceLog.paidHours = toDecimalString(paidHours);
+    attendanceLog.overtimeHours = toDecimalString(overtimeHours);
     attendanceLog.status = status;
-    attendanceLog.workCredit = workCredit.toString();
+    attendanceLog.workCredit = toDecimalString(workCredit);
 
     await em.flush();
 
@@ -1163,6 +1138,13 @@ export class GymManagementService {
       { status: "CONFIRMED" },
       { populate: ["createdByUser", "member"] },
     );
+    const defaultWorkCreditTarget = await this.getNumberSystemConfig(
+      em,
+      "payroll_standard_work_credits",
+      26,
+    );
+    const normalizedDefaultWorkCreditTarget =
+      defaultWorkCreditTarget > 0 ? defaultWorkCreditTarget : 26;
 
     for (const trainer of trainers) {
       const contract = await this.findPtContractForPeriod(
@@ -1171,10 +1153,15 @@ export class GymManagementService {
         payrollPeriod.fromDate,
         payrollPeriod.toDate,
       );
-      const baseSalaryAmount = await this.getNumberSystemConfig(
+      const configuredBaseSalaryAmount = await this.getNumberSystemConfig(
         em,
         `pt_${trainer.id}_base_salary`,
         contract ? Number(contract.baseSalary) : 0,
+      );
+      const workCreditTarget = await this.getNumberSystemConfig(
+        em,
+        `pt_${trainer.id}_standard_work_credits`,
+        normalizedDefaultWorkCreditTarget,
       );
       const overtimeHourlyRate = await this.getNumberSystemConfig(
         em,
@@ -1223,6 +1210,17 @@ export class GymManagementService {
       const overtimeHours = this.sumNumbers(
         attendanceLogs.map((attendanceLog) => Number(attendanceLog.overtimeHours)),
       );
+      const normalizedWorkCreditTarget =
+        workCreditTarget > 0
+          ? workCreditTarget
+          : normalizedDefaultWorkCreditTarget;
+      const baseSalaryAmount = this.sumNumbers([
+        configuredBaseSalaryAmount * (
+          normalizedWorkCreditTarget > 0
+            ? validShiftCredits / normalizedWorkCreditTarget
+            : 0
+        ),
+      ]);
       const assignmentInvoices = membershipInvoices.filter((invoice) =>
         this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod),
       );
@@ -1269,8 +1267,9 @@ export class GymManagementService {
         packageCount >= performanceBonusThreshold
           ? performanceBonusAmountValue
           : 0;
-      const overtimeAmount =
-        overtimeHours * overtimeHourlyRate;
+      const overtimeAmount = this.sumNumbers([
+        overtimeHours * overtimeHourlyRate,
+      ]);
       const attendanceBonusAmount = 0;
       const deductionAmount = 0;
       const penalties = 0;
@@ -1746,16 +1745,6 @@ export class GymManagementService {
       );
     }
 
-    const earliestCheckOutAt = new Date(
-      attendanceLog.checkInAt.getTime() + 5 * 36e5,
-    );
-
-    if (attendanceLog.checkOutAt < earliestCheckOutAt) {
-      throw new BadRequestException(
-        "Check out is allowed only after 5 working hours from check in",
-      );
-    }
-
     const workedHours = Number(
       (
         (attendanceLog.checkOutAt.getTime() - attendanceLog.checkInAt.getTime()) /
@@ -1767,31 +1756,16 @@ export class GymManagementService {
       attendanceLog.personalTrainer.id,
       attendanceLog.attendanceDate,
     );
-    const minValidShiftHours = ptContract
+    const fullShiftHours = ptContract
       ? Number(ptContract.minValidShiftHours)
       : await this.getNumberSystemConfig(em, "min_valid_shift_hours", 5);
     const standardShiftHours = ptContract
       ? Number(ptContract.standardShiftHours)
       : 8;
-    const halfShiftPolicy = await this.getStringSystemConfig(
-      em,
-      "half_shift_policy",
-      "NO_COUNT",
+    const { status, workCredit } = this.resolveAttendanceStatusAndWorkCredit(
+      workedHours,
+      fullShiftHours,
     );
-
-    let status: AttendanceLogEntity["status"];
-    let workCredit: number;
-
-    if (workedHours >= minValidShiftHours) {
-      status = "VALID";
-      workCredit = 1;
-    } else if (halfShiftPolicy === "HALF_COUNT") {
-      status = "HALF";
-      workCredit = 0.5;
-    } else {
-      status = "INVALID";
-      workCredit = 0;
-    }
 
     const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(
       workedHours,
@@ -1821,6 +1795,32 @@ export class GymManagementService {
     return {
       paidHours: standardShiftHours,
       overtimeHours,
+    };
+  }
+
+  private resolveAttendanceStatusAndWorkCredit(
+    workedHours: number,
+    fullShiftHours: number,
+  ): { status: AttendanceLogEntity["status"]; workCredit: number } {
+    const normalizedFullShiftHours = fullShiftHours > 0 ? fullShiftHours : 5;
+
+    if (workedHours <= 0) {
+      return {
+        status: "INVALID",
+        workCredit: 0,
+      };
+    }
+
+    if (workedHours >= normalizedFullShiftHours) {
+      return {
+        status: "VALID",
+        workCredit: 1,
+      };
+    }
+
+    return {
+      status: "HALF",
+      workCredit: Number((workedHours / normalizedFullShiftHours).toFixed(2)),
     };
   }
 
@@ -2283,6 +2283,47 @@ export class GymManagementService {
     await em.flush();
 
     return mapSystemConfigEntity(systemConfig);
+  }
+
+  async cleanupSystemConfigTrash(): Promise<{
+    removedCount: number;
+    removedKeys: string[];
+  }> {
+    const em = this.createEntityManager();
+    const systemConfigs = await em.find(SystemConfigEntity, {});
+    const activeTrainers = await em.find(PersonalTrainerEntity, {
+      deletedAt: null,
+    });
+    const activeTrainerIds = new Set(activeTrainers.map((trainer) => trainer.id));
+    const staleConfigs = systemConfigs.filter((systemConfig) => {
+      if (systemConfig.key === "half_shift_policy") {
+        return true;
+      }
+
+      if (!systemConfig.key.startsWith("pt_")) {
+        return false;
+      }
+
+      const matchedPtKey = /^pt_([^_]+)_/.exec(systemConfig.key);
+
+      if (!matchedPtKey) {
+        return false;
+      }
+
+      const [, ptId] = matchedPtKey;
+
+      return !activeTrainerIds.has(ptId);
+    });
+
+    if (staleConfigs.length > 0) {
+      em.remove(staleConfigs);
+      await em.flush();
+    }
+
+    return {
+      removedCount: staleConfigs.length,
+      removedKeys: staleConfigs.map((config) => config.key),
+    };
   }
 
   private createEntityManager(): EntityManager {

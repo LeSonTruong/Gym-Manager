@@ -464,6 +464,17 @@ export async function patchSystemConfigAction(formData: FormData): Promise<void>
   revalidatePath(`/${locale}/settings`);
 }
 
+export async function cleanupSystemConfigTrashAction(
+  formData: FormData,
+): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+
+  await postToBackend(locale, "/api/settings/cleanup-trash", {});
+  revalidatePath(`/${locale}/settings`);
+  revalidatePath(`/${locale}/pts`);
+  revalidatePath(`/${locale}/payroll`);
+}
+
 export async function updateAccountAction(formData: FormData): Promise<void> {
   const locale = getString(formData, "locale") || "en";
 
