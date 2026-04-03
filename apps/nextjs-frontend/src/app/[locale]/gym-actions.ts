@@ -555,7 +555,6 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
   const locale = getString(formData, "locale") || "en";
 
   await postToBackend(locale, "/api/member-assignments", {
-    memberId: getString(formData, "memberId"),
     ptId: getString(formData, "ptId"),
     memberMembershipId: getString(formData, "memberMembershipId"),
     assignedFrom: getString(formData, "assignedFrom"),

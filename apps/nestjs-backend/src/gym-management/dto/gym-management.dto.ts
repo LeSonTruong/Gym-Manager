@@ -417,8 +417,9 @@ export class CancelMemberMembershipDto {
 }
 
 export class CreateMemberAssignmentDto {
+  @IsOptional()
   @IsString()
-  memberId!: string;
+  memberId?: string;
 
   @IsString()
   ptId!: string;

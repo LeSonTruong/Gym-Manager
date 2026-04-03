@@ -6,11 +6,28 @@ type RouteCheck = {
   en: string[];
 };
 
+type LoginCandidate = {
+  username: string;
+  password: string;
+};
+
 const demoUsername =
   process.env.GYM_FRONTEND_DEMO_USERNAME
   ?? process.env.GYM_FRONTEND_DEMO_EMAIL
   ?? 'admin';
 const demoPassword = process.env.GYM_FRONTEND_DEMO_PASSWORD ?? 'demo123';
+
+async function delay(milliseconds: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+function normalizeBackendUrl(value: string): string {
+  return value
+    .replace(/\/+$/v, '')
+    .replace(/\/api$/iv, '');
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -31,51 +48,114 @@ function getRefreshToken(payload: unknown): string {
 }
 
 async function loginAsAdmin(page: Page): Promise<void> {
-  const backendUrl = process.env.GYM_BACKEND_URL
+  const backendUrl = normalizeBackendUrl(
+    process.env.GYM_BACKEND_URL
     ?? process.env.NEXT_PUBLIC_BACKEND_URL
-    ?? 'http://127.0.0.1:4000';
+    ?? 'http://127.0.0.1:4000',
+  );
+  const loginUrl = `${backendUrl}/api/auth/login`;
+  const healthUrl = `${backendUrl}/api/health`;
 
-  const candidates = [
+  const candidates: LoginCandidate[] = [
     { username: demoUsername, password: demoPassword },
     { username: 'admin', password: 'demo123' },
     { username: 'staff', password: 'demo123' },
   ];
 
-  const tryCandidate = async (index: number): Promise<void> => {
-    if (index >= candidates.length) {
-      throw new Error('Unable to login via API with known demo credentials');
+  const failureSignals: string[] = [];
+
+  const tryLoginCandidate = async (candidate: LoginCandidate): Promise<boolean> => {
+    try {
+      const loginResponse = await page.request.post(loginUrl, {
+        data: {
+          username: candidate.username,
+          password: candidate.password,
+        },
+      });
+
+      if (!loginResponse.ok()) {
+        failureSignals.push(
+          `${candidate.username}:${loginResponse.status()}`,
+        );
+        return false;
+      }
+
+      const refreshToken = getRefreshToken(await loginResponse.json());
+
+      await page.context().addCookies([
+        {
+          name: 'gym_refresh_token',
+          value: refreshToken,
+          url: 'http://localhost:3000',
+          httpOnly: true,
+          sameSite: 'Lax',
+        },
+      ]);
+
+      await page.goto('/vi/dashboard');
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failureSignals.push(`${candidate.username}:request-error:${message}`);
+      return false;
     }
-
-    const candidate = candidates[index];
-
-    const loginResponse = await page.request.post(`${backendUrl}/api/auth/login`, {
-      data: {
-        username: candidate.username,
-        password: candidate.password,
-      },
-    });
-
-    if (!loginResponse.ok()) {
-      await tryCandidate(index + 1);
-      return;
-    }
-
-    const refreshToken = getRefreshToken(await loginResponse.json());
-
-    await page.context().addCookies([
-      {
-        name: 'gym_refresh_token',
-        value: refreshToken,
-        url: 'http://localhost:3000',
-        httpOnly: true,
-        sameSite: 'Lax',
-      },
-    ]);
-
-    await page.goto('/vi/dashboard');
   };
 
-  await tryCandidate(0);
+  const loginWithRetries = async (
+    round = 0,
+    candidateIndex = 0,
+  ): Promise<boolean> => {
+    if (round >= 4) {
+      return false;
+    }
+
+    if (candidateIndex >= candidates.length) {
+      await delay(250 * (round + 1));
+      return loginWithRetries(round + 1, 0);
+    }
+
+    const loggedIn = await tryLoginCandidate(candidates[candidateIndex]);
+
+    if (loggedIn) {
+      return true;
+    }
+
+    return loginWithRetries(round, candidateIndex + 1);
+  };
+
+  await waitForBackendReady(page, healthUrl);
+
+  const loginSucceeded = await loginWithRetries();
+
+  if (loginSucceeded) {
+    return;
+  }
+
+  const detail = failureSignals.slice(-6).join(', ');
+  throw new Error(`Unable to login via API with known demo credentials. ${detail}`);
+}
+
+async function waitForBackendReady(
+  page: Page,
+  healthUrl: string,
+  attempt = 0,
+): Promise<void> {
+  if (attempt >= 8) {
+    return;
+  }
+
+  try {
+    const healthResponse = await page.request.get(healthUrl);
+
+    if (healthResponse.ok()) {
+      return;
+    }
+  } catch {
+    // Ignore transient startup errors and retry shortly.
+  }
+
+  await delay(250);
+  await waitForBackendReady(page, healthUrl, attempt + 1);
 }
 
 async function navigateAsAdminToRoute(page: Page, routePath: string): Promise<void> {

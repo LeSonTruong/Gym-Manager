@@ -994,10 +994,6 @@ export class GymManagementService {
     createMemberAssignmentDto: CreateMemberAssignmentDto,
   ): Promise<GymManagementSnapshot["dataset"]["memberPtAssignments"][number]> {
     const em = this.createEntityManager();
-    const member = await this.getRequiredMemberEntity(
-      em,
-      createMemberAssignmentDto.memberId,
-    );
     const trainer = await this.getRequiredPersonalTrainerEntity(
       em,
       createMemberAssignmentDto.ptId,
@@ -1006,15 +1002,25 @@ export class GymManagementService {
       MemberMembershipEntity,
       {
         id: createMemberAssignmentDto.memberMembershipId,
-        member,
         deletedAt: null,
       },
-      { populate: ["membershipPlan"] },
+      { populate: ["member", "membershipPlan"] },
     );
 
     if (!membership) {
       throw new NotFoundException(
-        `Membership ${createMemberAssignmentDto.memberMembershipId} not found for member ${member.id}`,
+        `Membership ${createMemberAssignmentDto.memberMembershipId} not found`,
+      );
+    }
+
+    const { member } = membership;
+
+    if (
+      createMemberAssignmentDto.memberId !== undefined &&
+      createMemberAssignmentDto.memberId !== member.id
+    ) {
+      throw new BadRequestException(
+        `Membership ${membership.id} does not belong to member ${createMemberAssignmentDto.memberId}`,
       );
     }
 

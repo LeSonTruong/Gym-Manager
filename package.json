@@ -12,7 +12,7 @@
     "lint": "turbo run lint --",
     "lint:fix": "turbo run lint:fix --",
     "test:unit": "turbo run test:unit",
-    "test:e2e": "turbo run test:e2e",
+    "test:e2e": "node scripts/preflight-e2e-ports.mjs && turbo run test:e2e",
     "test:unit:cov": "turbo run test:unit:cov",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,html,yml,yaml}\"",
     "prepare": "husky",

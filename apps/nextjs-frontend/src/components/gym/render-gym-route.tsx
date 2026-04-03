@@ -1899,15 +1899,6 @@ function buildMembershipOverviewPage(
                   <input type="hidden" name="commissionType" value="PERCENT" />
                   <input type="hidden" name="commissionValue" value="10" />
                   <FormSelect
-                    label="Hội viên"
-                    name="memberId"
-                    required
-                    options={snapshot.dataset.members.map((member) => ({
-                      value: member.id,
-                      label: `${member.code} | ${member.fullName}`,
-                    }))}
-                  />
-                  <FormSelect
                     label="PT"
                     name="ptId"
                     required
@@ -2048,7 +2039,7 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
               >
                 {assignment.status}
               </Badge>,
-              assignment.status === "ACTIVE" ? (
+              assignment.status === "ACTIVE" && isAdmin(options) ? (
                 <form key={`${assignment.id}-form`} action={endAssignmentAction}>
                   <input type="hidden" name="locale" value={locale} />
                   <input type="hidden" name="assignmentId" value={assignment.id} />
@@ -2069,15 +2060,6 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
                 <input type="hidden" name="commissionType" value="PERCENT" />
                 <input type="hidden" name="commissionValue" value="10" />
                 <FormGrid>
-                  <FormSelect
-                    label="Hội viên"
-                    name="memberId"
-                    options={snapshot.dataset.members.map((m) => ({
-                      value: m.id,
-                      label: m.fullName,
-                    }))}
-                    required
-                  />
                   <FormSelect
                     label="PT"
                     name="ptId"
