@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'PT' | 'STAFF';
+export type UserRole = 'ADMIN' | 'STAFF';
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CARD';
@@ -15,14 +15,14 @@ export type HalfShiftPolicy = 'NO_COUNT' | 'HALF_COUNT';
 export type PtAssignmentStatus = 'ACTIVE' | 'ENDED';
 export type MemberCheckInSource = 'QR' | 'STAFF' | 'MANUAL';
 export type PtBookingStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
-export type InventoryTransactionType = 'IMPORT' | 'SALE';
+export type InventoryTransactionType = 'IMPORT' | 'SALE' | 'ADJUSTMENT';
 export type ExpenseStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PAID';
 export type OperatingExpenseCategory = 'CLEANING' | 'UTILITY' | 'SALARY' | 'RENT' | 'OTHER';
 export type CommissionType = 'PERCENT' | 'FIXED';
 export type DemoUser = {
     id: string;
     fullName: string;
-    email: string;
+    username: string;
     role: UserRole;
     status: UserStatus;
     passwordHint?: string | undefined;

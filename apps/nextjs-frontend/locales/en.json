@@ -42,6 +42,8 @@
     "GroupOperations": "OPERATIONS",
     "Workspace": "Workspace",
     "WorkspaceTag": "UTC+7 workspace",
+    "PresetProfessional": "Professional",
+    "PresetEnergetic": "Energetic",
     "ThemeDark": "Dark mode",
     "ThemeLight": "Light mode",
     "Logout": "Logout",

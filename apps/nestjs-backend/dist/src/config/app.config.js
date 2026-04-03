@@ -13,6 +13,9 @@ const appConfig = () => ({
     [config_key_enum_1.ConfigKey.FRONTEND_HOST]: process.env.FRONTEND_HOST ?? 'http://localhost:3000',
     [config_key_enum_1.ConfigKey.PORT]: readNumber(process.env.PORT) ?? 4000,
     [config_key_enum_1.ConfigKey.ENABLE_SWAGGER]: process.env.ENABLE_SWAGGER === undefined ? true : process.env.ENABLE_SWAGGER === 'true',
+    [config_key_enum_1.ConfigKey.ENABLE_DEMO_SEED]: process.env.ENABLE_DEMO_SEED === undefined
+        ? (process.env.NODE_ENV ?? 'development') !== 'production'
+        : process.env.ENABLE_DEMO_SEED === 'true',
     [config_key_enum_1.ConfigKey.POSTGRES_TIMEZONE]: process.env.POSTGRES_TIMEZONE ?? 'UTC',
     [config_key_enum_1.ConfigKey.POSTGRES_DB_NAME]: process.env.POSTGRES_DB_NAME ?? 'gym_manager',
     [config_key_enum_1.ConfigKey.POSTGRES_PASSWORD]: process.env.POSTGRES_PASSWORD ?? 'postgres',

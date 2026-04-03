@@ -5,7 +5,7 @@ export declare class CreatePersonalTrainerDto {
     gender: string;
     birthDate: string;
     phone: string;
-    email: string;
+    email?: string;
     address: string;
     status: string;
     specialties: string[];
@@ -22,7 +22,7 @@ export declare class CreateMemberDto {
     gender: string;
     birthDate: string;
     phone: string;
-    email: string;
+    email?: string;
     address: string;
     heightCm: number;
     weightKg: number;

@@ -29,7 +29,7 @@ function getBackendUrl(): string {
 }
 
 function hasAuthPayload(value: unknown): value is ApiResponse<AuthPayload> {
-  return Boolean(value) && typeof value === "object" && "data" in value;
+  return value !== null && typeof value === "object" && "data" in value;
 }
 
 async function setRefreshTokenCookie(refreshToken: string): Promise<void> {
@@ -51,7 +51,7 @@ export async function clearRefreshTokenCookie(): Promise<void> {
 }
 
 export async function loginToGymFrontend(
-  email: string,
+  username: string,
   password: string,
 ): Promise<GymFrontendSession> {
   const response = await fetch(`${getBackendUrl()}/api/auth/login`, {
@@ -60,11 +60,11 @@ export async function loginToGymFrontend(
       "Content-Type": "application/json",
     },
     cache: "no-store",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ username, password }),
   });
 
   if (!response.ok) {
-    throw new Error("Invalid email or password");
+    throw new Error("Invalid username or password");
   }
 
   const payload: unknown = await response.json();

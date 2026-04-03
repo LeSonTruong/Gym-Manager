@@ -14,8 +14,8 @@ export class UserEntity extends BaseEntity {
   @Property({ length: 160 })
   fullName!: string;
 
-  @Property({ length: 180, unique: true })
-  email!: string;
+  @Property({ length: 180, unique: true, fieldName: 'email' })
+  username!: string;
 
   @Property({ length: 30 })
   role!: string;

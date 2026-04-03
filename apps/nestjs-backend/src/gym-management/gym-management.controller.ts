@@ -15,7 +15,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { IsEmail, IsString, MinLength } from "class-validator";
+import { IsOptional, IsString, MinLength } from "class-validator";
 import type { Response } from "express";
 import { AuditAction } from "./audit/audit-action.decorator";
 import { AuditLogInterceptor } from "./audit/audit-log.interceptor";
@@ -57,8 +57,9 @@ import { Roles } from "./auth/roles.decorator";
 import { GymManagementService } from "./gym-management.service";
 
 class LoginDto {
-  @IsEmail()
-  email!: string;
+  @IsString()
+  @MinLength(3)
+  username!: string;
 
   @IsString()
   @MinLength(3)
@@ -73,6 +74,23 @@ class RefreshTokenDto {
 class LogoutDto {
   @IsString()
   refreshToken!: string;
+}
+
+class UpdateAccountDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  currentPassword?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  newPassword?: string;
 }
 
 type Snapshot = Awaited<ReturnType<GymManagementService["getSnapshot"]>>;
@@ -151,7 +169,10 @@ export class GymManagementController {
   @AuditAction("AUTH_LOGIN", "auth")
   async login(@Body() loginDto: LoginDto): Promise<ApiResponse<LoginResult>> {
     return createResponse(
-      await this.gymManagementService.login(loginDto.email, loginDto.password),
+      await this.gymManagementService.login(
+        loginDto.username,
+        loginDto.password,
+      ),
     );
   }
 
@@ -169,7 +190,7 @@ export class GymManagementController {
   }
 
   @Post("auth/logout")
-  @Roles("ADMIN", "STAFF", "PT")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("AUTH_LOGOUT", "auth")
   async logout(
     @Body() logoutDto: LogoutDto,
@@ -184,12 +205,27 @@ export class GymManagementController {
   }
 
   @Get("auth/me")
-  @Roles("ADMIN", "STAFF", "PT")
+  @Roles("ADMIN", "STAFF")
   async getCurrentUser(
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ApiResponse<CurrentUserProfile>> {
     return createResponse(
       await this.gymManagementService.getCurrentUserById(currentUser.user.id),
+    );
+  }
+
+  @Patch("auth/account")
+  @Roles("ADMIN", "STAFF")
+  @AuditAction("AUTH_ACCOUNT_UPDATE", "auth")
+  async updateAccount(
+    @Body() updateAccountDto: UpdateAccountDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ApiResponse<CurrentUserProfile>> {
+    return createResponse(
+      await this.gymManagementService.updateAccountCredentials(
+        currentUser.user.id,
+        updateAccountDto,
+      ),
     );
   }
 
@@ -370,7 +406,7 @@ export class GymManagementController {
   }
 
   @Get("attendance/me")
-  @Roles("ADMIN", "STAFF", "PT")
+  @Roles("ADMIN", "STAFF")
   async getMyAttendance(
     @Query("ptId") ptId: string | undefined,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -433,7 +469,7 @@ export class GymManagementController {
   }
 
   @Get("payroll/me")
-  @Roles("ADMIN", "STAFF", "PT")
+  @Roles("ADMIN", "STAFF")
   async getPayrollMe(
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ApiResponse<PayrollMeRecord>> {
@@ -758,7 +794,7 @@ export class GymManagementController {
   }
 
   @Post("sales/invoices")
-  @Roles("ADMIN", "STAFF", "PT")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("SALES_INVOICE_CREATE", "sales_invoices")
   async createSalesInvoice(
     @Body() createSalesInvoiceDto: CreateSalesInvoiceDto,
@@ -990,24 +1026,10 @@ export class GymManagementController {
     currentUser: AuthenticatedUser,
     requestedPtId?: string,
   ): string {
-    if (currentUser.role !== "PT") {
-      if (!requestedPtId) {
-        throw new ForbiddenException("ptId is required for non-PT users");
-      }
-
-      return requestedPtId;
+    if (!requestedPtId) {
+      throw new ForbiddenException("ptId is required");
     }
 
-    if (!currentUser.ptId) {
-      throw new ForbiddenException(
-        "PT account is not linked to a trainer profile",
-      );
-    }
-
-    if (requestedPtId && requestedPtId !== currentUser.ptId) {
-      throw new ForbiddenException("PT can only access own attendance data");
-    }
-
-    return currentUser.ptId;
+    return requestedPtId;
   }
 }

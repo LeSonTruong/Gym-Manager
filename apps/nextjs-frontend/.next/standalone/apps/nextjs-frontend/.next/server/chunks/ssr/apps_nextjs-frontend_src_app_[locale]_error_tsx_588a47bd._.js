@@ -1,3 +1,0 @@
-module.exports=[84121,a=>{"use strict";var b=a.i(87924);a.s(["default",0,function({reset:a,error:c}){return(0,b.jsxs)(b.Fragment,{children:[(0,b.jsx)("h2",{children:"Something went wrong!"}),(0,b.jsx)("p",{children:c.message}),(0,b.jsx)("button",{type:"button",onClick:()=>{a()},children:"Try again"})]})}])}];
-
-//# sourceMappingURL=apps_nextjs-frontend_src_app_%5Blocale%5D_error_tsx_588a47bd._.js.map

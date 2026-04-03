@@ -7,6 +7,7 @@ var ConfigKey;
     ConfigKey["FRONTEND_HOST"] = "FRONTEND_HOST";
     ConfigKey["PORT"] = "PORT";
     ConfigKey["ENABLE_SWAGGER"] = "ENABLE_SWAGGER";
+    ConfigKey["ENABLE_DEMO_SEED"] = "ENABLE_DEMO_SEED";
     ConfigKey["POSTGRES_TIMEZONE"] = "POSTGRES_TIMEZONE";
     ConfigKey["POSTGRES_DB_NAME"] = "POSTGRES_DB_NAME";
     ConfigKey["POSTGRES_PASSWORD"] = "POSTGRES_PASSWORD";

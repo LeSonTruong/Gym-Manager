@@ -76,7 +76,7 @@ export function toDecimalString(value: number): string {
   return value.toString();
 }
 
-const userRoles = ["ADMIN", "PT", "STAFF"] as const;
+const userRoles = ["ADMIN", "STAFF"] as const;
 const userStatuses = ["ACTIVE", "INACTIVE"] as const;
 const genders = ["MALE", "FEMALE", "OTHER"] as const;
 const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"] as const;
@@ -115,7 +115,7 @@ export function mapUserEntity(entity: UserEntity): DemoUser {
   return {
     id: entity.id,
     fullName: entity.fullName,
-    email: entity.email,
+    username: entity.username,
     role: coerceEnumValue(entity.role, userRoles, "STAFF"),
     status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
@@ -274,7 +274,7 @@ export function mapMemberPtAssignmentEntity(entity: MemberPtAssignmentEntity): M
     assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
     commissionType:
       typeof entity.commissionType === "string" &&
-      isOneOf(entity.commissionType, commissionTypes)
+        isOneOf(entity.commissionType, commissionTypes)
         ? entity.commissionType
         : undefined,
     commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,

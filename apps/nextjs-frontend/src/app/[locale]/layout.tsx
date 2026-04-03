@@ -10,6 +10,7 @@ import "primereact/resources/primereact.min.css";
 import "primereact/resources/themes/bootstrap4-light-blue/theme.css";
 import { logoutAction } from "./gym-actions.ts";
 import { AppShell } from "@/components/app-shell/app-shell.component.tsx";
+import { ActionToastBridge } from "@/components/app-shell/action-toast-bridge.component.tsx";
 import { ReactQueryProvider } from "@/providers/react-query/react-query.provider";
 import { ToastProvider } from "@/providers/toast/toast.provider";
 import { routing } from "@/i18n/routing.ts";
@@ -42,6 +43,7 @@ export default async function Layout({
         <NextIntlClientProvider>
           <ZodErrorProvider>
             <ToastProvider>
+              <ActionToastBridge locale={locale} />
               <ConfirmDialog />
               <ReactQueryProvider>
                 <AppShell

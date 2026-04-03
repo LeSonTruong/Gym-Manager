@@ -54,7 +54,7 @@ function getBackendUrl(): string {
 function hasApiResponseData<ResponsePayload>(
   value: unknown,
 ): value is ApiResponse<ResponsePayload> {
-  return Boolean(value) && typeof value === "object" && "data" in value;
+  return value !== null && typeof value === "object" && "data" in value;
 }
 
 async function fetchBackendData<ResponsePayload>(

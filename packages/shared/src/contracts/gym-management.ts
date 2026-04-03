@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'PT' | 'STAFF';
+export type UserRole = 'ADMIN' | 'STAFF';
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CARD';
@@ -44,7 +44,7 @@ export type CommissionType = 'PERCENT' | 'FIXED';
 export type DemoUser = {
   id: string;
   fullName: string;
-  email: string;
+  username: string;
   role: UserRole;
   status: UserStatus;
   passwordHint?: string | undefined;

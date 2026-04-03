@@ -1,12 +1,7 @@
 import { type JSX } from "react";
 import { redirect } from "next/navigation";
 import { renderGymRoute } from "@/components/gym/render-gym-route.tsx";
-import {
-  loadGymSnapshot,
-  loadMyAttendance,
-  loadMyPayroll,
-  runWithGymSnapshot,
-} from "@/lib/gym-data.ts";
+import { loadGymSnapshot, runWithGymSnapshot } from "@/lib/gym-data.ts";
 import {
   getOptionalGymSession,
   requireGymSession,
@@ -29,11 +24,7 @@ export default async function GymRoutePage({
     const session = await getOptionalGymSession();
 
     if (session) {
-      redirect(
-        session.user.role === "PT"
-          ? `/${locale}/pts/attendance`
-          : `/${locale}/dashboard`,
-      );
+      redirect(`/${locale}/dashboard`);
     }
 
     return renderGymRoute(slug, {
@@ -43,36 +34,6 @@ export default async function GymRoutePage({
   }
 
   const session = await requireGymSession(locale);
-
-  if (session.user.role === "PT") {
-    if (slug[0] === "pts" && slug[1] === "attendance") {
-      const attendance = await loadMyAttendance(session.accessToken);
-
-      return runWithGymSession(session, () =>
-        renderGymRoute(slug, {
-          locale,
-          currentUser: session.user,
-          searchParams: resolvedSearchParams,
-          ptAttendance: attendance,
-        }),
-      );
-    }
-
-    if (slug[0] === "payroll" && slug.length === 1) {
-      const payrollEntries = await loadMyPayroll(session.accessToken);
-
-      return runWithGymSession(session, () =>
-        renderGymRoute(slug, {
-          locale,
-          currentUser: session.user,
-          searchParams: resolvedSearchParams,
-          ptPayrollEntries: payrollEntries,
-        }),
-      );
-    }
-
-    redirect(`/${locale}/pts/attendance`);
-  }
 
   const snapshot = await loadGymSnapshot(session.accessToken);
 

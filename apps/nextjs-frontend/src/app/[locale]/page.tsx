@@ -1,5 +1,4 @@
 import { type JSX } from "react";
-import { redirect } from "next/navigation";
 import { renderGymRoute } from "@/components/gym/render-gym-route.tsx";
 import { loadGymSnapshot, runWithGymSnapshot } from "@/lib/gym-data.ts";
 import { requireGymSession, runWithGymSession } from "@/lib/gym-auth.ts";
@@ -13,10 +12,6 @@ export default async function Home({
 }): Promise<JSX.Element> {
   const { locale } = await params;
   const session = await requireGymSession(locale);
-
-  if (session.user.role === "PT") {
-    redirect(`/${locale}/pts/attendance`);
-  }
 
   const snapshot = await loadGymSnapshot(session.accessToken);
 

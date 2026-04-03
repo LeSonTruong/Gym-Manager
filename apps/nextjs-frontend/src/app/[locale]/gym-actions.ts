@@ -2,6 +2,7 @@
 
 import process from "node:process";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   clearRefreshTokenCookie,
@@ -53,6 +54,108 @@ function getLineList(formData: FormData, key: string): string[] {
     .filter(Boolean);
 }
 
+function getBackendErrorMessage(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") {
+    return undefined;
+  }
+
+  if (!("message" in payload)) {
+    return undefined;
+  }
+
+  const { message } = payload as { readonly message?: unknown };
+
+  if (typeof message === "string" && message.length > 0) {
+    return message;
+  }
+
+  if (Array.isArray(message)) {
+    const messageItems = message.filter(
+      (item): item is string => typeof item === "string" && item.length > 0,
+    );
+
+    if (messageItems.length > 0) {
+      return messageItems.join("; ");
+    }
+  }
+
+  return undefined;
+}
+
+type ActionToastSeverity = "error" | "info" | "success" | "warn";
+
+const actionToastSeverityQueryKey = "toastSeverity";
+const actionToastMessageQueryKey = "toastMessage";
+
+function normalizeActionToastMessage(
+  locale: string,
+  message: string | undefined,
+): string {
+  const fallbackMessage = locale === "vi"
+    ? "Thao tác không thành công. Vui lòng thử lại."
+    : "Action failed. Please try again.";
+
+  if (!message) {
+    return fallbackMessage;
+  }
+
+  const normalizedMessage = message.replaceAll(/\s+/gv, " ").trim();
+
+  if (normalizedMessage.length === 0) {
+    return fallbackMessage;
+  }
+
+  return normalizedMessage.slice(0, 260);
+}
+
+async function buildActionToastRedirectUrl(
+  locale: string,
+  severity: ActionToastSeverity,
+  message: string,
+): Promise<string> {
+  const fallbackPath = `/${locale}`;
+  let pathname = fallbackPath;
+  let params = new URLSearchParams();
+
+  try {
+    const headerStore = await headers();
+    const referer = headerStore.get("referer");
+
+    if (referer) {
+      const refererUrl = new URL(referer);
+
+      if (refererUrl.pathname.startsWith(`/${locale}`)) {
+        pathname = refererUrl.pathname;
+        params = new URLSearchParams(refererUrl.search);
+      }
+    }
+  } catch {
+    pathname = fallbackPath;
+    params = new URLSearchParams();
+  }
+
+  params.set(actionToastSeverityQueryKey, severity);
+  params.set(actionToastMessageQueryKey, message);
+
+  const queryString = params.toString();
+
+  return queryString.length > 0 ? `${pathname}?${queryString}` : pathname;
+}
+
+async function redirectWithActionToast(
+  locale: string,
+  severity: ActionToastSeverity,
+  message: string,
+): Promise<never> {
+  const redirectUrl = await buildActionToastRedirectUrl(
+    locale,
+    severity,
+    message,
+  );
+
+  redirect(redirectUrl);
+}
+
 async function postToBackend(
   locale: string,
   endpoint: string,
@@ -76,21 +179,46 @@ async function postToBackend(
   });
 
   if (!response.ok) {
-    throw new Error(`Backend request failed for ${endpoint} (${response.status})`);
+    let backendMessage: string | undefined;
+
+    try {
+      const contentType = response.headers.get("content-type") ?? "";
+
+      if (contentType.includes("application/json")) {
+        const payload: unknown = await response.json();
+
+        backendMessage = getBackendErrorMessage(payload);
+      } else {
+        const responseTextRaw = await response.text();
+        const responseText = responseTextRaw.trim();
+
+        if (responseText.length > 0) {
+          backendMessage = responseText;
+        }
+      }
+    } catch {
+      backendMessage = undefined;
+    }
+
+    const errorDetail = backendMessage
+      ? `Backend request failed for ${endpoint} (${response.status}): ${backendMessage}`
+      : `Backend request failed for ${endpoint} (${response.status})`;
+
+    return redirectWithActionToast(
+      locale,
+      "error",
+      normalizeActionToastMessage(locale, errorDetail),
+    );
   }
 }
 
 export async function loginAction(formData: FormData): Promise<void> {
   const locale = getString(formData, "locale") || "en";
-  const email = getString(formData, "email");
+  const username = getString(formData, "username");
   const password = getString(formData, "password");
 
   try {
-    const session = await loginToGymFrontend(email, password);
-
-    if (session.user.role === "PT") {
-      redirect(`/${locale}/pts/attendance`);
-    }
+    await loginToGymFrontend(username, password);
   } catch {
     await clearRefreshTokenCookie();
     redirect(`/${locale}/login?error=invalid`);
@@ -160,7 +288,7 @@ export async function createPersonalTrainerAction(formData: FormData): Promise<v
     gender: getString(formData, "gender"),
     birthDate: getString(formData, "birthDate"),
     phone: getString(formData, "phone"),
-    email: getString(formData, "email"),
+    email: getOptionalString(formData, "email"),
     address: getString(formData, "address"),
     status: getString(formData, "status"),
     specialties: getLineList(formData, "specialties"),
@@ -185,7 +313,7 @@ export async function updatePersonalTrainerAction(formData: FormData): Promise<v
       gender: getString(formData, "gender"),
       birthDate: getString(formData, "birthDate"),
       phone: getString(formData, "phone"),
-      email: getString(formData, "email"),
+      email: getOptionalString(formData, "email"),
       address: getString(formData, "address"),
       status: getString(formData, "status"),
       specialties: getLineList(formData, "specialties"),
@@ -216,7 +344,7 @@ export async function createMemberAction(formData: FormData): Promise<void> {
     gender: getString(formData, "gender"),
     birthDate: getString(formData, "birthDate"),
     phone: getString(formData, "phone"),
-    email: getString(formData, "email"),
+    email: getOptionalString(formData, "email"),
     address: getString(formData, "address"),
     heightCm: getNumberValue(formData, "heightCm"),
     weightKg: getNumberValue(formData, "weightKg"),
@@ -241,7 +369,7 @@ export async function updateMemberAction(formData: FormData): Promise<void> {
       gender: getString(formData, "gender"),
       birthDate: getString(formData, "birthDate"),
       phone: getString(formData, "phone"),
-      email: getString(formData, "email"),
+      email: getOptionalString(formData, "email"),
       address: getString(formData, "address"),
       heightCm: getNumberValue(formData, "heightCm"),
       weightKg: getNumberValue(formData, "weightKg"),
@@ -371,6 +499,24 @@ export async function patchSystemConfigAction(formData: FormData): Promise<void>
     "PATCH",
   );
   revalidatePath(`/${locale}/settings`);
+}
+
+export async function updateAccountAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+
+  await postToBackend(
+    locale,
+    "/api/auth/account",
+    {
+      username: getOptionalString(formData, "username"),
+      currentPassword: getOptionalString(formData, "currentPassword"),
+      newPassword: getOptionalString(formData, "newPassword"),
+    },
+    "PATCH",
+  );
+
+  revalidatePath(`/${locale}/settings`);
+  revalidatePath(`/${locale}/dashboard`);
 }
 
 export async function patchPtCompensationAction(formData: FormData): Promise<void> {

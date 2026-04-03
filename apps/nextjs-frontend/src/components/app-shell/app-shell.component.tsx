@@ -1,8 +1,127 @@
 'use client';
 
-import { type JSX, type ReactNode, useEffect, useState } from 'react';
+import { type JSX, type ReactNode, useEffect, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation.ts';
+
+type ThemeMode = 'light' | 'dark';
+type ThemePreset = 'professional' | 'energetic';
+
+const defaultTheme: ThemeMode = 'light';
+const defaultPreset: ThemePreset = 'professional';
+const themeStorageKey = 'gym-theme';
+const presetStorageKey = 'gym-preset';
+const appearanceChangeEventName = 'gym-appearance-change';
+const themeTransitionDurationMs = 180;
+const themeTransitionOverlayId = 'gym-theme-transition-overlay';
+
+function getThemeSnapshot(): ThemeMode {
+  if (globalThis.window === undefined) {
+    return defaultTheme;
+  }
+
+  const savedTheme = globalThis.localStorage.getItem(themeStorageKey);
+
+  if (savedTheme === 'dark' || savedTheme === 'light') {
+    return savedTheme;
+  }
+
+  return globalThis.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
+}
+
+function getServerThemeSnapshot(): ThemeMode {
+  return defaultTheme;
+}
+
+function getPresetSnapshot(): ThemePreset {
+  if (globalThis.window === undefined) {
+    return defaultPreset;
+  }
+
+  const savedPreset = globalThis.localStorage.getItem(presetStorageKey);
+
+  if (savedPreset === 'professional' || savedPreset === 'energetic') {
+    return savedPreset;
+  }
+
+  return defaultPreset;
+}
+
+function getServerPresetSnapshot(): ThemePreset {
+  return defaultPreset;
+}
+
+function runThemeCrossFade(): void {
+  if (globalThis.window === undefined) {
+    return;
+  }
+
+  if (globalThis.window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+
+  document.querySelector<HTMLDivElement>(`#${themeTransitionOverlayId}`)?.remove();
+
+  const rootStyles = globalThis.window.getComputedStyle(document.documentElement);
+  const bodyStyles = globalThis.window.getComputedStyle(document.body);
+  const shellBackground = rootStyles.getPropertyValue('--shell-bg').trim();
+  const overlay = document.createElement('div');
+
+  overlay.id = themeTransitionOverlayId;
+  overlay.setAttribute('aria-hidden', 'true');
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.pointerEvents = 'none';
+  overlay.style.zIndex = '9999';
+  overlay.style.opacity = '1';
+  overlay.style.willChange = 'opacity';
+  overlay.style.transition = `opacity ${themeTransitionDurationMs}ms ease`;
+  overlay.style.background = shellBackground || bodyStyles.background || bodyStyles.backgroundColor;
+
+  document.body.append(overlay);
+
+  globalThis.window.requestAnimationFrame(() => {
+    overlay.style.opacity = '0';
+  });
+
+  globalThis.window.setTimeout(() => {
+    overlay.remove();
+  }, themeTransitionDurationMs + 80);
+}
+
+function subscribeAppearance(onStoreChange: () => void): () => void {
+  if (globalThis.window === undefined) {
+    return () => undefined;
+  }
+
+  const mediaQuery = globalThis.matchMedia('(prefers-color-scheme: dark)');
+
+  const onMediaChange = (): void => {
+    onStoreChange();
+  };
+
+  const onStorageChange = (event: StorageEvent): void => {
+    if (
+      event.key === null
+      || event.key === themeStorageKey
+      || event.key === presetStorageKey
+    ) {
+      onStoreChange();
+    }
+  };
+
+  mediaQuery.addEventListener('change', onMediaChange);
+  globalThis.window.addEventListener('storage', onStorageChange);
+  globalThis.window.addEventListener(appearanceChangeEventName, onMediaChange);
+
+  return () => {
+    mediaQuery.removeEventListener('change', onMediaChange);
+    globalThis.window.removeEventListener('storage', onStorageChange);
+    globalThis.window.removeEventListener(appearanceChangeEventName, onMediaChange);
+  };
+}
 
 type NavItem = {
   readonly href: string;
@@ -59,14 +178,8 @@ function getNavigationByRole(t: (key: string) => string, role?: string): {
     { href: '/membership-invoices', label: t('MembershipInvoices'), iconClassName: 'pi pi-file' },
     { href: '/inventory', label: t('Inventory'), iconClassName: 'pi pi-box' },
     { href: '/invoices', label: t('SalesInvoices'), iconClassName: 'pi pi-receipt' },
+    { href: '/settings', label: t('Settings'), iconClassName: 'pi pi-sliders-h' },
   ];
-
-  if (role === 'PT') {
-    return {
-      main: [{ href: '/pts/attendance', label: t('Attendance'), iconClassName: 'pi pi-clock' }],
-      secondary: [{ href: '/payroll', label: t('MyPayroll'), iconClassName: 'pi pi-money-bill' }],
-    };
-  }
 
   if (!role) {
     return {
@@ -112,7 +225,7 @@ function NavigationGroup({
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${active
                 ? 'bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
                 : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'
-              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
+                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
             >
               <span className={`text-sm ${item.iconClassName}`} />
               <span className="font-medium">{item.label}</span>
@@ -141,35 +254,55 @@ export function AppShell({
   const tNav = useTranslations('Navigation');
   const tApp = useTranslations('AppShell');
   const navigation = getNavigationByRole(tNav, currentUserRole);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (globalThis.window === undefined) {
-      return 'light';
-    }
-
-    const savedTheme = globalThis.localStorage.getItem('gym-theme');
-
-    if (savedTheme === 'dark' || savedTheme === 'light') {
-      return savedTheme;
-    }
-
-    return globalThis.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light';
-  });
+  const theme = useSyncExternalStore(
+    subscribeAppearance,
+    getThemeSnapshot,
+    getServerThemeSnapshot,
+  );
+  const preset = useSyncExternalStore(
+    subscribeAppearance,
+    getPresetSnapshot,
+    getServerPresetSnapshot,
+  );
 
   useEffect(() => {
+    if (globalThis.window === undefined) {
+      return;
+    }
+
     document.documentElement.dataset.theme = theme;
-    globalThis.localStorage.setItem('gym-theme', theme);
-  }, [theme]);
+    document.documentElement.dataset.preset = preset;
+    globalThis.window.localStorage.setItem(themeStorageKey, theme);
+    globalThis.window.localStorage.setItem(presetStorageKey, preset);
+  }, [theme, preset]);
 
   const toggleTheme = (): void => {
-    setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'));
+    if (globalThis.window === undefined) {
+      return;
+    }
+
+    const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark';
+
+    runThemeCrossFade();
+    globalThis.window.localStorage.setItem(themeStorageKey, nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    globalThis.window.dispatchEvent(new Event(appearanceChangeEventName));
+  };
+
+  const applyPreset = (nextPreset: ThemePreset): void => {
+    if (globalThis.window === undefined) {
+      return;
+    }
+
+    globalThis.window.localStorage.setItem(presetStorageKey, nextPreset);
+    document.documentElement.dataset.preset = nextPreset;
+    globalThis.window.dispatchEvent(new Event(appearanceChangeEventName));
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.12),_transparent_24%),linear-gradient(180deg,_#f8fafc_0%,_#fff7ed_100%)] lg:grid lg:grid-cols-[295px_minmax(0,1fr)]">
-      <aside className="border-b border-white/60 bg-white/72 p-5 backdrop-blur lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
-        <div className="rounded-[1.75rem] bg-slate-950 p-5 text-white shadow-[0_25px_60px_rgba(15,23,42,0.32)]">
+    <div className="min-h-screen [background:var(--shell-bg)] lg:grid lg:grid-cols-[308px_minmax(0,1fr)]">
+      <aside className="border-b border-white/60 bg-white/74 p-5 backdrop-blur-xl lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:border-b-0 lg:border-r">
+        <div className="rounded-[1.9rem] bg-[linear-gradient(145deg,#020617_0%,#0f172a_52%,#1e293b_100%)] p-5 text-white shadow-[0_28px_64px_rgba(15,23,42,0.34)]">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-orange-300">Gym Manager</p>
           <h1 className="font-display mt-3 text-2xl font-semibold tracking-tight">{tApp('Title')}</h1>
           <p className="mt-3 text-sm leading-6 text-slate-300">
@@ -186,7 +319,7 @@ export function AppShell({
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-20 border-b border-white/60 bg-white/72 px-4 py-4 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-white/60 bg-white/72 px-4 py-4 backdrop-blur-xl lg:px-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">{tApp('Workspace')}</p>
@@ -198,14 +331,41 @@ export function AppShell({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/92 p-1 shadow-sm">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-wide transition ${preset === 'professional'
+                    ? 'bg-[var(--accent-600)] text-white shadow-[0_10px_24px_rgba(15,23,42,0.2)]'
+                    : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  onClick={() => {
+                    applyPreset('professional');
+                  }}
+                >
+                  {tApp('PresetProfessional')}
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-wide transition ${preset === 'energetic'
+                    ? 'bg-[var(--accent-600)] text-white shadow-[0_10px_24px_rgba(15,23,42,0.2)]'
+                    : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  onClick={() => {
+                    applyPreset('energetic');
+                  }}
+                >
+                  {tApp('PresetEnergetic')}
+                </button>
+              </div>
               <button
                 type="button"
-                className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70"
+                className="group inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/92 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 onClick={toggleTheme}
               >
+                <span className={`pi ${theme === 'dark' ? 'pi-sun' : 'pi-moon'} text-[11px] text-[var(--accent-600)] transition group-hover:rotate-12`} />
                 {theme === 'dark' ? tApp('ThemeLight') : tApp('ThemeDark')}
               </button>
-              <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-600">
+              <span className="rounded-full border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-600">
                 {tApp('WorkspaceTag')}
               </span>
               {currentUserName ? (
@@ -213,7 +373,7 @@ export function AppShell({
                   <input type="hidden" name="locale" value={locale} />
                   <button
                     type="submit"
-                    className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70"
+                    className="rounded-full bg-[linear-gradient(120deg,#0f172a_0%,#1e293b_60%,#334155_100%)] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.24)] transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   >
                     {tApp('Logout')}
                   </button>
@@ -221,7 +381,7 @@ export function AppShell({
               ) : (
                 <Link
                   href="/login"
-                  className="rounded-full bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70"
+                  className="rounded-full bg-[var(--accent-600)] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)] transition hover:-translate-y-0.5 hover:bg-[var(--accent-700)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 >
                   {tApp('Login')}
                 </Link>
@@ -242,9 +402,9 @@ export function AppShell({
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition ${active
-                      ? 'border-slate-900 bg-slate-900 text-white'
+                      ? 'border-slate-900 bg-[linear-gradient(120deg,#0f172a_0%,#1e293b_100%)] text-white shadow-[0_10px_24px_rgba(15,23,42,0.24)]'
                       : 'border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {item.label}
                   </Link>

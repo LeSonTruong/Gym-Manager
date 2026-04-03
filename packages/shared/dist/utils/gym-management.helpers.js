@@ -39,6 +39,18 @@ function isConfirmedMembershipInvoice(invoice) {
 function isConfirmedSalesInvoice(invoice) {
     return invoice.status === 'CONFIRMED';
 }
+const zeroActiveMembershipsByType = {
+    DAY: 0,
+    MONTH: 0,
+    YEAR: 0,
+};
+const zeroExpenseByCategory = {
+    CLEANING: 0,
+    UTILITY: 0,
+    SALARY: 0,
+    RENT: 0,
+    OTHER: 0,
+};
 function cloneGymManagementDataset(dataset) {
     return structuredClone(dataset);
 }
@@ -69,13 +81,13 @@ function findEquipmentAssetById(dataset, equipmentAssetId) {
 function getActiveMembershipForMember(dataset, memberId) {
     const activeMemberships = dataset.memberMemberships
         .filter((membership) => membership.memberId === memberId && membership.status === 'ACTIVE')
-        .sort((firstMembership, secondMembership) => secondMembership.startDate.localeCompare(firstMembership.startDate));
+        .toSorted((firstMembership, secondMembership) => secondMembership.startDate.localeCompare(firstMembership.startDate));
     return activeMemberships[0];
 }
 function getActiveAssignmentForMember(dataset, memberId) {
     const activeAssignments = dataset.memberPtAssignments
         .filter((assignment) => assignment.memberId === memberId && assignment.status === 'ACTIVE')
-        .sort((firstAssignment, secondAssignment) => secondAssignment.assignedFrom.localeCompare(firstAssignment.assignedFrom));
+        .toSorted((firstAssignment, secondAssignment) => secondAssignment.assignedFrom.localeCompare(firstAssignment.assignedFrom));
     return activeAssignments[0];
 }
 function buildDashboardSummary(dataset) {
@@ -85,13 +97,14 @@ function buildDashboardSummary(dataset) {
     const activeMemberships = dataset.memberMemberships.filter((membership) => membership.status === 'ACTIVE');
     const lowStockProducts = dataset.products.filter((product) => product.stockOnHand <= product.minimumStockLevel);
     const maintenanceAlerts = [];
-    const activeMembershipsByType = Object.fromEntries(['DAY', 'MONTH', 'YEAR'].map((membershipType) => [
-        membershipType,
-        activeMemberships.filter((membership) => {
+    const membershipTypes = ['DAY', 'MONTH', 'YEAR'];
+    const activeMembershipsByType = structuredClone(zeroActiveMembershipsByType);
+    for (const membershipType of membershipTypes) {
+        activeMembershipsByType[membershipType] = activeMemberships.filter((membership) => {
             const plan = findMembershipPlanById(dataset, membership.membershipPlanId);
             return plan?.type === membershipType;
-        }).length,
-    ]));
+        }).length;
+    }
     return {
         totalMembers: dataset.members.length,
         totalPts: dataset.personalTrainers.length,
@@ -137,9 +150,9 @@ function buildPtOverview(dataset) {
     return dataset.personalTrainers.map((trainer) => {
         const relevantAssignments = dataset.memberPtAssignments.filter((assignment) => assignment.ptId === trainer.id && assignment.status === 'ACTIVE');
         const relevantAttendanceLogs = dataset.attendanceLogs.filter((attendanceLog) => attendanceLog.ptId === trainer.id);
-        const latestPayroll = [...dataset.payrollEntries]
+        const latestPayroll = dataset.payrollEntries
             .filter((payrollEntry) => payrollEntry.ptId === trainer.id)
-            .sort((firstEntry, secondEntry) => secondEntry.payrollPeriodId.localeCompare(firstEntry.payrollPeriodId))[0];
+            .toSorted((firstEntry, secondEntry) => secondEntry.payrollPeriodId.localeCompare(firstEntry.payrollPeriodId))[0];
         return {
             pt: trainer,
             contract: findPtContractByPtId(dataset, trainer.id),
@@ -186,10 +199,10 @@ function buildInventoryOverview(dataset) {
         soldQuantity,
     }))
         .filter((entry) => entry.product !== undefined)
-        .sort((firstEntry, secondEntry) => secondEntry.soldQuantity - firstEntry.soldQuantity)
+        .toSorted((firstEntry, secondEntry) => secondEntry.soldQuantity - firstEntry.soldQuantity)
         .slice(0, 3);
-    const recentTransactions = [...dataset.inventoryTransactions]
-        .sort((firstTransaction, secondTransaction) => secondTransaction.transactionDate.localeCompare(firstTransaction.transactionDate))
+    const recentTransactions = dataset.inventoryTransactions
+        .toSorted((firstTransaction, secondTransaction) => secondTransaction.transactionDate.localeCompare(firstTransaction.transactionDate))
         .slice(0, 6);
     return {
         totalProducts: dataset.products.length,
@@ -214,7 +227,7 @@ function buildRevenueReport(dataset) {
     };
 }
 function buildExpenseReport(dataset) {
-    const byCategory = Object.fromEntries(['CLEANING', 'UTILITY', 'SALARY', 'RENT', 'OTHER'].map((category) => [category, 0]));
+    const byCategory = structuredClone(zeroExpenseByCategory);
     for (const expense of dataset.operatingExpenses.filter((item) => isExpenseCounted(item))) {
         byCategory[expense.category] += expense.amount;
     }

@@ -33,12 +33,17 @@ export declare class GymManagementService {
     private readonly redisService;
     constructor(orm: MikroORM, redisService: RedisService);
     getSnapshot(): Promise<GymManagementSnapshot>;
-    login(email: string, password: string): Promise<LoginResult>;
+    login(username: string, password: string): Promise<LoginResult>;
     refreshAccessToken(refreshToken: string): Promise<LoginResult>;
     logout(refreshToken: string, accessToken?: string): Promise<void>;
     validateAccessToken(accessToken: string): Promise<AuthenticatedUser>;
     getCurrentUser(accessToken: string): Promise<DemoUser>;
     getCurrentUserById(userId: string): Promise<DemoUser>;
+    updateAccountCredentials(userId: string, updates: {
+        username?: string;
+        currentPassword?: string;
+        newPassword?: string;
+    }): Promise<DemoUser>;
     checkInAttendance(attendanceCheckInDto: AttendanceCheckInDto): Promise<AttendanceRecord>;
     checkOutAttendance(attendanceCheckOutDto: AttendanceCheckOutDto): Promise<AttendanceRecord>;
     getPtDetail(ptId: string): Promise<{
@@ -95,6 +100,7 @@ export declare class GymManagementService {
     private recalculateAttendanceLog;
     private calculateAttendanceCompensation;
     private generateReferenceCode;
+    private createOfflineContactEmail;
     submitPayrollPeriod(payrollPeriodId: string, submittedByUserId: string): Promise<PayrollPeriodTransitionResult>;
     approvePayrollPeriod(payrollPeriodId: string, approvedByUserId: string): Promise<PayrollPeriodTransitionResult>;
     markPayrollPeriodPaid(payrollPeriodId: string, paidByUserId: string): Promise<PayrollPeriodTransitionResult>;

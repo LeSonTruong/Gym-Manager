@@ -35,8 +35,9 @@ export class CreatePersonalTrainerDto {
   @IsString()
   phone!: string;
 
+  @IsOptional()
   @IsEmail()
-  email!: string;
+  email?: string;
 
   @IsString()
   address!: string;
@@ -60,7 +61,7 @@ export class CreatePersonalTrainerDto {
 }
 
 export class UpdatePersonalTrainerDto extends PartialType(CreatePersonalTrainerDto) {
- 
+
 }
 
 export class CreateMemberDto {
@@ -79,8 +80,9 @@ export class CreateMemberDto {
   @IsString()
   phone!: string;
 
+  @IsOptional()
   @IsEmail()
-  email!: string;
+  email?: string;
 
   @IsString()
   address!: string;
@@ -107,7 +109,7 @@ export class CreateMemberDto {
 }
 
 export class UpdateMemberDto extends PartialType(CreateMemberDto) {
- 
+
 }
 
 export class CreateMembershipPlanDto {
@@ -147,7 +149,7 @@ export class CreateMembershipPlanDto {
 }
 
 export class UpdateMembershipPlanDto extends PartialType(CreateMembershipPlanDto) {
- 
+
 }
 
 export class CreateProductDto {
@@ -178,7 +180,7 @@ export class CreateProductDto {
 }
 
 export class UpdateProductDto extends PartialType(CreateProductDto) {
- 
+
 }
 
 export class CreateEquipmentDto {
@@ -218,7 +220,7 @@ export class CreateEquipmentDto {
 }
 
 export class UpdateEquipmentDto extends PartialType(CreateEquipmentDto) {
- 
+
 }
 
 export class CreateOperatingExpenseDto {
@@ -250,7 +252,7 @@ export class CreateOperatingExpenseDto {
 }
 
 export class UpdateOperatingExpenseDto extends PartialType(CreateOperatingExpenseDto) {
- 
+
 }
 
 export class RejectExpenseDto {
@@ -360,7 +362,7 @@ export class CreatePtContractDto {
 }
 
 export class UpdatePtContractDto extends PartialType(CreatePtContractDto) {
- 
+
 }
 
 export class CreateMemberMembershipDto {

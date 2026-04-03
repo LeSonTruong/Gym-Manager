@@ -50,7 +50,7 @@ function parseDateTime(value) {
 function toDecimalString(value) {
     return value.toString();
 }
-const userRoles = ["ADMIN", "PT", "STAFF"];
+const userRoles = ["ADMIN", "STAFF"];
 const userStatuses = ["ACTIVE", "INACTIVE"];
 const genders = ["MALE", "FEMALE", "OTHER"];
 const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"];
@@ -79,7 +79,7 @@ function mapUserEntity(entity) {
     return {
         id: entity.id,
         fullName: entity.fullName,
-        email: entity.email,
+        username: entity.username,
         role: coerceEnumValue(entity.role, userRoles, "STAFF"),
         status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,

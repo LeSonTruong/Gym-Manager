@@ -45,11 +45,14 @@ Copy `.env.example` to `.env` and configure:
 - `FRONTEND_HOST`
 - `POSTGRES_*`
 - `ENABLE_SWAGGER`
+- `ENABLE_DEMO_SEED`
 
 ## Notes
 
 - Config validation runs on startup.
 - Swagger is enabled through `ENABLE_SWAGGER=true`.
-- On startup the app applies pending MikroORM migrations automatically, then seeds the PostgreSQL database if `users` is empty.
+- On startup the app applies pending MikroORM migrations automatically.
+- Demo seed runs only when `ENABLE_DEMO_SEED=true` and `users` is empty.
 - `apps/nestjs-backend/docker-compose.yml` can be used to start PostgreSQL, Redis, and Maildev locally.
+- Docker compose now uses named volumes so PostgreSQL/Redis data persists across restarts.
 - Staff mutation permissions are intentionally restricted; membership lifecycle, member assignment updates, inventory import, and sales invoice confirmation require admin role.

@@ -15,12 +15,98 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "createMembershipAction"
+    },
+    "4039a0710dbc50f1fbe882668436fa259fd96acff8": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "updateMembershipPlanAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "updateMembershipPlanAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "updateMembershipPlanAction"
+    },
+    "403c91ed5dba46f89ec10ed462226e3a2331101586": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "patchPtCompensationAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "patchPtCompensationAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "patchPtCompensationAction"
+    },
+    "40463d76d2ec66c698645c9a32a2897ae57f7debeb": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "deleteMemberAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "deleteMemberAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "deleteMemberAction"
+    },
+    "40483aa46b020a3adab3d0527638f19d2deaa17490": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "createPersonalTrainerAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "createPersonalTrainerAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "createPersonalTrainerAction"
+    },
+    "404c4738ef46014b3f9d8e70d3becff8ea56d46426": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "deleteMembershipPlanAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "deleteMembershipPlanAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "deleteMembershipPlanAction"
     },
     "4050218f8255cbe8133e2ebaf6afad786bdf248bbc": {
       "workers": {
@@ -37,12 +123,26 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "createSalesInvoiceAction"
+    },
+    "405751fa132a853d22d6096e13c3910cc3e1adeb26": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "updateProductAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "updateProductAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "updateProductAction"
     },
     "4058d8d24cf2e6fc2122fa0521f22419e055eae634": {
       "workers": {
@@ -58,10 +158,6 @@
           "exportedName": "generatePayrollAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
       },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "generatePayrollAction"
@@ -81,34 +177,8 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "cancelMembershipAction"
-    },
-    "406b1a7ba32d24e376682817b8b2ef61863fa9055a": {
-      "workers": {
-        "app/[locale]/[...slug]/page": {
-          "moduleId": 35660,
-          "async": false,
-          "exportedName": "createPtContractAction",
-          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
-        },
-        "app/[locale]/page": {
-          "moduleId": 87998,
-          "async": false,
-          "exportedName": "createPtContractAction",
-          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
-        }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
-      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
-      "exportedName": "createPtContractAction"
     },
     "406d95a861f88cd621cb8d6db5a702a6e516296fe6": {
       "workers": {
@@ -125,12 +195,26 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "loginAction"
+    },
+    "4073244c344cdd1778391ca49e8e6aa5bbf94ab335": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "createMembershipPlanAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "createMembershipPlanAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "createMembershipPlanAction"
     },
     "40746eca49e1cfb6116ffdeacdf14338dece32ea55": {
       "workers": {
@@ -147,12 +231,44 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "createAssignmentAction"
+    },
+    "4076467948c9bda11b8de481415f2bb2b6615e85e6": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "updatePersonalTrainerAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "updatePersonalTrainerAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "updatePersonalTrainerAction"
+    },
+    "407b7d7de38e3b39ab2a81b68c1d327e5ef40cedd4": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "deletePersonalTrainerAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "deletePersonalTrainerAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "deletePersonalTrainerAction"
     },
     "40840e9279d44f2ce94018e550b682e5af8be60845": {
       "workers": {
@@ -169,56 +285,44 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "checkInAttendanceAction"
     },
-    "4087471264670e9b5e8cab8cb475ae383f681ae4f7": {
+    "408670155a3ee4e63eb83b72aa268263520012be0c": {
       "workers": {
         "app/[locale]/[...slug]/page": {
           "moduleId": 35660,
           "async": false,
-          "exportedName": "createMaintenanceAction",
+          "exportedName": "patchSystemConfigAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         },
         "app/[locale]/page": {
           "moduleId": 87998,
           "async": false,
-          "exportedName": "createMaintenanceAction",
+          "exportedName": "patchSystemConfigAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
-      "exportedName": "createMaintenanceAction"
+      "exportedName": "patchSystemConfigAction"
     },
-    "4088c900c212fb2e8b4f1433b732293235f33dce93": {
+    "408a275bf1e13b6f169b517c8a053df1182e5f3c43": {
       "workers": {
         "app/[locale]/[...slug]/page": {
           "moduleId": 35660,
           "async": false,
-          "exportedName": "updatePtContractAction",
+          "exportedName": "createMemberAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         },
         "app/[locale]/page": {
           "moduleId": 87998,
           "async": false,
-          "exportedName": "updatePtContractAction",
+          "exportedName": "createMemberAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
-      "exportedName": "updatePtContractAction"
+      "exportedName": "createMemberAction"
     },
     "40a21a75b6512e86281bbc4709a2b7ece80af82605": {
       "workers": {
@@ -234,10 +338,6 @@
           "exportedName": "importInventoryAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
       },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "importInventoryAction"
@@ -257,10 +357,6 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "renewMembershipAction"
     },
@@ -278,10 +374,6 @@
           "exportedName": "patchAttendanceAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
       },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "patchAttendanceAction"
@@ -301,12 +393,26 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "logoutAction"
+    },
+    "40e9fb4d660422f35d63997ac479892046bc737f59": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "deleteProductAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "deleteProductAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "deleteProductAction"
     },
     "40ea8eab71189c83ed1f6c51d7f457abf38e5dc9bd": {
       "workers": {
@@ -322,10 +428,6 @@
           "exportedName": "createPayrollPeriodAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
       },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "createPayrollPeriodAction"
@@ -345,12 +447,62 @@
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
       },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
-      },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "checkOutAttendanceAction"
+    },
+    "40f0e9f5f0099d7b73e4879c62d2108a02b43fe803": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "updateAccountAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "updateAccountAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "updateAccountAction"
+    },
+    "40f65b980d6e423296e3fcb80ab4820a86d1687c90": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "createProductAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "createProductAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "createProductAction"
+    },
+    "40fdb4e90a0df71c804b5709d33e4da5d519c4650b": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "updateMemberAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "updateMemberAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "updateMemberAction"
     },
     "40ff18b828eb76cc932b3e72b6a8e5a556fa9eda57": {
       "workers": {
@@ -366,10 +518,6 @@
           "exportedName": "endAssignmentAction",
           "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
         }
-      },
-      "layer": {
-        "app/[locale]/[...slug]/page": "rsc",
-        "app/[locale]/page": "rsc"
       },
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "endAssignmentAction"

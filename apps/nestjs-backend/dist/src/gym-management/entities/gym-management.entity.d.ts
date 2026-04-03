@@ -2,7 +2,7 @@ import { OptionalProps } from '@mikro-orm/core';
 import { BaseEntity } from '../../common/entities/base.entity';
 export declare class UserEntity extends BaseEntity {
     fullName: string;
-    email: string;
+    username: string;
     role: string;
     status: string;
     passwordHash: string;

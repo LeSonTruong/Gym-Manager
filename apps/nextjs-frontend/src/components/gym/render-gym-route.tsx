@@ -35,6 +35,7 @@ import {
   patchPtCompensationAction,
   patchSystemConfigAction,
   renewMembershipAction,
+  updateAccountAction,
   updateMemberAction,
   updateMembershipPlanAction,
   updatePersonalTrainerAction,
@@ -119,8 +120,9 @@ function ActionLink({
   return (
     <Link
       href={href}
-      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+      className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/95 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:text-slate-950"
     >
+      <span className="pi pi-arrow-up-right text-[11px] text-[var(--accent-600)]" />
       {translateText(children, locale)}
     </Link>
   );
@@ -146,6 +148,7 @@ function PageHeader(props: {
 
 function SectionCard(props: {
   readonly title: string;
+  readonly description?: string;
   readonly children: ReactNode;
 }): JSX.Element {
   const locale = getActiveUiLocale();
@@ -153,6 +156,7 @@ function SectionCard(props: {
   return (
     <BaseSectionCard
       title={translateText(props.title, locale)}
+      description={props.description ? translateText(props.description, locale) : undefined}
     >
       {translateNode(props.children, locale)}
     </BaseSectionCard>
@@ -230,8 +234,6 @@ type RenderGymRouteOptions = {
   readonly locale?: string;
   readonly searchParams?: SearchParamsRecord;
   readonly currentUser?: DemoUser;
-  readonly ptAttendance?: GymManagementSnapshot["dataset"]["attendanceLogs"];
-  readonly ptPayrollEntries?: GymManagementSnapshot["dataset"]["payrollEntries"];
 };
 
 type FieldValue = string | number | undefined;
@@ -268,6 +270,68 @@ function toDateInputValue(value?: string | null): string | undefined {
   return value.slice(0, 10);
 }
 
+function getAgeFromBirthDate(value?: string | null): number | undefined {
+  const normalizedBirthDate = toDateInputValue(value);
+
+  if (!normalizedBirthDate) {
+    return undefined;
+  }
+
+  const [yearText, monthText, dayText] = normalizedBirthDate.split("-");
+  const birthYear = Number(yearText);
+  const birthMonth = Number(monthText);
+  const birthDay = Number(dayText);
+
+  if (
+    !Number.isFinite(birthYear)
+    || !Number.isFinite(birthMonth)
+    || !Number.isFinite(birthDay)
+  ) {
+    return undefined;
+  }
+
+  const currentDate = new Date();
+  let age = currentDate.getUTCFullYear() - birthYear;
+  const hasBirthdayPassedInCurrentYear =
+    currentDate.getUTCMonth() + 1 > birthMonth
+    || (
+      currentDate.getUTCMonth() + 1 === birthMonth
+      && currentDate.getUTCDate() >= birthDay
+    );
+
+  if (!hasBirthdayPassedInCurrentYear) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : undefined;
+}
+
+function formatBirthDateWithAge(value?: string | null): string {
+  const age = getAgeFromBirthDate(value);
+
+  if (age === undefined) {
+    return formatDate(value);
+  }
+
+  return `${formatDate(value)} (${age} tuổi)`;
+}
+
+function getGenderLabel(gender: string): string {
+  switch (gender) {
+    case "MALE": {
+      return "Nam";
+    }
+
+    case "FEMALE": {
+      return "Nữ";
+    }
+
+    default: {
+      return "Khác";
+    }
+  }
+}
+
 function getSystemConfigValue(
   snapshot: GymManagementSnapshot,
   key: string,
@@ -299,7 +363,7 @@ function FormGrid({
   readonly columns?: 1 | 2;
 }): JSX.Element {
   return (
-    <div className={columns === 1 ? "grid gap-4" : "grid gap-4 md:grid-cols-2"}>
+    <div className={columns === 1 ? "grid gap-5" : "grid gap-5 md:grid-cols-2"}>
       {children}
     </div>
   );
@@ -314,6 +378,7 @@ function FormField({
   required = false,
   min,
   step,
+  iconClassName,
 }: {
   readonly label: string;
   readonly name: string;
@@ -323,6 +388,7 @@ function FormField({
   readonly required?: boolean;
   readonly min?: string | number;
   readonly step?: string | number;
+  readonly iconClassName?: string;
 }): JSX.Element {
   const locale = getActiveUiLocale();
 
@@ -331,16 +397,21 @@ function FormField({
       <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
         {translateText(label, locale)}
       </span>
-      <input
-        type={type}
-        name={name}
-        defaultValue={defaultValue}
-        placeholder={placeholder ? translateText(placeholder, locale) : undefined}
-        required={required}
-        min={min}
-        step={step}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
-      />
+      <div className="relative mt-2">
+        {iconClassName ? (
+          <span className={`pi ${iconClassName} pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-slate-400`} />
+        ) : null}
+        <input
+          type={type}
+          name={name}
+          defaultValue={defaultValue}
+          placeholder={placeholder ? translateText(placeholder, locale) : undefined}
+          required={required}
+          min={min}
+          step={step}
+          className={`w-full rounded-2xl border border-slate-200/85 bg-white/95 px-4 py-3 text-sm text-slate-800 shadow-[0_10px_26px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-slate-400 focus:-translate-y-0.5 focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--focus-ring)] ${iconClassName ? "pl-11" : ""}`}
+        />
+      </div>
     </label>
   );
 }
@@ -369,7 +440,7 @@ function FormSelect({
         name={name}
         defaultValue={defaultValue}
         required={required}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+        className="mt-2 w-full rounded-2xl border border-slate-200/85 bg-white/95 px-4 py-3 text-sm text-slate-800 shadow-[0_10px_26px_rgba(15,23,42,0.04)] outline-none transition focus:-translate-y-0.5 focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--focus-ring)]"
       >
         {options.map((option) => (
           <option key={`${name}-${option.value}`} value={option.value}>
@@ -406,22 +477,64 @@ function FormTextArea({
         defaultValue={defaultValue}
         placeholder={placeholder ? translateText(placeholder, locale) : undefined}
         rows={rows}
-        className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+        className="mt-2 w-full rounded-2xl border border-slate-200/85 bg-white/95 px-4 py-3 text-sm text-slate-800 shadow-[0_10px_26px_rgba(15,23,42,0.04)] outline-none transition placeholder:text-slate-400 focus:-translate-y-0.5 focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--focus-ring)]"
       />
     </label>
   );
 }
 
-function SubmitButton({ label }: { readonly label: string }): JSX.Element {
+function SubmitButton({
+  label,
+  fullWidth = false,
+  iconClassName = "pi pi-check",
+}: {
+  readonly label: string;
+  readonly fullWidth?: boolean;
+  readonly iconClassName?: string;
+}): JSX.Element {
   const locale = getActiveUiLocale();
 
   return (
     <button
       type="submit"
-      className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+      className={`inline-flex items-center gap-2 rounded-full bg-[var(--accent-600)] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.24)] transition hover:-translate-y-0.5 hover:bg-[var(--accent-700)] ${fullWidth ? "w-full justify-center" : ""}`}
     >
+      <span className={`pi ${iconClassName} text-xs text-white/90`} />
       {translateText(label, locale)}
     </button>
+  );
+}
+
+function CollapsibleCrudPanel({
+  triggerLabel,
+  helperText,
+  children,
+}: {
+  readonly triggerLabel: string;
+  readonly helperText?: string;
+  readonly children: ReactNode;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return (
+    <details className="group rounded-3xl border border-slate-200/85 bg-slate-50/70 p-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 transition hover:bg-white/90">
+        <span className="inline-flex items-center gap-2">
+          <span className="pi pi-table text-[11px] text-[var(--accent-600)]" />
+          {translateText(triggerLabel, locale)}
+        </span>
+        <span className="pi pi-angle-down text-xs transition group-open:rotate-180" />
+      </summary>
+
+      <div className="mt-3 rounded-2xl border border-white/80 bg-white/90 p-4">
+        {helperText ? (
+          <p className="mb-3 text-xs text-slate-500">
+            {translateText(helperText, locale)}
+          </p>
+        ) : null}
+        {children}
+      </div>
+    </details>
   );
 }
 
@@ -552,7 +665,7 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
           {
             label: "Hội viên được phân công",
             value: `${snapshot.ptOverview.reduce((total, item) => total + item.activeMembers, 0)}`,
-            note: "Tổng số hội viên đang có PT phụ trách.",
+            note: "Tổng số hội viên đang có PT phụ trách. Một PT có thể phụ trách nhiều hội viên.",
           },
           {
             label: "Công quy đổi",
@@ -584,73 +697,77 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
 
       {isAdmin(options) ? (
         <SectionCard title="Thêm PT mới">
-          <form action={createPersonalTrainerAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
-              <FormField label="Mã PT" name="code" placeholder="PT-NEW" required />
-              <FormField
-                label="Họ và tên"
-                name="fullName"
-                placeholder="Nguyen Van A"
-                required
+          <CollapsibleCrudPanel
+            triggerLabel="Mở bảng thêm PT"
+            helperText="Nhấn để mở biểu mẫu tạo PT mới."
+          >
+            <form action={createPersonalTrainerAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormField label="Mã PT" name="code" placeholder="PT-NEW" required />
+                <FormField
+                  label="Họ và tên"
+                  name="fullName"
+                  placeholder="Nguyen Van A"
+                  required
+                />
+                <FormSelect
+                  label="Giới tính"
+                  name="gender"
+                  defaultValue="MALE"
+                  required
+                  options={[
+                    { value: "MALE", label: "Nam" },
+                    { value: "FEMALE", label: "Nữ" },
+                    { value: "OTHER", label: "Khác" },
+                  ]}
+                />
+                <FormField label="Ngày sinh" name="birthDate" type="date" required />
+                <FormField label="Số điện thoại" name="phone" required />
+                <FormField label="Địa chỉ" name="address" required />
+                <FormSelect
+                  label="Trạng thái"
+                  name="status"
+                  defaultValue="ACTIVE"
+                  required
+                  options={[
+                    { value: "ACTIVE", label: "Đang hoạt động" },
+                    { value: "INACTIVE", label: "Ngưng hoạt động" },
+                  ]}
+                />
+                <FormField
+                  label="Số năm kinh nghiệm"
+                  name="experienceYears"
+                  type="number"
+                  min={0}
+                  defaultValue={0}
+                  required
+                />
+                <FormField
+                  label="Ngày bắt đầu"
+                  name="startDate"
+                  type="date"
+                  required
+                />
+                <FormField
+                  label="Avatar URL"
+                  name="avatarUrl"
+                  placeholder="https://example.com/avatar.jpg"
+                />
+                <FormField
+                  label="User ID liên kết"
+                  name="userId"
+                  placeholder="Tùy chọn"
+                />
+              </FormGrid>
+              <FormTextArea
+                label="Chuyên môn"
+                name="specialties"
+                placeholder={"Yoga\nHIIT"}
               />
-              <FormSelect
-                label="Giới tính"
-                name="gender"
-                defaultValue="MALE"
-                required
-                options={[
-                  { value: "MALE", label: "Nam" },
-                  { value: "FEMALE", label: "Nữ" },
-                  { value: "OTHER", label: "Khác" },
-                ]}
-              />
-              <FormField label="Ngày sinh" name="birthDate" type="date" required />
-              <FormField label="Số điện thoại" name="phone" required />
-              <FormField label="Thư điện tử" name="email" type="email" required />
-              <FormField label="Địa chỉ" name="address" required />
-              <FormSelect
-                label="Trạng thái"
-                name="status"
-                defaultValue="ACTIVE"
-                required
-                options={[
-                  { value: "ACTIVE", label: "Đang hoạt động" },
-                  { value: "INACTIVE", label: "Ngưng hoạt động" },
-                ]}
-              />
-              <FormField
-                label="Số năm kinh nghiệm"
-                name="experienceYears"
-                type="number"
-                min={0}
-                defaultValue={0}
-                required
-              />
-              <FormField
-                label="Ngày bắt đầu"
-                name="startDate"
-                type="date"
-                required
-              />
-              <FormField
-                label="Avatar URL"
-                name="avatarUrl"
-                placeholder="https://example.com/avatar.jpg"
-              />
-              <FormField
-                label="User ID liên kết"
-                name="userId"
-                placeholder="Tùy chọn"
-              />
-            </FormGrid>
-            <FormTextArea
-              label="Chuyên môn"
-              name="specialties"
-              placeholder={"Yoga\nHIIT"}
-            />
-            <SubmitButton label="Tạo PT" />
-          </form>
+              <SubmitButton label="Tạo PT" />
+            </form>
+          </CollapsibleCrudPanel>
         </SectionCard>
       ) : null}
 
@@ -659,24 +776,21 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
       >
         <DataTable
           headers={[
-            "PT",
-            "Chuyên môn",
-            "Hội viên đang hoạt động",
-            "Công quy đổi",
-            "Tăng ca",
-            "Thực lĩnh",
+            "Tên PT",
+            "Ngày sinh (tuổi)",
+            "Giới tính",
+            "Số điện thoại",
+            "Hội viên phụ trách",
             "Chi tiết",
           ]}
           rows={snapshot.ptOverview.map((item) => [
             <div key={item.pt.id}>
               <p className="font-semibold text-slate-900">{item.pt.fullName}</p>
-              <p className="text-xs text-slate-500">{item.pt.code}</p>
             </div>,
-            item.pt.specialties.join(", "),
+            formatBirthDateWithAge(item.pt.birthDate),
+            getGenderLabel(item.pt.gender),
+            item.pt.phone,
             `${item.activeMembers}`,
-            `${item.validShiftCredits}`,
-            formatHours(item.overtimeHours),
-            formatCurrency(item.estimatedPayroll),
             <div key={`${item.pt.id}-links`} className="flex gap-2">
               <ActionLink href={`/pts/${item.pt.id}`}>Hồ sơ</ActionLink>
             </div>,
@@ -705,8 +819,11 @@ function buildPtDetailPage(
   const payrollEntries = snapshot.dataset.payrollEntries.filter(
     (entry) => entry.ptId === ptId,
   );
-  const assignedMembers = snapshot.dataset.memberPtAssignments
-    .filter((assignment) => assignment.ptId === ptId)
+  const activeAssignments = snapshot.dataset.memberPtAssignments
+    .filter(
+      (assignment) => assignment.ptId === ptId && assignment.status === "ACTIVE",
+    );
+  const assignedMembers = activeAssignments
     .map((assignment) =>
       snapshot.dataset.members.find(
         (member) => member.id === assignment.memberId,
@@ -716,6 +833,17 @@ function buildPtDetailPage(
       (member): member is (typeof snapshot.dataset.members)[number] =>
         member !== undefined,
     );
+  const assignedMemberOverviews = snapshot.memberOverview.filter(
+    (overview) => overview.trainer?.id === ptId,
+  );
+  const managedMembershipRevenue = assignedMemberOverviews.reduce(
+    (total, overview) => total + overview.totalMembershipSpend,
+    0,
+  );
+  const managedServiceRevenue = assignedMemberOverviews.reduce(
+    (total, overview) => total + overview.totalServiceSpend,
+    0,
+  );
 
   const { contract } = ptOverview;
   const compensationDefaults = {
@@ -793,12 +921,23 @@ function buildPtDetailPage(
         <SectionCard title="Tóm tắt hồ sơ">
           <KeyValueList
             items={[
-              { label: "Thư điện tử", value: ptOverview.pt.email },
               { label: "Số điện thoại", value: ptOverview.pt.phone },
-              { label: "Địa chỉ", value: ptOverview.pt.address },
+              { label: "Giới tính", value: getGenderLabel(ptOverview.pt.gender) },
               {
-                label: "Kinh nghiệm",
-                value: `${ptOverview.pt.experienceYears} năm`,
+                label: "Ngày sinh",
+                value: formatBirthDateWithAge(ptOverview.pt.birthDate),
+              },
+              {
+                label: "Hội viên đang phụ trách",
+                value: `${assignedMembers.length} hội viên`,
+              },
+              {
+                label: "Doanh thu gói tập từ hội viên phụ trách",
+                value: formatCurrency(managedMembershipRevenue),
+              },
+              {
+                label: "Doanh thu dịch vụ từ hội viên phụ trách",
+                value: formatCurrency(managedServiceRevenue),
               },
               {
                 label: "Trạng thái",
@@ -814,20 +953,33 @@ function buildPtDetailPage(
 
         <SectionCard title="Hội viên được phân công">
           <DataTable
-            headers={["Hội viên", "Trạng thái", "Ngày tham gia", "Chi tiết"]}
-            rows={assignedMembers.map((member) => [
-              member.fullName,
-              <Badge key={member.id} tone={getStatusTone(member.status)}>
-                {member.status}
-              </Badge>,
-              formatDate(member.registeredAt),
-              <ActionLink
-                key={`${member.id}-detail`}
-                href={`/members/${member.id}`}
-              >
-                Mở hội viên
-              </ActionLink>,
-            ])}
+            headers={[
+              "Hội viên",
+              "Gói hoạt động",
+              "Doanh thu gói",
+              "Trạng thái",
+              "Chi tiết",
+            ]}
+            rows={assignedMembers.map((member) => {
+              const memberOverview = assignedMemberOverviews.find(
+                (overview) => overview.member.id === member.id,
+              );
+
+              return [
+                member.fullName,
+                memberOverview?.membershipPlan?.name ?? "Chưa có gói hoạt động",
+                formatCurrency(memberOverview?.totalMembershipSpend ?? 0),
+                <Badge key={member.id} tone={getStatusTone(member.status)}>
+                  {member.status}
+                </Badge>,
+                <ActionLink
+                  key={`${member.id}-detail`}
+                  href={`/members/${member.id}`}
+                >
+                  Mở hội viên
+                </ActionLink>,
+              ];
+            })}
           />
         </SectionCard>
       </div>
@@ -835,138 +987,143 @@ function buildPtDetailPage(
       {isAdmin(options) ? (
         <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <SectionCard title="Cập nhật hồ sơ PT">
-            <form action={updatePersonalTrainerAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="ptId" value={ptId} />
-              <FormGrid>
-                <FormField label="Mã PT" name="code" defaultValue={ptOverview.pt.code} required />
-                <FormField label="Họ và tên" name="fullName" defaultValue={ptOverview.pt.fullName} required />
-                <FormSelect
-                  label="Giới tính"
-                  name="gender"
-                  defaultValue={ptOverview.pt.gender}
-                  required
-                  options={[
-                    { value: "MALE", label: "Nam" },
-                    { value: "FEMALE", label: "Nữ" },
-                    { value: "OTHER", label: "Khác" },
-                  ]}
+            <CollapsibleCrudPanel triggerLabel="Mở bảng sửa hồ sơ PT">
+              <form action={updatePersonalTrainerAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="ptId" value={ptId} />
+                <FormGrid>
+                  <FormField label="Mã PT" name="code" defaultValue={ptOverview.pt.code} required />
+                  <FormField label="Họ và tên" name="fullName" defaultValue={ptOverview.pt.fullName} required />
+                  <FormSelect
+                    label="Giới tính"
+                    name="gender"
+                    defaultValue={ptOverview.pt.gender}
+                    required
+                    options={[
+                      { value: "MALE", label: "Nam" },
+                      { value: "FEMALE", label: "Nữ" },
+                      { value: "OTHER", label: "Khác" },
+                    ]}
+                  />
+                  <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.birthDate)} required />
+                  <FormField label="Số điện thoại" name="phone" defaultValue={ptOverview.pt.phone} required />
+                  <FormField label="Địa chỉ" name="address" defaultValue={ptOverview.pt.address} required />
+                  <FormSelect
+                    label="Trạng thái"
+                    name="status"
+                    defaultValue={ptOverview.pt.status}
+                    required
+                    options={[
+                      { value: "ACTIVE", label: "Đang hoạt động" },
+                      { value: "INACTIVE", label: "Ngưng hoạt động" },
+                    ]}
+                  />
+                  <FormField label="Số năm kinh nghiệm" name="experienceYears" type="number" min={0} defaultValue={ptOverview.pt.experienceYears} required />
+                  <FormField label="Ngày bắt đầu" name="startDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.startDate)} required />
+                  <FormField label="Avatar URL" name="avatarUrl" defaultValue={ptOverview.pt.avatarUrl} />
+                  <FormField label="User ID liên kết" name="userId" defaultValue={ptOverview.pt.userId} />
+                </FormGrid>
+                <FormTextArea
+                  label="Chuyên môn"
+                  name="specialties"
+                  defaultValue={ptOverview.pt.specialties.join("\n")}
+                  placeholder={"Yoga\nHIIT"}
                 />
-                <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.birthDate)} required />
-                <FormField label="Số điện thoại" name="phone" defaultValue={ptOverview.pt.phone} required />
-                <FormField label="Thư điện tử" name="email" type="email" defaultValue={ptOverview.pt.email} required />
-                <FormField label="Địa chỉ" name="address" defaultValue={ptOverview.pt.address} required />
-                <FormSelect
-                  label="Trạng thái"
-                  name="status"
-                  defaultValue={ptOverview.pt.status}
-                  required
-                  options={[
-                    { value: "ACTIVE", label: "Đang hoạt động" },
-                    { value: "INACTIVE", label: "Ngưng hoạt động" },
-                  ]}
-                />
-                <FormField label="Số năm kinh nghiệm" name="experienceYears" type="number" min={0} defaultValue={ptOverview.pt.experienceYears} required />
-                <FormField label="Ngày bắt đầu" name="startDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.startDate)} required />
-                <FormField label="Avatar URL" name="avatarUrl" defaultValue={ptOverview.pt.avatarUrl} />
-                <FormField label="User ID liên kết" name="userId" defaultValue={ptOverview.pt.userId} />
-              </FormGrid>
-              <FormTextArea
-                label="Chuyên môn"
-                name="specialties"
-                defaultValue={ptOverview.pt.specialties.join("\n")}
-                placeholder={"Yoga\nHIIT"}
-              />
-              <SubmitButton label="Lưu hồ sơ PT" />
-            </form>
+                <SubmitButton label="Lưu hồ sơ PT" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
 
           <SectionCard title="Lương PT do Admin quản lý trực tiếp">
-            <form action={patchPtCompensationAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="ptId" value={ptId} />
-              <FormGrid>
-                <FormField
-                  label="Lương cơ bản"
-                  name="baseSalary"
-                  type="number"
-                  min={0}
-                  step="1000"
-                  defaultValue={compensationDefaults.baseSalary}
-                  required
-                />
-                <FormField
-                  label="Đơn giá tăng ca (giờ)"
-                  name="overtimeHourlyRate"
-                  type="number"
-                  min={0}
-                  step="1000"
-                  defaultValue={compensationDefaults.overtimeHourlyRate}
-                  required
-                />
-                <FormField
-                  label="Phụ cấp"
-                  name="allowance"
-                  type="number"
-                  min={0}
-                  step="1000"
-                  defaultValue={compensationDefaults.allowance}
-                  required
-                />
-                <FormField
-                  label="Hoa hồng gói (0-1)"
-                  name="packageCommissionRate"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={compensationDefaults.packageCommissionRate}
-                  required
-                />
-                <FormField
-                  label="Hoa hồng bán hàng (0-1)"
-                  name="salesCommissionRate"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={compensationDefaults.salesCommissionRate}
-                  required
-                />
-                <FormField
-                  label="Ngưỡng thưởng hiệu suất"
-                  name="performanceBonusThreshold"
-                  type="number"
-                  min={0}
-                  defaultValue={compensationDefaults.performanceBonusThreshold}
-                  required
-                />
-                <FormField
-                  label="Số tiền thưởng hiệu suất"
-                  name="performanceBonusAmount"
-                  type="number"
-                  min={0}
-                  step="1000"
-                  defaultValue={compensationDefaults.performanceBonusAmount}
-                  required
-                />
-              </FormGrid>
-              <SubmitButton label="Lưu cấu hình lương PT" />
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng cấu hình lương PT">
+              <form action={patchPtCompensationAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="ptId" value={ptId} />
+                <FormGrid>
+                  <FormField
+                    label="Lương cơ bản"
+                    name="baseSalary"
+                    type="number"
+                    min={0}
+                    step="1000"
+                    defaultValue={compensationDefaults.baseSalary}
+                    required
+                  />
+                  <FormField
+                    label="Đơn giá tăng ca (giờ)"
+                    name="overtimeHourlyRate"
+                    type="number"
+                    min={0}
+                    step="1000"
+                    defaultValue={compensationDefaults.overtimeHourlyRate}
+                    required
+                  />
+                  <FormField
+                    label="Phụ cấp"
+                    name="allowance"
+                    type="number"
+                    min={0}
+                    step="1000"
+                    defaultValue={compensationDefaults.allowance}
+                    required
+                  />
+                  <FormField
+                    label="Hoa hồng gói (0-1)"
+                    name="packageCommissionRate"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    defaultValue={compensationDefaults.packageCommissionRate}
+                    required
+                  />
+                  <FormField
+                    label="Hoa hồng bán hàng (0-1)"
+                    name="salesCommissionRate"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    defaultValue={compensationDefaults.salesCommissionRate}
+                    required
+                  />
+                  <FormField
+                    label="Ngưỡng thưởng hiệu suất"
+                    name="performanceBonusThreshold"
+                    type="number"
+                    min={0}
+                    defaultValue={compensationDefaults.performanceBonusThreshold}
+                    required
+                  />
+                  <FormField
+                    label="Số tiền thưởng hiệu suất"
+                    name="performanceBonusAmount"
+                    type="number"
+                    min={0}
+                    step="1000"
+                    defaultValue={compensationDefaults.performanceBonusAmount}
+                    required
+                  />
+                </FormGrid>
+                <SubmitButton label="Lưu cấu hình lương PT" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
 
           <SectionCard title="Ngừng hoạt động PT">
-            <form action={deletePersonalTrainerAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="ptId" value={ptId} />
-              <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                Hành động này sẽ chuyển PT về trạng thái INACTIVE.
-              </p>
-              <button
-                type="submit"
-                className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
-              >
-                Ngừng PT
-              </button>
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng ngừng PT">
+              <form action={deletePersonalTrainerAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="ptId" value={ptId} />
+                <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  Hành động này sẽ chuyển PT về trạng thái INACTIVE.
+                </p>
+                <button
+                  type="submit"
+                  className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
+                >
+                  Ngừng PT
+                </button>
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
         </div>
       ) : null}
@@ -1031,17 +1188,45 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
   const { attendanceLogs } = snapshot.dataset;
+  const now = new Date();
+  const currentVietnamDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const minimumCheckOutHours = 5;
   const trainerOptions = snapshot.dataset.personalTrainers.map((trainer) => ({
     value: trainer.id,
     label: `${trainer.fullName} | ${trainer.code}`,
   }));
-  const openShiftTrainerIds = new Set(
+  const openShifts = attendanceLogs.filter((attendanceLog) => !attendanceLog.checkOutAt);
+  const eligibleCheckoutTrainerIds = new Set(
+    openShifts
+      .filter((attendanceLog) => {
+        const checkInAt = new Date(attendanceLog.checkInAt);
+
+        if (Number.isNaN(checkInAt.getTime())) {
+          return false;
+        }
+
+        const workedHoursSoFar = (now.getTime() - checkInAt.getTime()) / 36e5;
+
+        return (
+          attendanceLog.attendanceDate === currentVietnamDate
+          && workedHoursSoFar >= minimumCheckOutHours
+        );
+      })
+      .map((attendanceLog) => attendanceLog.ptId),
+  );
+  const hasIneligibleOpenShifts = openShifts.length > eligibleCheckoutTrainerIds.size;
+  const uniqueOpenShiftTrainerIds = new Set(
     attendanceLogs
       .filter((attendanceLog) => !attendanceLog.checkOutAt)
       .map((attendanceLog) => attendanceLog.ptId),
   );
   const checkoutTrainerOptions = snapshot.dataset.personalTrainers
-    .filter((trainer) => openShiftTrainerIds.has(trainer.id))
+    .filter((trainer) => eligibleCheckoutTrainerIds.has(trainer.id))
     .map((trainer) => ({
       value: trainer.id,
       label: `${trainer.fullName} | ${trainer.code}`,
@@ -1126,132 +1311,50 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
         <SectionCard
           title="Thao tác chấm công nhanh"
         >
-          <div className="grid gap-4 md:grid-cols-2">
-            <form action={checkInAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormSelect
-                label="PT"
-                name="ptId"
-                required
-                options={trainerOptions}
-              />
-              <SubmitButton label="Chấm công vào" />
-            </form>
-
-            {checkoutTrainerOptions.length > 0 ? (
-              <form action={checkOutAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+          <CollapsibleCrudPanel
+            triggerLabel="Mở bảng thao tác chấm công"
+            helperText="Tất cả thao tác check-in/check-out được gom vào đây để màn hình chính gọn hơn."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <form action={checkInAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
                 <input type="hidden" name="locale" value={locale} />
                 <FormSelect
                   label="PT"
                   name="ptId"
                   required
-                  options={checkoutTrainerOptions}
+                  options={trainerOptions}
                 />
-                <SubmitButton label="Chấm công ra" />
+                <SubmitButton label="Chấm công vào" />
               </form>
-            ) : (
-              <div className="rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4 text-sm text-slate-600">
-                Không có ca mở để chấm công ra.
-              </div>
-            )}
-          </div>
-          <p className="mt-3 text-xs text-slate-500">
-            Hệ thống tự lấy thời điểm hiện tại khi bấm nút. Chấm công ra chỉ hợp lệ sau tối thiểu 5 giờ từ lúc vào ca.
-          </p>
+
+              {checkoutTrainerOptions.length > 0 ? (
+                <form action={checkOutAttendanceAction} className="space-y-4 rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormSelect
+                    label="PT"
+                    name="ptId"
+                    required
+                    options={checkoutTrainerOptions}
+                  />
+                  <SubmitButton label="Chấm công ra" />
+                </form>
+              ) : (
+                <div className="rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4 text-sm text-slate-600">
+                  Không có ca đủ điều kiện để chấm công ra (cần ca mở cùng ngày và đã làm đủ tối thiểu 5 giờ).
+                </div>
+              )}
+            </div>
+            {hasIneligibleOpenShifts ? (
+              <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                Có {uniqueOpenShiftTrainerIds.size} PT đang có ca mở nhưng chưa đủ điều kiện check-out nhanh. Lý do thường gặp: chưa đủ 5 giờ từ lúc check-in hoặc ca mở không thuộc ngày hiện tại theo múi giờ Việt Nam.
+              </p>
+            ) : null}
+            <p className="mt-3 text-xs text-slate-500">
+              Hệ thống tự lấy thời điểm hiện tại khi bấm nút. Chấm công ra chỉ hợp lệ sau tối thiểu 5 giờ từ lúc vào ca.
+            </p>
+          </CollapsibleCrudPanel>
         </SectionCard>
       ) : null}
-    </>
-  );
-}
-
-function buildPtSelfAttendancePage(
-  options?: RenderGymRouteOptions,
-): JSX.Element {
-  const attendanceLogs = options?.ptAttendance ?? [];
-  const openShift = attendanceLogs.find((attendanceLog) => !attendanceLog.checkOutAt);
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Chấm công PT"
-        title="Chấm công của tôi"
-        actions={<ActionLink href="/payroll">Mở bảng lương</ActionLink>}
-      />
-
-      <StatsGrid
-        items={[
-          {
-            label: "Ca đang mở",
-            value: openShift ? "1 ca" : "Không có ca đang mở",
-            note: openShift
-              ? `Bắt đầu lúc ${formatDateTime(openShift.checkInAt)}`
-              : "Bạn có thể bắt đầu ca mới ngay tại đây.",
-          },
-          {
-            label: "Ca đã hoàn tất",
-            value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.checkOutAt).length}`,
-            note: "Tổng số ca đã đóng trong lịch sử phiên này.",
-          },
-          {
-            label: "Giờ tính lương",
-            value: formatHours(
-              attendanceLogs.reduce(
-                (total, attendanceLog) => total + (attendanceLog.paidHours ?? attendanceLog.workedHours),
-                0,
-              ),
-            ),
-            note: "Tổng giờ được tính lương sau khi áp quy tắc valid/half.",
-          },
-          {
-            label: "Tăng ca",
-            value: formatHours(
-              attendanceLogs.reduce(
-                (total, attendanceLog) => total + attendanceLog.overtimeHours,
-                0,
-              ),
-            ),
-            note: "Tổng giờ tăng ca đã được ghi nhận.",
-          },
-        ]}
-      />
-
-      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-        <SectionCard
-          title="Theo dõi ngày công"
-        >
-          <p className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-700">
-            PT chỉ có quyền theo dõi ngày công và lương. Việc chấm công được thực hiện bởi quản lý/staff tại màn PT Attendance.
-          </p>
-        </SectionCard>
-
-        <SectionCard title="Nhật ký chấm công của tôi">
-          <DataTable
-            headers={[
-              "Ngày",
-              "Vào ca",
-              "Ra ca",
-              "Giờ tính lương",
-              "Tăng ca",
-              "Trạng thái",
-            ]}
-            rows={attendanceLogs.map((attendanceLog) => [
-              attendanceLog.attendanceDate,
-              formatDateTime(attendanceLog.checkInAt),
-              attendanceLog.checkOutAt
-                ? formatDateTime(attendanceLog.checkOutAt)
-                : "Đang mở",
-              formatHours(attendanceLog.paidHours ?? attendanceLog.workedHours),
-              formatHours(attendanceLog.overtimeHours),
-              <Badge
-                key={attendanceLog.id}
-                tone={getStatusTone(attendanceLog.status)}
-              >
-                {humanizeStatus(attendanceLog.status)}
-              </Badge>,
-            ])}
-          />
-        </SectionCard>
-      </div>
     </>
   );
 }
@@ -1335,117 +1438,44 @@ function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
           <SectionCard
             title="Tạo kỳ lương"
           >
-            <form action={createPayrollPeriodAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormGrid>
-                <FormField
-                  label="Mã"
-                  name="code"
-                  placeholder="2026-04-A"
-                />
-                <FormField label="Từ ngày" name="from" type="date" required />
-                <FormField label="Đến ngày" name="to" type="date" required />
-              </FormGrid>
-              <SubmitButton label="Tạo kỳ" />
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng tạo kỳ lương">
+              <form action={createPayrollPeriodAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormGrid>
+                  <FormField
+                    label="Mã"
+                    name="code"
+                    placeholder="2026-04-A"
+                  />
+                  <FormField label="Từ ngày" name="from" type="date" required />
+                  <FormField label="Đến ngày" name="to" type="date" required />
+                </FormGrid>
+                <SubmitButton label="Tạo kỳ" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
 
           <SectionCard
             title="Tạo bảng lương"
           >
-            <form action={generatePayrollAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormSelect
-                label="Kỳ lương"
-                name="payrollPeriodId"
-                required
-                options={snapshot.dataset.payrollPeriods.map((period) => ({
-                  value: period.id,
-                  label: `${period.code} | ${formatDate(period.from)} - ${formatDate(period.to)} | ${humanizeStatus(period.status)}`,
-                }))}
-              />
-              <SubmitButton label="Tạo bảng lương" />
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng tạo bảng lương">
+              <form action={generatePayrollAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormSelect
+                  label="Kỳ lương"
+                  name="payrollPeriodId"
+                  required
+                  options={snapshot.dataset.payrollPeriods.map((period) => ({
+                    value: period.id,
+                    label: `${period.code} | ${formatDate(period.from)} - ${formatDate(period.to)} | ${humanizeStatus(period.status)}`,
+                  }))}
+                />
+                <SubmitButton label="Tạo bảng lương" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
         </div>
       ) : null}
-    </>
-  );
-}
-
-function buildPtSelfPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
-  const payrollEntries = options?.ptPayrollEntries ?? [];
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Lương PT"
-        title="Lương của tôi"
-        actions={<ActionLink href="/pts/attendance">Mở chấm công</ActionLink>}
-      />
-
-      <StatsGrid
-        items={[
-          {
-            label: "Bản ghi",
-            value: `${payrollEntries.length}`,
-            note: "Tổng số dòng bảng lương đã được tạo cho PT này.",
-          },
-          {
-            label: "Đã duyệt hoặc đã chi",
-            value: formatCurrency(
-              payrollEntries
-                .filter((entry) => entry.status === "APPROVED" || entry.status === "PAID")
-                .reduce((total, entry) => total + entry.netPay, 0),
-            ),
-            note: "Số tiền đã được duyệt hoặc đã thanh toán.",
-          },
-          {
-            label: "Đang chờ",
-            value: formatCurrency(
-              payrollEntries
-                .filter((entry) => entry.status === "PENDING_APPROVAL")
-                .reduce((total, entry) => total + entry.netPay, 0),
-            ),
-            note: "Thực nhận đang chờ duyệt hoặc tạo lại.",
-          },
-          {
-            label: "Giờ tính lương",
-            value: formatHours(
-              payrollEntries.reduce(
-                (total, entry) => total + (entry.paidHours ?? 0),
-                0,
-              ),
-            ),
-            note: "Tổng giờ đã đưa vào bảng lương.",
-          },
-        ]}
-      />
-
-      <SectionCard title="Bản ghi lương của tôi">
-        <DataTable
-          headers={[
-            "Mã kỳ",
-            "Giờ tính lương",
-            "Lương cơ bản",
-            "Hoa hồng gói",
-            "Hoa hồng bán hàng",
-            "Thực lĩnh",
-            "Trạng thái",
-          ]}
-          rows={payrollEntries.map((entry) => [
-            entry.payrollPeriodId,
-            formatHours(entry.paidHours ?? 0),
-            formatCurrency(entry.baseSalaryAmount ?? 0),
-            formatCurrency(entry.packageCommission),
-            formatCurrency(entry.salesCommission),
-            formatCurrency(entry.netPay),
-            <Badge key={entry.id} tone={getStatusTone(entry.status)}>
-              {humanizeStatus(entry.status)}
-            </Badge>,
-          ])}
-        />
-      </SectionCard>
     </>
   );
 }
@@ -1546,44 +1576,45 @@ function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
 
       {isAdmin(options) ? (
         <SectionCard title="Thêm hội viên mới">
-          <form action={createMemberAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
-              <FormField label="Mã hội viên" name="code" placeholder="MEM-NEW" required />
-              <FormField label="Họ và tên" name="fullName" required />
-              <FormSelect
-                label="Giới tính"
-                name="gender"
-                defaultValue="MALE"
-                required
-                options={[
-                  { value: "MALE", label: "Nam" },
-                  { value: "FEMALE", label: "Nữ" },
-                  { value: "OTHER", label: "Khác" },
-                ]}
-              />
-              <FormField label="Ngày sinh" name="birthDate" type="date" required />
-              <FormField label="Số điện thoại" name="phone" required />
-              <FormField label="Thư điện tử" name="email" type="email" required />
-              <FormField label="Địa chỉ" name="address" required />
-              <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={165} required />
-              <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={60} required />
-              <FormField label="Mục tiêu" name="goal" required />
-              <FormField label="Ghi chú sức khỏe" name="healthNotes" required />
-              <FormField label="Ngày đăng ký" name="registeredAt" type="date" required />
-              <FormSelect
-                label="Trạng thái"
-                name="status"
-                defaultValue="ACTIVE"
-                required
-                options={[
-                  { value: "ACTIVE", label: "Đang hoạt động" },
-                  { value: "INACTIVE", label: "Ngưng hoạt động" },
-                ]}
-              />
-            </FormGrid>
-            <SubmitButton label="Tạo hội viên" />
-          </form>
+          <CollapsibleCrudPanel triggerLabel="Mở bảng thêm hội viên">
+            <form action={createMemberAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormField label="Mã hội viên" name="code" placeholder="MEM-NEW" required />
+                <FormField label="Họ và tên" name="fullName" required />
+                <FormSelect
+                  label="Giới tính"
+                  name="gender"
+                  defaultValue="MALE"
+                  required
+                  options={[
+                    { value: "MALE", label: "Nam" },
+                    { value: "FEMALE", label: "Nữ" },
+                    { value: "OTHER", label: "Khác" },
+                  ]}
+                />
+                <FormField label="Ngày sinh" name="birthDate" type="date" required />
+                <FormField label="Số điện thoại" name="phone" required />
+                <FormField label="Địa chỉ" name="address" required />
+                <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={165} required />
+                <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={60} required />
+                <FormField label="Mục tiêu" name="goal" required />
+                <FormField label="Ghi chú sức khỏe" name="healthNotes" required />
+                <FormField label="Ngày đăng ký" name="registeredAt" type="date" required />
+                <FormSelect
+                  label="Trạng thái"
+                  name="status"
+                  defaultValue="ACTIVE"
+                  required
+                  options={[
+                    { value: "ACTIVE", label: "Đang hoạt động" },
+                    { value: "INACTIVE", label: "Ngưng hoạt động" },
+                  ]}
+                />
+              </FormGrid>
+              <SubmitButton label="Tạo hội viên" />
+            </form>
+          </CollapsibleCrudPanel>
         </SectionCard>
       ) : null}
 
@@ -1592,9 +1623,9 @@ function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
           headers={[
             "Hội viên",
             "Gói hiện tại",
-            "PT phụ trách",
             "Chi cho gói tập",
             "Chi cho dịch vụ",
+            "PT phụ trách",
             "Chi tiết",
           ]}
           rows={sortMembersByDate(snapshot.dataset.members).map((member) => {
@@ -1604,15 +1635,15 @@ function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
 
             return [
               <div key={member.id}>
-                <p className="font-semibold text-slate-900">
-                  {member.fullName}
+                <p className="font-semibold text-slate-900">{member.fullName}</p>
+                <p className="text-xs text-slate-500">
+                  {member.phone} | {getGenderLabel(member.gender)}
                 </p>
-                <p className="text-xs text-slate-500">{member.code}</p>
               </div>,
               overview?.membershipPlan?.name ?? "Chưa có gói hoạt động",
-              overview?.trainer?.fullName ?? "Chưa gán",
               formatCurrency(overview?.totalMembershipSpend ?? 0),
               formatCurrency(overview?.totalServiceSpend ?? 0),
+              overview?.trainer?.fullName ?? "Chưa gán",
               <ActionLink
                 key={`${member.id}-detail`}
                 href={`/members/${member.id}`}
@@ -1639,6 +1670,10 @@ function buildMemberDetailPage(
     notFound();
   }
 
+  const memberOverview = snapshot.memberOverview.find(
+    (overview) => overview.member.id === memberId,
+  );
+
   const memberships = snapshot.dataset.memberMemberships.filter(
     (membership) => membership.memberId === memberId,
   );
@@ -1661,17 +1696,31 @@ function buildMemberDetailPage(
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <SectionCard title="Tóm tắt hồ sơ">
+        <SectionCard title="Tóm tắt gói & doanh thu">
           <KeyValueList
             items={[
               { label: "Số điện thoại", value: member.phone },
-              { label: "Thư điện tử", value: member.email },
-              { label: "Địa chỉ", value: member.address },
+              { label: "Giới tính", value: getGenderLabel(member.gender) },
               {
-                label: "Chỉ số cơ thể",
-                value: `${member.heightCm} cm | ${member.weightKg} kg`,
+                label: "Ngày sinh",
+                value: formatBirthDateWithAge(member.birthDate),
               },
-              { label: "Ghi chú sức khỏe", value: member.healthNotes },
+              {
+                label: "Gói đang hoạt động",
+                value: memberOverview?.membershipPlan?.name ?? "Chưa có gói hoạt động",
+              },
+              {
+                label: "PT phụ trách",
+                value: memberOverview?.trainer?.fullName ?? "Chưa gán",
+              },
+              {
+                label: "Tổng chi gói tập",
+                value: formatCurrency(memberOverview?.totalMembershipSpend ?? 0),
+              },
+              {
+                label: "Tổng chi dịch vụ",
+                value: formatCurrency(memberOverview?.totalServiceSpend ?? 0),
+              },
               {
                 label: "Trạng thái",
                 value: (
@@ -1714,61 +1763,64 @@ function buildMemberDetailPage(
       {isAdmin(options) ? (
         <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <SectionCard title="Cập nhật hội viên">
-            <form action={updateMemberAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="memberId" value={memberId} />
-              <FormGrid>
-                <FormField label="Mã hội viên" name="code" defaultValue={member.code} required />
-                <FormField label="Họ và tên" name="fullName" defaultValue={member.fullName} required />
-                <FormSelect
-                  label="Giới tính"
-                  name="gender"
-                  defaultValue={member.gender}
-                  required
-                  options={[
-                    { value: "MALE", label: "Nam" },
-                    { value: "FEMALE", label: "Nữ" },
-                    { value: "OTHER", label: "Khác" },
-                  ]}
-                />
-                <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(member.birthDate)} required />
-                <FormField label="Số điện thoại" name="phone" defaultValue={member.phone} required />
-                <FormField label="Thư điện tử" name="email" type="email" defaultValue={member.email} required />
-                <FormField label="Địa chỉ" name="address" defaultValue={member.address} required />
-                <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={member.heightCm} required />
-                <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={member.weightKg} required />
-                <FormField label="Mục tiêu" name="goal" defaultValue={member.goal} required />
-                <FormField label="Ghi chú sức khỏe" name="healthNotes" defaultValue={member.healthNotes} required />
-                <FormField label="Ngày đăng ký" name="registeredAt" type="date" defaultValue={toDateInputValue(member.registeredAt)} required />
-                <FormSelect
-                  label="Trạng thái"
-                  name="status"
-                  defaultValue={member.status}
-                  required
-                  options={[
-                    { value: "ACTIVE", label: "Đang hoạt động" },
-                    { value: "INACTIVE", label: "Ngưng hoạt động" },
-                  ]}
-                />
-              </FormGrid>
-              <SubmitButton label="Lưu hội viên" />
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng sửa hội viên">
+              <form action={updateMemberAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="memberId" value={memberId} />
+                <FormGrid>
+                  <FormField label="Mã hội viên" name="code" defaultValue={member.code} required />
+                  <FormField label="Họ và tên" name="fullName" defaultValue={member.fullName} required />
+                  <FormSelect
+                    label="Giới tính"
+                    name="gender"
+                    defaultValue={member.gender}
+                    required
+                    options={[
+                      { value: "MALE", label: "Nam" },
+                      { value: "FEMALE", label: "Nữ" },
+                      { value: "OTHER", label: "Khác" },
+                    ]}
+                  />
+                  <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(member.birthDate)} required />
+                  <FormField label="Số điện thoại" name="phone" defaultValue={member.phone} required />
+                  <FormField label="Địa chỉ" name="address" defaultValue={member.address} required />
+                  <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={member.heightCm} required />
+                  <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={member.weightKg} required />
+                  <FormField label="Mục tiêu" name="goal" defaultValue={member.goal} required />
+                  <FormField label="Ghi chú sức khỏe" name="healthNotes" defaultValue={member.healthNotes} required />
+                  <FormField label="Ngày đăng ký" name="registeredAt" type="date" defaultValue={toDateInputValue(member.registeredAt)} required />
+                  <FormSelect
+                    label="Trạng thái"
+                    name="status"
+                    defaultValue={member.status}
+                    required
+                    options={[
+                      { value: "ACTIVE", label: "Đang hoạt động" },
+                      { value: "INACTIVE", label: "Ngưng hoạt động" },
+                    ]}
+                  />
+                </FormGrid>
+                <SubmitButton label="Lưu hội viên" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
 
           <SectionCard title="Ngừng hội viên">
-            <form action={deleteMemberAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="memberId" value={memberId} />
-              <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                Hành động này sẽ chuyển hội viên về trạng thái INACTIVE.
-              </p>
-              <button
-                type="submit"
-                className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
-              >
-                Ngừng hội viên
-              </button>
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng ngừng hội viên">
+              <form action={deleteMemberAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="memberId" value={memberId} />
+                <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  Hành động này sẽ chuyển hội viên về trạng thái INACTIVE.
+                </p>
+                <button
+                  type="submit"
+                  className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
+                >
+                  Ngừng hội viên
+                </button>
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
         </div>
       ) : null}
@@ -1846,9 +1898,124 @@ function buildMembershipOverviewPage(
             <SectionCard
               title="Bán gói tập mới"
             >
-              <form action={createMembershipAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormGrid>
+              <CollapsibleCrudPanel triggerLabel="Mở bảng bán gói tập">
+                <form action={createMembershipAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormGrid>
+                    <FormSelect
+                      label="Hội viên"
+                      name="memberId"
+                      required
+                      options={snapshot.dataset.members.map((member) => ({
+                        value: member.id,
+                        label: `${member.code} | ${member.fullName}`,
+                      }))}
+                    />
+                    <FormSelect
+                      label="Gói"
+                      name="membershipPlanId"
+                      required
+                      options={snapshot.dataset.membershipPlans.map((plan) => ({
+                        value: plan.id,
+                        label: `${plan.name} | ${formatCurrency(plan.price)}`,
+                      }))}
+                    />
+                    <FormField
+                      label="Ngày bắt đầu"
+                      name="startDate"
+                      type="date"
+                      required
+                    />
+                    <FormSelect
+                      label="Phương thức thanh toán"
+                      name="paymentMethod"
+                      required
+                      defaultValue="BANK_TRANSFER"
+                      options={[
+                        { value: "CASH", label: "Tiền mặt" },
+                        { value: "CARD", label: "Thẻ" },
+                        { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+                      ]}
+                    />
+                  </FormGrid>
+                  <SubmitButton label="Bán gói tập" />
+                </form>
+              </CollapsibleCrudPanel>
+            </SectionCard>
+
+            <SectionCard
+              title="Gia hạn gói tập"
+            >
+              <CollapsibleCrudPanel triggerLabel="Mở bảng gia hạn gói tập">
+                <form action={renewMembershipAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormSelect
+                    label="Gói tập hiện có"
+                    name="membershipId"
+                    required
+                    options={manageableMemberships.map((membership) => ({
+                      value: membership.id,
+                      label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)} | ${humanizeStatus(membership.status)}`,
+                    }))}
+                  />
+                  <FormGrid>
+                    <FormField
+                      label="Ngày bắt đầu mới"
+                      name="startDate"
+                      type="date"
+                    />
+                    <FormSelect
+                      label="Phương thức thanh toán"
+                      name="paymentMethod"
+                      defaultValue="BANK_TRANSFER"
+                      options={[
+                        { value: "", label: "Giữ mặc định" },
+                        { value: "CASH", label: "Tiền mặt" },
+                        { value: "CARD", label: "Thẻ" },
+                        { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+                      ]}
+                    />
+                  </FormGrid>
+                  <SubmitButton label="Gia hạn gói tập" />
+                </form>
+              </CollapsibleCrudPanel>
+            </SectionCard>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
+            <SectionCard
+              title="Hủy gói tập"
+            >
+              <CollapsibleCrudPanel triggerLabel="Mở bảng hủy gói tập">
+                <form action={cancelMembershipAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormSelect
+                    label="Gói tập"
+                    name="membershipId"
+                    required
+                    options={manageableMemberships.map((membership) => ({
+                      value: membership.id,
+                      label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
+                    }))}
+                  />
+                  <FormField
+                    label="Thời điểm hủy"
+                    name="cancelledAt"
+                    type="date"
+                  />
+                  <SubmitButton label="Hủy gói tập" />
+                </form>
+              </CollapsibleCrudPanel>
+            </SectionCard>
+
+            <SectionCard
+              title="Phân công PT"
+            >
+              <CollapsibleCrudPanel triggerLabel="Mở bảng phân công PT">
+                <form action={createAssignmentAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="commissionType" value="PERCENT" />
+                  <input type="hidden" name="commissionValue" value="10" />
                   <FormSelect
                     label="Hội viên"
                     name="memberId"
@@ -1859,167 +2026,62 @@ function buildMembershipOverviewPage(
                     }))}
                   />
                   <FormSelect
-                    label="Gói"
-                    name="membershipPlanId"
+                    label="PT"
+                    name="ptId"
                     required
-                    options={snapshot.dataset.membershipPlans.map((plan) => ({
-                      value: plan.id,
-                      label: `${plan.name} | ${formatCurrency(plan.price)}`,
+                    options={snapshot.dataset.personalTrainers.map((trainer) => ({
+                      value: trainer.id,
+                      label: `${trainer.code} | ${trainer.fullName}`,
                     }))}
                   />
-                  <FormField
-                    label="Ngày bắt đầu"
-                    name="startDate"
-                    type="date"
-                    required
-                  />
                   <FormSelect
-                    label="Phương thức thanh toán"
-                    name="paymentMethod"
+                    label="Gói tập"
+                    name="memberMembershipId"
                     required
-                    defaultValue="BANK_TRANSFER"
-                    options={[
-                      { value: "CASH", label: "Tiền mặt" },
-                      { value: "CARD", label: "Thẻ" },
-                      { value: "BANK_TRANSFER", label: "Chuyển khoản" },
-                    ]}
+                    options={manageableMemberships.map((membership) => ({
+                      value: membership.id,
+                      label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
+                    }))}
                   />
-                </FormGrid>
-                <SubmitButton label="Bán gói tập" />
-              </form>
-            </SectionCard>
-
-            <SectionCard
-              title="Gia hạn gói tập"
-            >
-              <form action={renewMembershipAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormSelect
-                  label="Gói tập hiện có"
-                  name="membershipId"
-                  required
-                  options={manageableMemberships.map((membership) => ({
-                    value: membership.id,
-                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)} | ${humanizeStatus(membership.status)}`,
-                  }))}
-                />
-                <FormGrid>
-                  <FormField
-                    label="Ngày bắt đầu mới"
-                    name="startDate"
-                    type="date"
-                  />
-                  <FormSelect
-                    label="Phương thức thanh toán"
-                    name="paymentMethod"
-                    defaultValue="BANK_TRANSFER"
-                    options={[
-                      { value: "", label: "Giữ mặc định" },
-                      { value: "CASH", label: "Tiền mặt" },
-                      { value: "CARD", label: "Thẻ" },
-                      { value: "BANK_TRANSFER", label: "Chuyển khoản" },
-                    ]}
-                  />
-                </FormGrid>
-                <SubmitButton label="Gia hạn gói tập" />
-              </form>
-            </SectionCard>
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
-            <SectionCard
-              title="Hủy gói tập"
-            >
-              <form action={cancelMembershipAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormSelect
-                  label="Gói tập"
-                  name="membershipId"
-                  required
-                  options={manageableMemberships.map((membership) => ({
-                    value: membership.id,
-                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
-                  }))}
-                />
-                <FormField
-                  label="Thời điểm hủy"
-                  name="cancelledAt"
-                  type="date"
-                />
-                <SubmitButton label="Hủy gói tập" />
-              </form>
-            </SectionCard>
-
-            <SectionCard
-              title="Phân công PT"
-            >
-              <form action={createAssignmentAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <input type="hidden" name="commissionType" value="PERCENT" />
-                <input type="hidden" name="commissionValue" value="10" />
-                <FormSelect
-                  label="Hội viên"
-                  name="memberId"
-                  required
-                  options={snapshot.dataset.members.map((member) => ({
-                    value: member.id,
-                    label: `${member.code} | ${member.fullName}`,
-                  }))}
-                />
-                <FormSelect
-                  label="PT"
-                  name="ptId"
-                  required
-                  options={snapshot.dataset.personalTrainers.map((trainer) => ({
-                    value: trainer.id,
-                    label: `${trainer.code} | ${trainer.fullName}`,
-                  }))}
-                />
-                <FormSelect
-                  label="Gói tập"
-                  name="memberMembershipId"
-                  required
-                  options={manageableMemberships.map((membership) => ({
-                    value: membership.id,
-                    label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
-                  }))}
-                />
-                <FormGrid>
-                  <FormField
-                    label="Phân công từ"
-                    name="assignedFrom"
-                    type="date"
-                    required
-                  />
-                </FormGrid>
-                <p className="text-xs text-slate-500">
-                  Hệ thống mặc định hoa hồng phân công là 10%.
-                </p>
-                <SubmitButton label="Tạo phân công" />
-              </form>
+                  <FormGrid>
+                    <FormField
+                      label="Phân công từ"
+                      name="assignedFrom"
+                      type="date"
+                      required
+                    />
+                  </FormGrid>
+                  <p className="text-xs text-slate-500">
+                    Hệ thống mặc định hoa hồng phân công là 10%.
+                  </p>
+                  <SubmitButton label="Tạo phân công" />
+                </form>
+              </CollapsibleCrudPanel>
             </SectionCard>
 
             <SectionCard
               title="Kết thúc phân công PT"
             >
-              <form action={endAssignmentAction} className="space-y-4">
-                <input type="hidden" name="locale" value={locale} />
-                <FormSelect
-                  label="Phân công đang hoạt động"
-                  name="assignmentId"
-                  required
-                  options={activeAssignments.map((assignment) => ({
-                    value: assignment.id,
-                    label: `${getMemberName(snapshot, assignment.memberId)} -> ${getTrainerName(snapshot, assignment.ptId)}`,
-                  }))}
-                />
-                <FormField
-                  label="Phân công đến"
-                  name="assignedTo"
-                  type="date"
-                />
-                <SubmitButton label="Kết thúc phân công" />
-              </form>
+              <CollapsibleCrudPanel triggerLabel="Mở bảng kết thúc phân công">
+                <form action={endAssignmentAction} className="space-y-4">
+                  <input type="hidden" name="locale" value={locale} />
+                  <FormSelect
+                    label="Phân công đang hoạt động"
+                    name="assignmentId"
+                    required
+                    options={activeAssignments.map((assignment) => ({
+                      value: assignment.id,
+                      label: `${getMemberName(snapshot, assignment.memberId)} -> ${getTrainerName(snapshot, assignment.ptId)}`,
+                    }))}
+                  />
+                  <FormField
+                    label="Phân công đến"
+                    name="assignedTo"
+                    type="date"
+                  />
+                  <SubmitButton label="Kết thúc phân công" />
+                </form>
+              </CollapsibleCrudPanel>
             </SectionCard>
           </div>
         </>
@@ -2119,55 +2181,57 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
           <SectionCard
             title="Tạo phân công"
           >
-            <form action={createAssignmentAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <input type="hidden" name="commissionType" value="PERCENT" />
-              <input type="hidden" name="commissionValue" value="10" />
-              <FormGrid>
-                <FormSelect
-                  label="Hội viên"
-                  name="memberId"
-                  options={snapshot.dataset.members.map((m) => ({
-                    value: m.id,
-                    label: m.fullName,
-                  }))}
-                  required
-                />
-                <FormSelect
-                  label="PT"
-                  name="ptId"
-                  options={snapshot.dataset.personalTrainers.filter(pt => pt.status === 'ACTIVE').map((pt) => ({
-                    value: pt.id,
-                    label: pt.fullName,
-                  }))}
-                  required
-                />
-                <FormSelect
-                  label="Gói tập"
-                  name="memberMembershipId"
-                  options={snapshot.dataset.memberMemberships.filter(m => m.status === 'ACTIVE').map((m) => ({
-                    value: m.id,
-                    label: `${getPlanName(snapshot, m.membershipPlanId)} (${getMemberName(snapshot, m.memberId)})`,
-                  }))}
-                  required
-                />
-                <FormField
-                  label="Phân công từ"
-                  name="assignedFrom"
-                  type="date"
-                  required
-                />
-                <FormField
-                  label="Phân công đến"
-                  name="assignedTo"
-                  type="date"
-                />
-              </FormGrid>
-              <p className="text-xs text-slate-500">
-                Hệ thống áp dụng hoa hồng mặc định 10% cho phân công mới.
-              </p>
-              <SubmitButton label="Tạo phân công" />
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng tạo phân công">
+              <form action={createAssignmentAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="commissionType" value="PERCENT" />
+                <input type="hidden" name="commissionValue" value="10" />
+                <FormGrid>
+                  <FormSelect
+                    label="Hội viên"
+                    name="memberId"
+                    options={snapshot.dataset.members.map((m) => ({
+                      value: m.id,
+                      label: m.fullName,
+                    }))}
+                    required
+                  />
+                  <FormSelect
+                    label="PT"
+                    name="ptId"
+                    options={snapshot.dataset.personalTrainers.filter(pt => pt.status === 'ACTIVE').map((pt) => ({
+                      value: pt.id,
+                      label: pt.fullName,
+                    }))}
+                    required
+                  />
+                  <FormSelect
+                    label="Gói tập"
+                    name="memberMembershipId"
+                    options={snapshot.dataset.memberMemberships.filter(m => m.status === 'ACTIVE').map((m) => ({
+                      value: m.id,
+                      label: `${getPlanName(snapshot, m.membershipPlanId)} (${getMemberName(snapshot, m.memberId)})`,
+                    }))}
+                    required
+                  />
+                  <FormField
+                    label="Phân công từ"
+                    name="assignedFrom"
+                    type="date"
+                    required
+                  />
+                  <FormField
+                    label="Phân công đến"
+                    name="assignedTo"
+                    type="date"
+                  />
+                </FormGrid>
+                <p className="text-xs text-slate-500">
+                  Hệ thống áp dụng hoa hồng mặc định 10% cho phân công mới.
+                </p>
+                <SubmitButton label="Tạo phân công" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
         ) : null}
       </div>
@@ -2189,82 +2253,86 @@ function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element 
       {isAdmin(options) ? (
         <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <SectionCard title="Thêm gói tập mới">
-            <form action={createMembershipPlanAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormGrid>
-                <FormField label="Mã gói" name="code" placeholder="PLAN-NEW" required />
-                <FormField label="Tên gói" name="name" required />
-                <FormSelect
-                  label="Loại"
-                  name="type"
-                  defaultValue="MONTH"
-                  options={[
-                    { value: "DAY", label: "Ngày" },
-                    { value: "MONTH", label: "Tháng" },
-                    { value: "YEAR", label: "Năm" },
-                  ]}
-                  required
+            <CollapsibleCrudPanel triggerLabel="Mở bảng thêm gói tập">
+              <form action={createMembershipPlanAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormGrid>
+                  <FormField label="Mã gói" name="code" placeholder="PLAN-NEW" required />
+                  <FormField label="Tên gói" name="name" required />
+                  <FormSelect
+                    label="Loại"
+                    name="type"
+                    defaultValue="MONTH"
+                    options={[
+                      { value: "DAY", label: "Ngày" },
+                      { value: "MONTH", label: "Tháng" },
+                      { value: "YEAR", label: "Năm" },
+                    ]}
+                    required
+                  />
+                  <FormField label="Giá bán" name="price" type="number" min={0} step="1000" required />
+                  <FormField label="Số ngày" name="durationDays" type="number" min={1} defaultValue={30} required />
+                  <FormField label="Giới hạn lượt" name="usageLimit" type="number" min={1} />
+                  <FormSelect
+                    label="Kèm PT"
+                    name="includesPt"
+                    defaultValue="false"
+                    options={[
+                      { value: "false", label: "Không" },
+                      { value: "true", label: "Có" },
+                    ]}
+                    required
+                  />
+                  <FormField
+                    label="Buổi PT kèm theo"
+                    name="includedPtSessions"
+                    type="number"
+                    min={0}
+                    defaultValue={0}
+                    required
+                  />
+                  <FormSelect
+                    label="Trạng thái"
+                    name="status"
+                    defaultValue="ON_SALE"
+                    options={[
+                      { value: "ON_SALE", label: "Đang bán" },
+                      { value: "OFF_SALE", label: "Ngừng bán" },
+                    ]}
+                    required
+                  />
+                </FormGrid>
+                <FormTextArea
+                  label="Quyền lợi"
+                  name="perks"
+                  placeholder={"Tập không giới hạn\nTư vấn dinh dưỡng"}
                 />
-                <FormField label="Giá bán" name="price" type="number" min={0} step="1000" required />
-                <FormField label="Số ngày" name="durationDays" type="number" min={1} defaultValue={30} required />
-                <FormField label="Giới hạn lượt" name="usageLimit" type="number" min={1} />
-                <FormSelect
-                  label="Kèm PT"
-                  name="includesPt"
-                  defaultValue="false"
-                  options={[
-                    { value: "false", label: "Không" },
-                    { value: "true", label: "Có" },
-                  ]}
-                  required
-                />
-                <FormField
-                  label="Buổi PT kèm theo"
-                  name="includedPtSessions"
-                  type="number"
-                  min={0}
-                  defaultValue={0}
-                  required
-                />
-                <FormSelect
-                  label="Trạng thái"
-                  name="status"
-                  defaultValue="ON_SALE"
-                  options={[
-                    { value: "ON_SALE", label: "Đang bán" },
-                    { value: "OFF_SALE", label: "Ngừng bán" },
-                  ]}
-                  required
-                />
-              </FormGrid>
-              <FormTextArea
-                label="Quyền lợi"
-                name="perks"
-                placeholder={"Tập không giới hạn\nTư vấn dinh dưỡng"}
-              />
-              <SubmitButton label="Tạo gói tập" />
-            </form>
+                <SubmitButton label="Tạo gói tập" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
 
           <SectionCard title="Ngừng bán gói tập">
-            <form action={deleteMembershipPlanAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormSelect
-                label="Gói tập"
-                name="planId"
-                required
-                options={snapshot.dataset.membershipPlans.map((plan) => ({
-                  value: plan.id,
-                  label: `${plan.name} | ${humanizeStatus(plan.status)}`,
-                }))}
-              />
-              <button
-                type="submit"
-                className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
-              >
-                Ngừng bán
-              </button>
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng ngừng bán gói">
+              <form action={deleteMembershipPlanAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormSelect
+                  label="Gói tập"
+                  name="planId"
+                  required
+                  options={snapshot.dataset.membershipPlans.map((plan) => ({
+                    value: plan.id,
+                    label: `${plan.name} | ${humanizeStatus(plan.status)}`,
+                  }))}
+                />
+                <button
+                  type="submit"
+                  className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
+                >
+                  Ngừng bán
+                </button>
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
         </div>
       ) : null}
@@ -2290,44 +2358,49 @@ function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element 
               {humanizeStatus(plan.status)}
             </Badge>,
             isAdmin(options) ? (
-              <form key={`${plan.id}-edit`} action={updateMembershipPlanAction} className="flex flex-wrap items-center gap-2">
-                <input type="hidden" name="locale" value={locale} />
-                <input type="hidden" name="planId" value={plan.id} />
-                <input type="hidden" name="code" value={plan.code} />
-                <input type="hidden" name="name" value={plan.name} />
-                <input type="hidden" name="type" value={plan.type} />
-                <input type="hidden" name="durationDays" value={plan.durationDays} />
-                <input type="hidden" name="includesPt" value={plan.includesPt ? "true" : "false"} />
-                <input type="hidden" name="includedPtSessions" value={plan.includedPtSessions} />
-                <input type="hidden" name="perks" value={plan.perks.join("\n")} />
-                <input
-                  type="number"
-                  name="price"
-                  defaultValue={plan.price}
-                  min={0}
-                  step="1000"
-                  className="w-28 rounded-xl border border-slate-200 px-2 py-1 text-xs"
-                />
-                <input
-                  type="number"
-                  name="usageLimit"
-                  defaultValue={plan.usageLimit ?? ""}
-                  min={1}
-                  className="w-24 rounded-xl border border-slate-200 px-2 py-1 text-xs"
-                  placeholder="Lượt"
-                />
-                <select
-                  name="status"
-                  defaultValue={plan.status}
-                  className="rounded-xl border border-slate-200 px-2 py-1 text-xs"
-                >
-                  <option value="ON_SALE">ON_SALE</option>
-                  <option value="OFF_SALE">OFF_SALE</option>
-                </select>
-                <button type="submit" className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
-                  Lưu
-                </button>
-              </form>
+              <details key={`${plan.id}-edit`} className="group min-w-[12.5rem] rounded-2xl border border-slate-200/80 bg-white/90 p-2">
+                <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                  Chỉnh sửa
+                </summary>
+                <form action={updateMembershipPlanAction} className="mt-2 flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="planId" value={plan.id} />
+                  <input type="hidden" name="code" value={plan.code} />
+                  <input type="hidden" name="name" value={plan.name} />
+                  <input type="hidden" name="type" value={plan.type} />
+                  <input type="hidden" name="durationDays" value={plan.durationDays} />
+                  <input type="hidden" name="includesPt" value={plan.includesPt ? "true" : "false"} />
+                  <input type="hidden" name="includedPtSessions" value={plan.includedPtSessions} />
+                  <input type="hidden" name="perks" value={plan.perks.join("\n")} />
+                  <input
+                    type="number"
+                    name="price"
+                    defaultValue={plan.price}
+                    min={0}
+                    step="1000"
+                    className="w-28 rounded-xl border border-slate-200 px-2 py-1 text-xs"
+                  />
+                  <input
+                    type="number"
+                    name="usageLimit"
+                    defaultValue={plan.usageLimit ?? ""}
+                    min={1}
+                    className="w-24 rounded-xl border border-slate-200 px-2 py-1 text-xs"
+                    placeholder="Lượt"
+                  />
+                  <select
+                    name="status"
+                    defaultValue={plan.status}
+                    className="rounded-xl border border-slate-200 px-2 py-1 text-xs"
+                  >
+                    <option value="ON_SALE">ON_SALE</option>
+                    <option value="OFF_SALE">OFF_SALE</option>
+                  </select>
+                  <button type="submit" className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                    Lưu
+                  </button>
+                </form>
+              </details>
             ) : "-",
           ])}
         />
@@ -2402,50 +2475,54 @@ function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
       {isAdmin(options) ? (
         <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
           <SectionCard title="Thêm sản phẩm">
-            <form action={createProductAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormGrid>
-                <FormField label="Mã sản phẩm" name="code" placeholder="PRD-NEW" required />
-                <FormField label="Tên sản phẩm" name="name" required />
-                <FormField label="Danh mục" name="category" required />
-                <FormField label="Đơn giá vốn" name="unitCost" type="number" min={0} step="1000" required />
-                <FormField label="Giá bán" name="salePrice" type="number" min={0} step="1000" required />
-                <FormField label="Tồn kho" name="stockOnHand" type="number" min={0} defaultValue={0} required />
-                <FormField label="Ngưỡng cảnh báo" name="minimumStockLevel" type="number" min={0} defaultValue={10} required />
-                <FormSelect
-                  label="Trạng thái"
-                  name="status"
-                  defaultValue="ACTIVE"
-                  required
-                  options={[
-                    { value: "ACTIVE", label: "ACTIVE" },
-                    { value: "INACTIVE", label: "INACTIVE" },
-                  ]}
-                />
-              </FormGrid>
-              <SubmitButton label="Tạo sản phẩm" />
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng thêm sản phẩm">
+              <form action={createProductAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormGrid>
+                  <FormField label="Mã sản phẩm" name="code" placeholder="PRD-NEW" required />
+                  <FormField label="Tên sản phẩm" name="name" required />
+                  <FormField label="Danh mục" name="category" required />
+                  <FormField label="Đơn giá vốn" name="unitCost" type="number" min={0} step="1000" required />
+                  <FormField label="Giá bán" name="salePrice" type="number" min={0} step="1000" required />
+                  <FormField label="Tồn kho" name="stockOnHand" type="number" min={0} defaultValue={0} required />
+                  <FormField label="Ngưỡng cảnh báo" name="minimumStockLevel" type="number" min={0} defaultValue={10} required />
+                  <FormSelect
+                    label="Trạng thái"
+                    name="status"
+                    defaultValue="ACTIVE"
+                    required
+                    options={[
+                      { value: "ACTIVE", label: "ACTIVE" },
+                      { value: "INACTIVE", label: "INACTIVE" },
+                    ]}
+                  />
+                </FormGrid>
+                <SubmitButton label="Tạo sản phẩm" />
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
 
           <SectionCard title="Ngừng sản phẩm">
-            <form action={deleteProductAction} className="space-y-4">
-              <input type="hidden" name="locale" value={locale} />
-              <FormSelect
-                label="Sản phẩm"
-                name="productId"
-                required
-                options={snapshot.dataset.products.map((product) => ({
-                  value: product.id,
-                  label: `${product.name} | ${humanizeStatus(product.status)}`,
-                }))}
-              />
-              <button
-                type="submit"
-                className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
-              >
-                Ngừng sản phẩm
-              </button>
-            </form>
+            <CollapsibleCrudPanel triggerLabel="Mở bảng ngừng sản phẩm">
+              <form action={deleteProductAction} className="space-y-4">
+                <input type="hidden" name="locale" value={locale} />
+                <FormSelect
+                  label="Sản phẩm"
+                  name="productId"
+                  required
+                  options={snapshot.dataset.products.map((product) => ({
+                    value: product.id,
+                    label: `${product.name} | ${humanizeStatus(product.status)}`,
+                  }))}
+                />
+                <button
+                  type="submit"
+                  className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700"
+                >
+                  Ngừng sản phẩm
+                </button>
+              </form>
+            </CollapsibleCrudPanel>
           </SectionCard>
         </div>
       ) : null}
@@ -2470,47 +2547,52 @@ function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
               `${product.stockOnHand}`,
               `${product.minimumStockLevel}`,
               isAdmin(options) ? (
-                <form key={`${product.id}-edit`} action={updateProductAction} className="flex flex-wrap items-center gap-2">
-                  <input type="hidden" name="locale" value={locale} />
-                  <input type="hidden" name="productId" value={product.id} />
-                  <input type="hidden" name="code" value={product.code} />
-                  <input type="hidden" name="name" value={product.name} />
-                  <input type="hidden" name="category" value={product.category} />
-                  <input type="hidden" name="unitCost" value={product.unitCost} />
-                  <input
-                    type="number"
-                    name="salePrice"
-                    defaultValue={product.salePrice}
-                    min={0}
-                    step="1000"
-                    className="w-24 rounded-xl border border-slate-200 px-2 py-1 text-xs"
-                  />
-                  <input
-                    type="number"
-                    name="stockOnHand"
-                    defaultValue={product.stockOnHand}
-                    min={0}
-                    className="w-20 rounded-xl border border-slate-200 px-2 py-1 text-xs"
-                  />
-                  <input
-                    type="number"
-                    name="minimumStockLevel"
-                    defaultValue={product.minimumStockLevel}
-                    min={0}
-                    className="w-20 rounded-xl border border-slate-200 px-2 py-1 text-xs"
-                  />
-                  <select
-                    name="status"
-                    defaultValue={product.status}
-                    className="rounded-xl border border-slate-200 px-2 py-1 text-xs"
-                  >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="INACTIVE">INACTIVE</option>
-                  </select>
-                  <button type="submit" className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
-                    Lưu
-                  </button>
-                </form>
+                <details key={`${product.id}-edit`} className="group min-w-[12.5rem] rounded-2xl border border-slate-200/80 bg-white/90 p-2">
+                  <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                    Chỉnh sửa
+                  </summary>
+                  <form action={updateProductAction} className="mt-2 flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="locale" value={locale} />
+                    <input type="hidden" name="productId" value={product.id} />
+                    <input type="hidden" name="code" value={product.code} />
+                    <input type="hidden" name="name" value={product.name} />
+                    <input type="hidden" name="category" value={product.category} />
+                    <input type="hidden" name="unitCost" value={product.unitCost} />
+                    <input
+                      type="number"
+                      name="salePrice"
+                      defaultValue={product.salePrice}
+                      min={0}
+                      step="1000"
+                      className="w-24 rounded-xl border border-slate-200 px-2 py-1 text-xs"
+                    />
+                    <input
+                      type="number"
+                      name="stockOnHand"
+                      defaultValue={product.stockOnHand}
+                      min={0}
+                      className="w-20 rounded-xl border border-slate-200 px-2 py-1 text-xs"
+                    />
+                    <input
+                      type="number"
+                      name="minimumStockLevel"
+                      defaultValue={product.minimumStockLevel}
+                      min={0}
+                      className="w-20 rounded-xl border border-slate-200 px-2 py-1 text-xs"
+                    />
+                    <select
+                      name="status"
+                      defaultValue={product.status}
+                      className="rounded-xl border border-slate-200 px-2 py-1 text-xs"
+                    >
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="INACTIVE">INACTIVE</option>
+                    </select>
+                    <button type="submit" className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                      Lưu
+                    </button>
+                  </form>
+                </details>
               ) : "-",
             ],
           )}
@@ -2562,42 +2644,44 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
         <SectionCard
           title="Tạo phiếu nhập"
         >
-          <form action={importInventoryAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
-              <FormSelect
-                label="Sản phẩm"
-                name="productId"
-                required
-                options={snapshot.dataset.products.map((product) => ({
-                  value: product.id,
-                  label: `${product.code} | ${product.name}`,
-                }))}
-              />
-              <FormField
-                label="Số lượng"
-                name="quantity"
-                type="number"
-                min={1}
-                defaultValue={10}
-                required
-              />
-              <FormField
-                label="Đơn giá vốn"
-                name="unitCost"
-                type="number"
-                min={0}
-                step="1000"
-                required
-              />
-              <FormField
-                label="Mã tham chiếu"
-                name="referenceCode"
-                placeholder="PO-2026-04-01"
-              />
-            </FormGrid>
-            <SubmitButton label="Tạo phiếu nhập" />
-          </form>
+          <CollapsibleCrudPanel triggerLabel="Mở bảng tạo phiếu nhập">
+            <form action={importInventoryAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormSelect
+                  label="Sản phẩm"
+                  name="productId"
+                  required
+                  options={snapshot.dataset.products.map((product) => ({
+                    value: product.id,
+                    label: `${product.code} | ${product.name}`,
+                  }))}
+                />
+                <FormField
+                  label="Số lượng"
+                  name="quantity"
+                  type="number"
+                  min={1}
+                  defaultValue={10}
+                  required
+                />
+                <FormField
+                  label="Đơn giá vốn"
+                  name="unitCost"
+                  type="number"
+                  min={0}
+                  step="1000"
+                  required
+                />
+                <FormField
+                  label="Mã tham chiếu"
+                  name="referenceCode"
+                  placeholder="PO-2026-04-01"
+                />
+              </FormGrid>
+              <SubmitButton label="Tạo phiếu nhập" />
+            </form>
+          </CollapsibleCrudPanel>
         </SectionCard>
       ) : null}
 
@@ -2682,58 +2766,60 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
         <SectionCard
           title="Tạo hóa đơn bán hàng"
         >
-          <form action={createSalesInvoiceAction} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <FormGrid>
-              <FormSelect
-                label="Hội viên (tùy chọn)"
-                name="memberId"
-                defaultValue=""
-                options={[
-                  { value: "", label: "Khách lẻ" },
-                  ...snapshot.dataset.members.map((member) => ({
-                    value: member.id,
-                    label: `${member.code} | ${member.fullName}`,
-                  })),
-                ]}
-              />
-              <FormField
-                label="Tên khách hàng (tùy chọn)"
-                name="customerName"
-                placeholder="Trần Văn A"
-              />
-              <FormSelect
-                label="Sản phẩm"
-                name="productId"
-                required
-                options={snapshot.dataset.products.map((product) => ({
-                  value: product.id,
-                  label: `${product.code} | ${product.name} | ${formatCurrency(product.salePrice)}`,
-                }))}
-              />
-              <FormField
-                label="Số lượng"
-                name="quantity"
-                type="number"
-                min={1}
-                defaultValue={1}
-                required
-              />
-              <FormSelect
-                label="Phương thức thanh toán"
-                name="paymentMethod"
-                defaultValue="CASH"
-                required
-                options={[
-                  { value: "CASH", label: "Tiền mặt" },
-                  { value: "CARD", label: "Thẻ" },
-                  { value: "BANK_TRANSFER", label: "Chuyển khoản" },
-                ]}
-              />
-              <input type="hidden" name="discountAmount" value="0" />
-            </FormGrid>
-            <SubmitButton label="Tạo hóa đơn" />
-          </form>
+          <CollapsibleCrudPanel triggerLabel="Mở bảng tạo hóa đơn">
+            <form action={createSalesInvoiceAction} className="space-y-4">
+              <input type="hidden" name="locale" value={locale} />
+              <FormGrid>
+                <FormSelect
+                  label="Hội viên (tùy chọn)"
+                  name="memberId"
+                  defaultValue=""
+                  options={[
+                    { value: "", label: "Khách lẻ" },
+                    ...snapshot.dataset.members.map((member) => ({
+                      value: member.id,
+                      label: `${member.code} | ${member.fullName}`,
+                    })),
+                  ]}
+                />
+                <FormField
+                  label="Tên khách hàng (tùy chọn)"
+                  name="customerName"
+                  placeholder="Trần Văn A"
+                />
+                <FormSelect
+                  label="Sản phẩm"
+                  name="productId"
+                  required
+                  options={snapshot.dataset.products.map((product) => ({
+                    value: product.id,
+                    label: `${product.code} | ${product.name} | ${formatCurrency(product.salePrice)}`,
+                  }))}
+                />
+                <FormField
+                  label="Số lượng"
+                  name="quantity"
+                  type="number"
+                  min={1}
+                  defaultValue={1}
+                  required
+                />
+                <FormSelect
+                  label="Phương thức thanh toán"
+                  name="paymentMethod"
+                  defaultValue="CASH"
+                  required
+                  options={[
+                    { value: "CASH", label: "Tiền mặt" },
+                    { value: "CARD", label: "Thẻ" },
+                    { value: "BANK_TRANSFER", label: "Chuyển khoản" },
+                  ]}
+                />
+                <input type="hidden" name="discountAmount" value="0" />
+              </FormGrid>
+              <SubmitButton label="Tạo hóa đơn" />
+            </form>
+          </CollapsibleCrudPanel>
         </SectionCard>
       ) : null}
 
@@ -3130,6 +3216,7 @@ function buildProfitReportPage(): JSX.Element {
 function buildSettingsPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const currentUsername = options?.currentUser?.username ?? "";
 
   return (
     <>
@@ -3137,6 +3224,35 @@ function buildSettingsPage(options?: RenderGymRouteOptions): JSX.Element {
         eyebrow="Cấu hình hệ thống"
         title="Cấu hình"
       />
+      <SectionCard
+        title="Tài khoản đăng nhập"
+        description="Admin/Staff có thể đổi tên đăng nhập hoặc mật khẩu trực tiếp tại đây"
+      >
+        <form action={updateAccountAction} className="space-y-4">
+          <input type="hidden" name="locale" value={locale} />
+          <FormGrid>
+            <FormField
+              label="Tên đăng nhập"
+              name="username"
+              defaultValue={currentUsername}
+              required
+            />
+            <FormField
+              label="Mật khẩu hiện tại"
+              name="currentPassword"
+              type="password"
+              placeholder="Nhập nếu muốn đổi mật khẩu"
+            />
+            <FormField
+              label="Mật khẩu mới"
+              name="newPassword"
+              type="password"
+              placeholder="Để trống nếu chỉ đổi tên đăng nhập"
+            />
+          </FormGrid>
+          <SubmitButton label="Cập nhật tài khoản" />
+        </form>
+      </SectionCard>
       <SectionCard title="Cấu hình hệ thống">
         <DataTable
           headers={["Khóa", "Nhãn", "Giá trị", "Mô tả"]}
@@ -3144,21 +3260,26 @@ function buildSettingsPage(options?: RenderGymRouteOptions): JSX.Element {
             config.key,
             config.label,
             isAdmin(options) ? (
-              <form key={`${config.key}-edit`} action={patchSystemConfigAction} className="flex items-center gap-2">
-                <input type="hidden" name="locale" value={locale} />
-                <input type="hidden" name="configKey" value={config.key} />
-                <input
-                  name="value"
-                  defaultValue={config.value}
-                  className="w-56 rounded-xl border border-slate-200 px-3 py-1 text-xs"
-                />
-                <button
-                  type="submit"
-                  className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
-                >
-                  Lưu
-                </button>
-              </form>
+              <details key={`${config.key}-edit`} className="group min-w-[14rem] rounded-2xl border border-slate-200/80 bg-white/90 p-2">
+                <summary className="cursor-pointer list-none text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
+                  Chỉnh sửa
+                </summary>
+                <form action={patchSystemConfigAction} className="mt-2 flex items-center gap-2">
+                  <input type="hidden" name="locale" value={locale} />
+                  <input type="hidden" name="configKey" value={config.key} />
+                  <input
+                    name="value"
+                    defaultValue={config.value}
+                    className="w-56 rounded-xl border border-slate-200 px-3 py-1 text-xs"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                  >
+                    Lưu
+                  </button>
+                </form>
+              </details>
             ) : config.value,
             config.description,
           ])}
@@ -3178,33 +3299,63 @@ function buildLoginPage(options?: RenderGymRouteOptions): JSX.Element {
       <PageHeader
         eyebrow="Đăng nhập an toàn"
         title="Đăng nhập"
+        description="Truy cập nhanh vào workspace để theo dõi vận hành, quản trị hội viên và kiểm soát doanh thu trong thời gian thực."
       />
 
-      <div className="mx-auto grid w-full max-w-2xl gap-6">
+      <div className="mx-auto grid w-full max-w-4xl gap-5 lg:grid-cols-[0.95fr_1.05fr] lg:gap-6">
+        <section className="rounded-[1.8rem] border border-white/70 bg-white/82 p-5 shadow-[0_22px_54px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent-600)]">Gym Manager</p>
+          <h2 className="font-display mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-[1.85rem]">Bảo mật rõ ràng, thao tác nhanh</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Phiên đăng nhập được tối ưu cho nhân sự vận hành phòng gym trên mobile lẫn desktop.
+          </p>
+          <div className="mt-5 grid gap-3">
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+              <span className="pi pi-shield text-sm text-[var(--accent-600)]" />
+              <p className="text-sm text-slate-700">Xác thực tài khoản theo phân quyền Admin và Staff.</p>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+              <span className="pi pi-mobile text-sm text-[var(--accent-600)]" />
+              <p className="text-sm text-slate-700">Biểu mẫu tối ưu nhịp chạm cho màn hình nhỏ.</p>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+              <span className="pi pi-bolt text-sm text-[var(--accent-600)]" />
+              <p className="text-sm text-slate-700">Đăng nhập xong chuyển thẳng về luồng công việc phù hợp vai trò.</p>
+            </div>
+          </div>
+        </section>
+
         <SectionCard
           title="Biểu mẫu đăng nhập"
+          description="Nhập thông tin tài khoản để tiếp tục làm việc"
         >
           {hasInvalidCredentials ? (
-            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              Email hoặc mật khẩu không đúng. Vui lòng thử lại.
+            <div className="mb-4 flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <span className="pi pi-info-circle mt-0.5 text-rose-500" />
+              Tên đăng nhập hoặc mật khẩu không đúng. Vui lòng thử lại.
             </div>
           ) : null}
 
-          <form action={loginAction} className="space-y-4">
+          <form action={loginAction} className="space-y-5">
             <input type="hidden" name="locale" value={locale} />
             <FormField
-              label="Thư điện tử"
-              name="email"
-              type="email"
+              label="Tên đăng nhập"
+              name="username"
+              iconClassName="pi-user"
               required
             />
             <FormField
               label="Mật khẩu"
               name="password"
               type="password"
+              iconClassName="pi-lock"
               required
             />
-            <SubmitButton label="Đăng nhập" />
+            <SubmitButton
+              label="Đăng nhập"
+              fullWidth
+              iconClassName="pi-sign-in"
+            />
           </form>
         </SectionCard>
       </div>
@@ -3221,16 +3372,6 @@ export function renderGymRoute(
   let content: JSX.Element | undefined;
 
   setActiveUiLocale(locale);
-
-  if (options?.currentUser?.role === "PT") {
-    if (section === "pts" && entityId === "attendance") {
-      content = buildPtSelfAttendancePage(options);
-    }
-
-    if (!content && section === "payroll" && slug.length === 1) {
-      content = buildPtSelfPayrollPage(options);
-    }
-  }
 
   if (!content && (slug.length === 0 || section === "dashboard")) {
     content = buildDashboardPage();

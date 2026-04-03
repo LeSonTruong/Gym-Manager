@@ -9,6 +9,7 @@ const validationSchemaMap = {
         .default('http://localhost:3000'),
     [config_key_enum_1.ConfigKey.PORT]: Joi.number().min(0).max(65_535).default(4000),
     [config_key_enum_1.ConfigKey.ENABLE_SWAGGER]: Joi.boolean().optional().default(true),
+    [config_key_enum_1.ConfigKey.ENABLE_DEMO_SEED]: Joi.boolean().optional(),
     [config_key_enum_1.ConfigKey.POSTGRES_TIMEZONE]: Joi.string().default('UTC'),
     [config_key_enum_1.ConfigKey.POSTGRES_DB_NAME]: Joi.string().default('gym_manager'),
     [config_key_enum_1.ConfigKey.POSTGRES_PASSWORD]: Joi.string().default('postgres'),

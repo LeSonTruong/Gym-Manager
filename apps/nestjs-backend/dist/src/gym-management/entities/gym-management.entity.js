@@ -14,7 +14,7 @@ const core_1 = require("@mikro-orm/core");
 const base_entity_1 = require("../../common/entities/base.entity");
 let UserEntity = class UserEntity extends base_entity_1.BaseEntity {
     fullName;
-    email;
+    username;
     role;
     status;
     passwordHash;
@@ -26,9 +26,9 @@ __decorate([
     __metadata("design:type", String)
 ], UserEntity.prototype, "fullName", void 0);
 __decorate([
-    (0, core_1.Property)({ length: 180, unique: true }),
+    (0, core_1.Property)({ length: 180, unique: true, fieldName: 'email' }),
     __metadata("design:type", String)
-], UserEntity.prototype, "email", void 0);
+], UserEntity.prototype, "username", void 0);
 __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)

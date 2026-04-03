@@ -5,10 +5,52 @@
   --font-manrope: "Aptos", "Segoe UI", sans-serif;
   --font-space-grotesk:
     "Bahnschrift", "Trebuchet MS", "Arial Narrow", sans-serif;
+  --accent-50: #e0f2fe;
+  --accent-100: #bae6fd;
+  --accent-500: #0284c7;
+  --accent-600: #0369a1;
+  --accent-700: #075985;
+  --focus-ring: rgba(2, 132, 199, 0.34);
+  --shell-bg: radial-gradient(circle at 8% -4%, rgba(2, 132, 199, 0.24), transparent 36%),
+    radial-gradient(circle at 95% 16%, rgba(59, 130, 246, 0.14), transparent 32%),
+    linear-gradient(180deg, #f8fafc 0%, #eff6ff 46%, #f8fafc 100%);
+}
+
+html[data-preset="energetic"] {
+  --accent-50: #fff7ed;
+  --accent-100: #ffedd5;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+  --focus-ring: rgba(249, 115, 22, 0.36);
+  --shell-bg: radial-gradient(circle at 8% -4%, rgba(249, 115, 22, 0.26), transparent 33%),
+    radial-gradient(circle at 96% 20%, rgba(14, 165, 233, 0.16), transparent 30%),
+    linear-gradient(180deg, #f8fafc 0%, #fff7ed 45%, #f8fafc 100%);
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
+  --accent-50: #0b1f2e;
+  --accent-100: #0e2f45;
+  --accent-500: #38bdf8;
+  --accent-600: #7dd3fc;
+  --accent-700: #bae6fd;
+  --focus-ring: rgba(56, 189, 248, 0.38);
+  --shell-bg: radial-gradient(circle at 8% -4%, rgba(56, 189, 248, 0.17), transparent 38%),
+    radial-gradient(circle at 94% 16%, rgba(59, 130, 246, 0.1), transparent 34%),
+    linear-gradient(180deg, #01040b 0%, #020612 55%, #020815 100%);
+}
+
+html[data-theme="dark"][data-preset="energetic"] {
+  --accent-50: #311509;
+  --accent-100: #4a1f0a;
+  --accent-500: #fb923c;
+  --accent-600: #fdba74;
+  --accent-700: #ffedd5;
+  --focus-ring: rgba(251, 146, 60, 0.42);
+  --shell-bg: radial-gradient(circle at 8% -4%, rgba(249, 115, 22, 0.2), transparent 38%),
+    radial-gradient(circle at 94% 16%, rgba(14, 165, 233, 0.1), transparent 34%),
+    linear-gradient(180deg, #01040b 0%, #030712 55%, #020612 100%);
 }
 
 html {
@@ -21,22 +63,22 @@ body {
 }
 
 html[data-theme="dark"] body {
-  background: radial-gradient(circle at top left, rgba(249, 115, 22, 0.12), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.1), transparent 24%),
-    linear-gradient(180deg, #020617 0%, #0f172a 100%);
-  color: #e2e8f0;
+  background: radial-gradient(circle at top left, rgba(249, 115, 22, 0.13), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.08), transparent 26%),
+    linear-gradient(180deg, #02030a 0%, #030612 58%, #02040d 100%);
+  color: #f1f5f9;
 }
 
 html[data-theme="dark"] [class*="bg-white"] {
-  background-color: rgba(15, 23, 42, 0.82) !important;
+  background-color: rgba(6, 12, 22, 0.86) !important;
 }
 
 html[data-theme="dark"] [class*="bg-slate-50"] {
-  background-color: rgba(30, 41, 59, 0.78) !important;
+  background-color: rgba(8, 14, 26, 0.84) !important;
 }
 
 html[data-theme="dark"] [class*="bg-slate-100"] {
-  background-color: rgba(51, 65, 85, 0.85) !important;
+  background-color: rgba(16, 25, 40, 0.88) !important;
 }
 
 html[data-theme="dark"] [class*="text-slate-950"] {
@@ -46,18 +88,22 @@ html[data-theme="dark"] [class*="text-slate-950"] {
 html[data-theme="dark"] [class*="text-slate-900"],
 html[data-theme="dark"] [class*="text-slate-800"],
 html[data-theme="dark"] [class*="text-slate-700"] {
-  color: #e2e8f0 !important;
+  color: #e5edf8 !important;
 }
 
 html[data-theme="dark"] [class*="text-slate-600"],
 html[data-theme="dark"] [class*="text-slate-500"],
 html[data-theme="dark"] [class*="text-slate-400"] {
-  color: #94a3b8 !important;
+  color: #9fb0c8 !important;
 }
 
 html[data-theme="dark"] [class*="border-slate-200"],
 html[data-theme="dark"] [class*="border-white"] {
-  border-color: rgba(100, 116, 139, 0.38) !important;
+  border-color: rgba(112, 130, 154, 0.34) !important;
+}
+
+html[data-theme="dark"] [class*="shadow-"] {
+  box-shadow: 0 26px 60px rgba(2, 6, 18, 0.62) !important;
 }
 
 .font-display {
@@ -69,5 +115,6 @@ a {
 }
 
 ::selection {
-  @apply bg-orange-200 text-slate-950;
+  background-color: var(--accent-100);
+  color: #020617;
 }

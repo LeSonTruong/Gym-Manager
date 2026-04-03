@@ -1,4 +1,4 @@
-import {ConfigKey} from './config-key.enum';
+import { ConfigKey } from './config-key.enum';
 
 function readNumber(value: string | undefined): number | undefined {
   if (!value) {
@@ -16,6 +16,10 @@ const appConfig = (): Record<ConfigKey, unknown> => ({
   [ConfigKey.PORT]: readNumber(process.env.PORT) ?? 4000,
   [ConfigKey.ENABLE_SWAGGER]:
     process.env.ENABLE_SWAGGER === undefined ? true : process.env.ENABLE_SWAGGER === 'true',
+  [ConfigKey.ENABLE_DEMO_SEED]:
+    process.env.ENABLE_DEMO_SEED === undefined
+      ? (process.env.NODE_ENV ?? 'development') !== 'production'
+      : process.env.ENABLE_DEMO_SEED === 'true',
 
   [ConfigKey.POSTGRES_TIMEZONE]: process.env.POSTGRES_TIMEZONE ?? 'UTC',
   [ConfigKey.POSTGRES_DB_NAME]: process.env.POSTGRES_DB_NAME ?? 'gym_manager',

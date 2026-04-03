@@ -61,7 +61,7 @@ const operatingExpenseStatuses = [
     "PAID",
 ];
 const salesInvoiceStatuses = ["DRAFT", "CONFIRMED", "CANCELLED"];
-const authTokenRoles = ["ADMIN", "PT", "STAFF"];
+const authTokenRoles = ["ADMIN", "STAFF"];
 function isOneOf(value, acceptedValues) {
     return acceptedValues.includes(value);
 }
@@ -78,9 +78,9 @@ let GymManagementService = class GymManagementService {
     async getSnapshot() {
         return (0, shared_1.createGymManagementSnapshot)(await this.loadDataset());
     }
-    async login(email, password) {
+    async login(username, password) {
         const em = this.createEntityManager();
-        const userEntity = await em.findOne(gym_management_entity_1.UserEntity, { email });
+        const userEntity = await em.findOne(gym_management_entity_1.UserEntity, { username });
         if (!userEntity || !(0, auth_crypto_1.verifyPassword)(password, userEntity.passwordHash)) {
             throw new common_1.UnauthorizedException("Invalid demo credentials");
         }
@@ -92,14 +92,10 @@ let GymManagementService = class GymManagementService {
             await em.flush();
         }
         const user = (0, gym_management_mapper_1.mapUserEntity)(userEntity);
-        const ptId = user.role === "PT"
-            ? await this.resolvePtIdForUser(em, userEntity)
-            : undefined;
         const { accessToken, refreshToken } = await this.issueAuthTokens({
             sessionId: (0, node_crypto_1.randomUUID)(),
             userId: user.id,
             role: user.role,
-            ptId,
         });
         return {
             user,
@@ -126,14 +122,10 @@ let GymManagementService = class GymManagementService {
             throw new common_1.UnauthorizedException("User account is inactive");
         }
         const user = (0, gym_management_mapper_1.mapUserEntity)(userEntity);
-        const ptId = user.role === "PT"
-            ? await this.resolvePtIdForUser(em, userEntity)
-            : undefined;
         const accessToken = await this.issueAccessToken({
             sessionId: refreshTokenEntity.sessionId,
             userId: user.id,
             role: user.role,
-            ptId,
         });
         return {
             user,
@@ -194,6 +186,40 @@ let GymManagementService = class GymManagementService {
             throw new common_1.UnauthorizedException("No demo users configured");
         }
         return (0, gym_management_mapper_1.mapUserEntity)(currentUser);
+    }
+    async updateAccountCredentials(userId, updates) {
+        const em = this.createEntityManager();
+        const user = await this.getRequiredUserEntity(em, userId);
+        const nextUsername = updates.username?.trim();
+        const nextPassword = updates.newPassword?.trim();
+        const currentPassword = updates.currentPassword?.trim();
+        if (!nextUsername && !nextPassword) {
+            throw new common_1.BadRequestException("Provide at least one field to update (username or newPassword)");
+        }
+        if (nextUsername && nextUsername !== user.username) {
+            const existingUser = await em.findOne(gym_management_entity_1.UserEntity, {
+                username: nextUsername,
+                id: { $ne: user.id },
+            });
+            if (existingUser) {
+                throw new common_1.ConflictException("Username is already taken");
+            }
+            user.username = nextUsername;
+        }
+        if (nextPassword) {
+            if (!currentPassword) {
+                throw new common_1.BadRequestException("currentPassword is required when changing password");
+            }
+            if (!(0, auth_crypto_1.verifyPassword)(currentPassword, user.passwordHash)) {
+                throw new common_1.UnauthorizedException("Current password is incorrect");
+            }
+            user.passwordHash = (0, auth_crypto_1.hashPassword)(nextPassword);
+        }
+        else if (currentPassword) {
+            throw new common_1.BadRequestException("newPassword is required when currentPassword is provided");
+        }
+        await em.flush();
+        return (0, gym_management_mapper_1.mapUserEntity)(user);
     }
     async checkInAttendance(attendanceCheckInDto) {
         const em = this.createEntityManager();
@@ -681,7 +707,7 @@ let GymManagementService = class GymManagementService {
         const user = await this.getRequiredUserEntity(em, userId);
         const ptId = await this.resolvePtIdForUser(em, user);
         if (!ptId) {
-            throw new common_1.NotFoundException(`No PT profile linked to user ${userId}`);
+            return [];
         }
         const dataset = await this.loadDataset();
         return dataset.payrollEntries.filter((entry) => entry.ptId === ptId);
@@ -981,6 +1007,29 @@ let GymManagementService = class GymManagementService {
     generateReferenceCode(prefix) {
         return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${(0, node_crypto_1.randomUUID)().slice(0, 8).toUpperCase()}`;
     }
+    createOfflineContactEmail(scope, code) {
+        const normalizedCharacters = [];
+        for (const character of code.trim().toLowerCase()) {
+            const codePoint = character.codePointAt(0) ?? 0;
+            const isAsciiLetter = codePoint >= 97 && codePoint <= 122;
+            const isDigit = codePoint >= 48 && codePoint <= 57;
+            normalizedCharacters.push(isAsciiLetter || isDigit ? character : "-");
+        }
+        let normalizedCode = normalizedCharacters.join("");
+        while (normalizedCode.includes("--")) {
+            normalizedCode = normalizedCode.replaceAll("--", "-");
+        }
+        if (normalizedCode.startsWith("-")) {
+            normalizedCode = normalizedCode.slice(1);
+        }
+        if (normalizedCode.endsWith("-")) {
+            normalizedCode = normalizedCode.slice(0, -1);
+        }
+        if (normalizedCode.length === 0) {
+            normalizedCode = "record";
+        }
+        return `${scope}-${normalizedCode}@offline.local`;
+    }
     async submitPayrollPeriod(payrollPeriodId, submittedByUserId) {
         return this.transitionPayrollPeriodStatus(payrollPeriodId, "PENDING_APPROVAL", submittedByUserId);
     }
@@ -1035,11 +1084,26 @@ let GymManagementService = class GymManagementService {
     }
     async createPersonalTrainer(createPersonalTrainerDto) {
         const em = this.createEntityManager();
-        const trainerData = this.toPersonalTrainerEntityData(createPersonalTrainerDto);
-        if (createPersonalTrainerDto.userId) {
-            trainerData.user = await this.getRequiredUserEntity(em, createPersonalTrainerDto.userId);
-        }
-        const trainer = em.create(gym_management_entity_1.PersonalTrainerEntity, trainerData);
+        const trainerUser = createPersonalTrainerDto.userId
+            ? await this.getRequiredUserEntity(em, createPersonalTrainerDto.userId)
+            : null;
+        const trainerEmail = createPersonalTrainerDto.email ??
+            this.createOfflineContactEmail("pt", createPersonalTrainerDto.code);
+        const trainer = em.create(gym_management_entity_1.PersonalTrainerEntity, {
+            code: createPersonalTrainerDto.code,
+            user: trainerUser,
+            fullName: createPersonalTrainerDto.fullName,
+            gender: createPersonalTrainerDto.gender,
+            birthDate: (0, gym_management_mapper_1.parseDateOnly)(createPersonalTrainerDto.birthDate),
+            phone: createPersonalTrainerDto.phone,
+            email: trainerEmail,
+            address: createPersonalTrainerDto.address,
+            status: createPersonalTrainerDto.status,
+            specialties: createPersonalTrainerDto.specialties,
+            experienceYears: createPersonalTrainerDto.experienceYears,
+            avatarUrl: createPersonalTrainerDto.avatarUrl,
+            startDate: (0, gym_management_mapper_1.parseDateOnly)(createPersonalTrainerDto.startDate),
+        });
         em.persist(trainer);
         await em.flush();
         return (0, gym_management_mapper_1.mapPersonalTrainerEntity)(trainer);
@@ -1067,8 +1131,23 @@ let GymManagementService = class GymManagementService {
     }
     async createMember(createMemberDto) {
         const em = this.createEntityManager();
-        const memberData = this.toMemberEntityData(createMemberDto);
-        const member = em.create(gym_management_entity_1.MemberEntity, memberData);
+        const memberEmail = createMemberDto.email ??
+            this.createOfflineContactEmail("member", createMemberDto.code);
+        const member = em.create(gym_management_entity_1.MemberEntity, {
+            code: createMemberDto.code,
+            fullName: createMemberDto.fullName,
+            gender: createMemberDto.gender,
+            birthDate: (0, gym_management_mapper_1.parseDateOnly)(createMemberDto.birthDate),
+            phone: createMemberDto.phone,
+            email: memberEmail,
+            address: createMemberDto.address,
+            heightCm: createMemberDto.heightCm,
+            weightKg: createMemberDto.weightKg,
+            goal: createMemberDto.goal,
+            healthNotes: createMemberDto.healthNotes,
+            registeredAt: (0, gym_management_mapper_1.parseDateOnly)(createMemberDto.registeredAt),
+            status: createMemberDto.status,
+        });
         em.persist(member);
         await em.flush();
         return (0, gym_management_mapper_1.mapMemberEntity)(member);
@@ -1092,8 +1171,18 @@ let GymManagementService = class GymManagementService {
     }
     async createMembershipPlan(createMembershipPlanDto) {
         const em = this.createEntityManager();
-        const membershipPlanData = this.toMembershipPlanEntityData(createMembershipPlanDto);
-        const membershipPlan = em.create(gym_management_entity_1.MembershipPlanEntity, membershipPlanData);
+        const membershipPlan = em.create(gym_management_entity_1.MembershipPlanEntity, {
+            code: createMembershipPlanDto.code,
+            name: createMembershipPlanDto.name,
+            type: createMembershipPlanDto.type,
+            price: (0, gym_management_mapper_1.toDecimalString)(createMembershipPlanDto.price),
+            durationDays: createMembershipPlanDto.durationDays,
+            usageLimit: createMembershipPlanDto.usageLimit,
+            includesPt: createMembershipPlanDto.includesPt,
+            includedPtSessions: createMembershipPlanDto.includedPtSessions,
+            perks: createMembershipPlanDto.perks,
+            status: createMembershipPlanDto.status,
+        });
         em.persist(membershipPlan);
         await em.flush();
         return (0, gym_management_mapper_1.mapMembershipPlanEntity)(membershipPlan);
@@ -1114,8 +1203,16 @@ let GymManagementService = class GymManagementService {
     }
     async createProduct(createProductDto) {
         const em = this.createEntityManager();
-        const productData = this.toProductEntityData(createProductDto);
-        const product = em.create(gym_management_entity_1.ProductEntity, productData);
+        const product = em.create(gym_management_entity_1.ProductEntity, {
+            code: createProductDto.code,
+            name: createProductDto.name,
+            category: createProductDto.category,
+            unitCost: (0, gym_management_mapper_1.toDecimalString)(createProductDto.unitCost),
+            salePrice: (0, gym_management_mapper_1.toDecimalString)(createProductDto.salePrice),
+            stockOnHand: createProductDto.stockOnHand,
+            minimumStockLevel: createProductDto.minimumStockLevel,
+            status: createProductDto.status,
+        });
         em.persist(product);
         await em.flush();
         return (0, gym_management_mapper_1.mapProductEntity)(product);
@@ -1139,8 +1236,20 @@ let GymManagementService = class GymManagementService {
     }
     async createEquipment(createEquipmentDto) {
         const em = this.createEntityManager();
-        const equipmentAssetData = this.toEquipmentAssetEntityData(createEquipmentDto);
-        const equipmentAsset = em.create(gym_management_entity_1.EquipmentAssetEntity, equipmentAssetData);
+        const equipmentAsset = em.create(gym_management_entity_1.EquipmentAssetEntity, {
+            code: createEquipmentDto.code,
+            name: createEquipmentDto.name,
+            category: createEquipmentDto.category,
+            purchasedAt: (0, gym_management_mapper_1.parseDateOnly)(createEquipmentDto.purchasedAt),
+            purchaseValue: (0, gym_management_mapper_1.toDecimalString)(createEquipmentDto.purchaseValue),
+            status: createEquipmentDto.status ?? null,
+            condition: createEquipmentDto.condition,
+            location: createEquipmentDto.location,
+            nextMaintenanceAt: createEquipmentDto.nextMaintenanceAt
+                ? (0, gym_management_mapper_1.parseDateOnly)(createEquipmentDto.nextMaintenanceAt)
+                : null,
+            note: createEquipmentDto.note,
+        });
         em.persist(equipmentAsset);
         await em.flush();
         return (0, gym_management_mapper_1.mapEquipmentAssetEntity)(equipmentAsset);
@@ -1154,8 +1263,20 @@ let GymManagementService = class GymManagementService {
     }
     async createOperatingExpense(createOperatingExpenseDto) {
         const em = this.createEntityManager();
-        const operatingExpenseData = await this.toOperatingExpenseEntityData(em, createOperatingExpenseDto);
-        const operatingExpense = em.create(gym_management_entity_1.OperatingExpenseEntity, operatingExpenseData);
+        const resolvedEquipmentAsset = createOperatingExpenseDto.equipmentAssetId
+            ? await this.resolveEquipmentAsset(em, createOperatingExpenseDto.equipmentAssetId)
+            : null;
+        const operatingExpense = em.create(gym_management_entity_1.OperatingExpenseEntity, {
+            code: createOperatingExpenseDto.code,
+            expenseDate: (0, gym_management_mapper_1.parseDateOnly)(createOperatingExpenseDto.expenseDate),
+            category: createOperatingExpenseDto.category,
+            equipmentAsset: resolvedEquipmentAsset,
+            vendorName: createOperatingExpenseDto.vendorName,
+            amount: (0, gym_management_mapper_1.toDecimalString)(createOperatingExpenseDto.amount),
+            description: createOperatingExpenseDto.description,
+            attachmentUrl: createOperatingExpenseDto.attachmentUrl,
+            status: "DRAFT",
+        });
         this.resetOperatingExpenseWorkflow(operatingExpense);
         em.persist(operatingExpense);
         await em.flush();
@@ -1552,7 +1673,7 @@ let GymManagementService = class GymManagementService {
     }
     async resolvePtIdForUser(em, user) {
         const trainer = await em.findOne(gym_management_entity_1.PersonalTrainerEntity, {
-            $or: [{ user: user.id }, { email: user.email }],
+            user: user.id,
         });
         return trainer?.id;
     }

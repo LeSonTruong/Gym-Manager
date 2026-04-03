@@ -1,6 +1,11 @@
 import { MikroORM } from '@mikro-orm/core';
-import { createGymManagementMockData } from '@next-nest-turbo-boilerplate/shared';
+import {
+  createGymManagementMockData,
+  type GymManagementDataset,
+} from '@next-nest-turbo-boilerplate/shared';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { ConfigKey } from '../config/config-key.enum';
 import {
   AttendanceLogEntity,
   InventoryTransactionEntity,
@@ -42,14 +47,22 @@ function toDecimal(value: number): string {
 export class GymManagementSeedService implements OnModuleInit {
   private readonly logger = new Logger(GymManagementSeedService.name);
 
-  constructor(private readonly orm: MikroORM) {
- 
+  constructor(
+    private readonly orm: MikroORM,
+    private readonly configService: ConfigService,
+  ) {
+
   }
 
   async onModuleInit(): Promise<void> {
     await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'
       ? this.orm.schema.updateSchema()
       : this.orm.migrator.up());
+
+    if (!this.configService.get<boolean>(ConfigKey.ENABLE_DEMO_SEED)) {
+      this.logger.log('Skipped demo data seed because ENABLE_DEMO_SEED is disabled');
+      return;
+    }
 
     await this.seedIfEmpty();
   }
@@ -62,14 +75,14 @@ export class GymManagementSeedService implements OnModuleInit {
       return;
     }
 
-    const dataset = createGymManagementMockData();
+    const dataset: GymManagementDataset = createGymManagementMockData();
 
     em.persist(
       dataset.users.map((user) =>
         em.create(UserEntity, {
           id: user.id,
           fullName: user.fullName,
-          email: user.email,
+          username: user.username,
           role: user.role,
           status: user.status,
           passwordHash: hashPassword(user.passwordHint ?? 'demo123'),
@@ -150,11 +163,6 @@ export class GymManagementSeedService implements OnModuleInit {
     );
 
     await em.flush();
-
-    const usersByEmail = new Map(
-      (await em.findAll(UserEntity)).map((user) => [user.email, user]),
-    );
-
     em.persist(
       dataset.personalTrainers.map((trainer) =>
         em.create(PersonalTrainerEntity, {
@@ -162,7 +170,7 @@ export class GymManagementSeedService implements OnModuleInit {
           code: trainer.code,
           user: trainer.userId
             ? em.getReference(UserEntity, trainer.userId)
-            : usersByEmail.get(trainer.email) ?? null,
+            : null,
           fullName: trainer.fullName,
           gender: trainer.gender,
           birthDate: toDateOnly(trainer.birthDate),
@@ -187,8 +195,8 @@ export class GymManagementSeedService implements OnModuleInit {
           id: contract.id,
           personalTrainer: em.getReference(PersonalTrainerEntity, contract.ptId),
           contractCode:
-                        contract.contractCode ??
-                        `PTC-${contract.ptId.toUpperCase()}-${contract.id.slice(-3)}`,
+            contract.contractCode ??
+            `PTC-${contract.ptId.toUpperCase()}-${contract.id.slice(-3)}`,
           contractType: contract.contractType,
           salaryType: contract.salaryType,
           baseSalary: toDecimal(contract.baseSalary),
@@ -328,9 +336,9 @@ export class GymManagementSeedService implements OnModuleInit {
           assignedTo: assignment.assignedTo ? toDateOnly(assignment.assignedTo) : null,
           commissionType: assignment.commissionType ?? 'FIXED',
           commissionValue:
-                        assignment.commissionValue === undefined || assignment.commissionValue === null
-                          ? null
-                          : toDecimal(assignment.commissionValue),
+            assignment.commissionValue === undefined || assignment.commissionValue === null
+              ? null
+              : toDecimal(assignment.commissionValue),
           commissionAmount: toDecimal(assignment.commissionAmount),
           status: assignment.status,
           note: assignment.note ?? null,

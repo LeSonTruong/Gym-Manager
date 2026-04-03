@@ -8,7 +8,7 @@ exports.gymManagementMockData = {
         {
             id: 'user-admin-001',
             fullName: 'Nguyen Minh Quan',
-            email: 'admin@gymmanager.local',
+            username: 'admin',
             role: 'ADMIN',
             status: 'ACTIVE',
             passwordHint: 'demo123',
@@ -16,32 +16,8 @@ exports.gymManagementMockData = {
         {
             id: 'user-staff-001',
             fullName: 'Le Thao Nhi',
-            email: 'staff@gymmanager.local',
+            username: 'staff',
             role: 'STAFF',
-            status: 'ACTIVE',
-            passwordHint: 'demo123',
-        },
-        {
-            id: 'user-pt-001',
-            fullName: 'Tran Gia Bao',
-            email: 'bao.pt@gymmanager.local',
-            role: 'PT',
-            status: 'ACTIVE',
-            passwordHint: 'demo123',
-        },
-        {
-            id: 'user-pt-002',
-            fullName: 'Pham Quoc An',
-            email: 'an.pt@gymmanager.local',
-            role: 'PT',
-            status: 'ACTIVE',
-            passwordHint: 'demo123',
-        },
-        {
-            id: 'user-pt-003',
-            fullName: 'Vo Khanh Linh',
-            email: 'linh.pt@gymmanager.local',
-            role: 'PT',
             status: 'ACTIVE',
             passwordHint: 'demo123',
         },
@@ -548,7 +524,7 @@ exports.gymManagementMockData = {
         {
             id: 'assignment-002',
             memberId: 'member-003',
-            ptId: 'pt-002',
+            ptId: 'pt-001',
             memberMembershipId: 'membership-003',
             assignedFrom: '2026-03-15',
             assignedTo: undefined,
@@ -1032,6 +1008,26 @@ exports.gymManagementMockData = {
     ],
 };
 function createGymManagementMockData() {
-    return structuredClone(exports.gymManagementMockData);
+    const dataset = structuredClone(exports.gymManagementMockData);
+    const now = new Date();
+    const openShiftCheckIn = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    const vietnamDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+    }).format(openShiftCheckIn);
+    dataset.generatedAt = now.toISOString();
+    dataset.attendanceLogs = dataset.attendanceLogs.filter((attendanceLog) => attendanceLog.id !== 'attendance-open-pt-001');
+    dataset.attendanceLogs.push({
+        id: 'attendance-open-pt-001',
+        ptId: 'pt-001',
+        attendanceDate: vietnamDate,
+        checkInAt: openShiftCheckIn.toISOString(),
+        checkOutAt: undefined,
+        workedHours: 0,
+        overtimeHours: 0,
+        status: 'OPEN',
+        workCredit: 0,
+        note: 'Open shift for checkout validation (>5h)',
+    });
+    return dataset;
 }
 //# sourceMappingURL=gym-management.mock.js.map

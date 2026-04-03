@@ -14,6 +14,8 @@ exports.GymManagementSeedService = void 0;
 const core_1 = require("@mikro-orm/core");
 const shared_1 = require("@next-nest-turbo-boilerplate/shared");
 const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
+const config_key_enum_1 = require("../config/config-key.enum");
 const gym_management_entity_1 = require("./entities/gym-management.entity");
 const auth_crypto_1 = require("./auth/auth-crypto");
 function toDateOnly(value) {
@@ -30,14 +32,20 @@ function toDecimal(value) {
 }
 let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementSeedService {
     orm;
+    configService;
     logger = new common_1.Logger(GymManagementSeedService_1.name);
-    constructor(orm) {
+    constructor(orm, configService) {
         this.orm = orm;
+        this.configService = configService;
     }
     async onModuleInit() {
         await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'
             ? this.orm.schema.updateSchema()
             : this.orm.migrator.up());
+        if (!this.configService.get(config_key_enum_1.ConfigKey.ENABLE_DEMO_SEED)) {
+            this.logger.log('Skipped demo data seed because ENABLE_DEMO_SEED is disabled');
+            return;
+        }
         await this.seedIfEmpty();
     }
     async seedIfEmpty() {
@@ -50,7 +58,7 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
         em.persist(dataset.users.map((user) => em.create(gym_management_entity_1.UserEntity, {
             id: user.id,
             fullName: user.fullName,
-            email: user.email,
+            username: user.username,
             role: user.role,
             status: user.status,
             passwordHash: (0, auth_crypto_1.hashPassword)(user.passwordHint ?? 'demo123'),
@@ -108,13 +116,12 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             updatedAt: toOptionalDateTime(config.updatedAt) ?? new Date(),
         })));
         await em.flush();
-        const usersByEmail = new Map((await em.findAll(gym_management_entity_1.UserEntity)).map((user) => [user.email, user]));
         em.persist(dataset.personalTrainers.map((trainer) => em.create(gym_management_entity_1.PersonalTrainerEntity, {
             id: trainer.id,
             code: trainer.code,
             user: trainer.userId
                 ? em.getReference(gym_management_entity_1.UserEntity, trainer.userId)
-                : usersByEmail.get(trainer.email) ?? null,
+                : null,
             fullName: trainer.fullName,
             gender: trainer.gender,
             birthDate: toDateOnly(trainer.birthDate),
@@ -317,6 +324,7 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
 exports.GymManagementSeedService = GymManagementSeedService;
 exports.GymManagementSeedService = GymManagementSeedService = GymManagementSeedService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [core_1.MikroORM])
+    __metadata("design:paramtypes", [core_1.MikroORM,
+        config_1.ConfigService])
 ], GymManagementSeedService);
 //# sourceMappingURL=gym-management.seed.service.js.map

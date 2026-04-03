@@ -210,7 +210,7 @@ const operatingExpenseStatuses = [
 ] as const;
 
 const salesInvoiceStatuses = ["DRAFT", "CONFIRMED", "CANCELLED"] as const;
-const authTokenRoles = ["ADMIN", "PT", "STAFF"] as const;
+const authTokenRoles = ["ADMIN", "STAFF"] as const;
 
 function isOneOf<T extends readonly string[]>(
   value: string,
@@ -240,9 +240,9 @@ export class GymManagementService {
     return createGymManagementSnapshot(await this.loadDataset());
   }
 
-  async login(email: string, password: string): Promise<LoginResult> {
+  async login(username: string, password: string): Promise<LoginResult> {
     const em = this.createEntityManager();
-    const userEntity = await em.findOne(UserEntity, { email });
+    const userEntity = await em.findOne(UserEntity, { username });
 
     if (!userEntity || !verifyPassword(password, userEntity.passwordHash)) {
       throw new UnauthorizedException("Invalid demo credentials");
@@ -258,15 +258,10 @@ export class GymManagementService {
     }
 
     const user = mapUserEntity(userEntity);
-    const ptId =
-      user.role === "PT"
-        ? await this.resolvePtIdForUser(em, userEntity)
-        : undefined;
     const { accessToken, refreshToken } = await this.issueAuthTokens({
       sessionId: randomUUID(),
       userId: user.id,
       role: user.role,
-      ptId,
     });
 
     return {
@@ -305,15 +300,10 @@ export class GymManagementService {
     }
 
     const user = mapUserEntity(userEntity);
-    const ptId =
-      user.role === "PT"
-        ? await this.resolvePtIdForUser(em, userEntity)
-        : undefined;
     const accessToken = await this.issueAccessToken({
       sessionId: refreshTokenEntity.sessionId,
       userId: user.id,
       role: user.role,
-      ptId,
     });
 
     return {
@@ -399,6 +389,62 @@ export class GymManagementService {
     }
 
     return mapUserEntity(currentUser);
+  }
+
+  async updateAccountCredentials(
+    userId: string,
+    updates: {
+      username?: string;
+      currentPassword?: string;
+      newPassword?: string;
+    },
+  ): Promise<DemoUser> {
+    const em = this.createEntityManager();
+    const user = await this.getRequiredUserEntity(em, userId);
+    const nextUsername = updates.username?.trim();
+    const nextPassword = updates.newPassword?.trim();
+    const currentPassword = updates.currentPassword?.trim();
+
+    if (!nextUsername && !nextPassword) {
+      throw new BadRequestException(
+        "Provide at least one field to update (username or newPassword)",
+      );
+    }
+
+    if (nextUsername && nextUsername !== user.username) {
+      const existingUser = await em.findOne(UserEntity, {
+        username: nextUsername,
+        id: { $ne: user.id },
+      });
+
+      if (existingUser) {
+        throw new ConflictException("Username is already taken");
+      }
+
+      user.username = nextUsername;
+    }
+
+    if (nextPassword) {
+      if (!currentPassword) {
+        throw new BadRequestException(
+          "currentPassword is required when changing password",
+        );
+      }
+
+      if (!verifyPassword(currentPassword, user.passwordHash)) {
+        throw new UnauthorizedException("Current password is incorrect");
+      }
+
+      user.passwordHash = hashPassword(nextPassword);
+    } else if (currentPassword) {
+      throw new BadRequestException(
+        "newPassword is required when currentPassword is provided",
+      );
+    }
+
+    await em.flush();
+
+    return mapUserEntity(user);
   }
 
   async checkInAttendance(
@@ -590,8 +636,8 @@ export class GymManagementService {
   async getPtDetail(ptId: string): Promise<{
     trainer: TrainerRecord;
     contract:
-      | GymManagementSnapshot["dataset"]["ptContracts"][number]
-      | undefined;
+    | GymManagementSnapshot["dataset"]["ptContracts"][number]
+    | undefined;
     attendance: GymManagementSnapshot["dataset"]["attendanceLogs"];
     payrollEntries: GymManagementSnapshot["dataset"]["payrollEntries"];
     assignedMembers: GymManagementSnapshot["dataset"]["members"];
@@ -1270,7 +1316,7 @@ export class GymManagementService {
     const ptId = await this.resolvePtIdForUser(em, user);
 
     if (!ptId) {
-      throw new NotFoundException(`No PT profile linked to user ${userId}`);
+      return [];
     }
 
     const dataset = await this.loadDataset();
@@ -1776,6 +1822,38 @@ export class GymManagementService {
     return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomUUID().slice(0, 8).toUpperCase()}`;
   }
 
+  private createOfflineContactEmail(scope: string, code: string): string {
+    const normalizedCharacters: string[] = [];
+
+    for (const character of code.trim().toLowerCase()) {
+      const codePoint = character.codePointAt(0) ?? 0;
+      const isAsciiLetter = codePoint >= 97 && codePoint <= 122;
+      const isDigit = codePoint >= 48 && codePoint <= 57;
+
+      normalizedCharacters.push(isAsciiLetter || isDigit ? character : "-");
+    }
+
+    let normalizedCode = normalizedCharacters.join("");
+
+    while (normalizedCode.includes("--")) {
+      normalizedCode = normalizedCode.replaceAll("--", "-");
+    }
+
+    if (normalizedCode.startsWith("-")) {
+      normalizedCode = normalizedCode.slice(1);
+    }
+
+    if (normalizedCode.endsWith("-")) {
+      normalizedCode = normalizedCode.slice(0, -1);
+    }
+
+    if (normalizedCode.length === 0) {
+      normalizedCode = "record";
+    }
+
+    return `${scope}-${normalizedCode}@offline.local`;
+  }
+
   async submitPayrollPeriod(
     payrollPeriodId: string,
     submittedByUserId: string,
@@ -1886,18 +1964,31 @@ export class GymManagementService {
     createPersonalTrainerDto: CreatePersonalTrainerDto,
   ): Promise<TrainerRecord> {
     const em = this.createEntityManager();
-    const trainerData = this.toPersonalTrainerEntityData(
-      createPersonalTrainerDto,
+    const trainerUser = createPersonalTrainerDto.userId
+      ? await this.getRequiredUserEntity(em, createPersonalTrainerDto.userId)
+      : null;
+    const trainerEmail =
+      createPersonalTrainerDto.email ??
+      this.createOfflineContactEmail("pt", createPersonalTrainerDto.code);
+
+    const trainer = em.create(
+      PersonalTrainerEntity,
+      {
+        code: createPersonalTrainerDto.code,
+        user: trainerUser,
+        fullName: createPersonalTrainerDto.fullName,
+        gender: createPersonalTrainerDto.gender,
+        birthDate: parseDateOnly(createPersonalTrainerDto.birthDate),
+        phone: createPersonalTrainerDto.phone,
+        email: trainerEmail,
+        address: createPersonalTrainerDto.address,
+        status: createPersonalTrainerDto.status,
+        specialties: createPersonalTrainerDto.specialties,
+        experienceYears: createPersonalTrainerDto.experienceYears,
+        avatarUrl: createPersonalTrainerDto.avatarUrl,
+        startDate: parseDateOnly(createPersonalTrainerDto.startDate),
+      } satisfies RequiredEntityData<PersonalTrainerEntity>,
     );
-
-    if (createPersonalTrainerDto.userId) {
-      trainerData.user = await this.getRequiredUserEntity(
-        em,
-        createPersonalTrainerDto.userId,
-      );
-    }
-
-    const trainer = em.create(PersonalTrainerEntity, trainerData);
 
     em.persist(trainer);
     await em.flush();
@@ -1938,8 +2029,28 @@ export class GymManagementService {
 
   async createMember(createMemberDto: CreateMemberDto): Promise<MemberRecord> {
     const em = this.createEntityManager();
-    const memberData = this.toMemberEntityData(createMemberDto);
-    const member = em.create(MemberEntity, memberData);
+    const memberEmail =
+      createMemberDto.email ??
+      this.createOfflineContactEmail("member", createMemberDto.code);
+
+    const member = em.create(
+      MemberEntity,
+      {
+        code: createMemberDto.code,
+        fullName: createMemberDto.fullName,
+        gender: createMemberDto.gender,
+        birthDate: parseDateOnly(createMemberDto.birthDate),
+        phone: createMemberDto.phone,
+        email: memberEmail,
+        address: createMemberDto.address,
+        heightCm: createMemberDto.heightCm,
+        weightKg: createMemberDto.weightKg,
+        goal: createMemberDto.goal,
+        healthNotes: createMemberDto.healthNotes,
+        registeredAt: parseDateOnly(createMemberDto.registeredAt),
+        status: createMemberDto.status,
+      } satisfies RequiredEntityData<MemberEntity>,
+    );
 
     em.persist(member);
     await em.flush();
@@ -1977,10 +2088,21 @@ export class GymManagementService {
     createMembershipPlanDto: CreateMembershipPlanDto,
   ): Promise<MembershipPlanRecord> {
     const em = this.createEntityManager();
-    const membershipPlanData = this.toMembershipPlanEntityData(
-      createMembershipPlanDto,
+    const membershipPlan = em.create(
+      MembershipPlanEntity,
+      {
+        code: createMembershipPlanDto.code,
+        name: createMembershipPlanDto.name,
+        type: createMembershipPlanDto.type,
+        price: toDecimalString(createMembershipPlanDto.price),
+        durationDays: createMembershipPlanDto.durationDays,
+        usageLimit: createMembershipPlanDto.usageLimit,
+        includesPt: createMembershipPlanDto.includesPt,
+        includedPtSessions: createMembershipPlanDto.includedPtSessions,
+        perks: createMembershipPlanDto.perks,
+        status: createMembershipPlanDto.status,
+      } satisfies RequiredEntityData<MembershipPlanEntity>,
     );
-    const membershipPlan = em.create(MembershipPlanEntity, membershipPlanData);
 
     em.persist(membershipPlan);
     await em.flush();
@@ -2026,8 +2148,19 @@ export class GymManagementService {
     createProductDto: CreateProductDto,
   ): Promise<ProductRecord> {
     const em = this.createEntityManager();
-    const productData = this.toProductEntityData(createProductDto);
-    const product = em.create(ProductEntity, productData);
+    const product = em.create(
+      ProductEntity,
+      {
+        code: createProductDto.code,
+        name: createProductDto.name,
+        category: createProductDto.category,
+        unitCost: toDecimalString(createProductDto.unitCost),
+        salePrice: toDecimalString(createProductDto.salePrice),
+        stockOnHand: createProductDto.stockOnHand,
+        minimumStockLevel: createProductDto.minimumStockLevel,
+        status: createProductDto.status,
+      } satisfies RequiredEntityData<ProductEntity>,
+    );
 
     em.persist(product);
     await em.flush();
@@ -2065,10 +2198,23 @@ export class GymManagementService {
     createEquipmentDto: CreateEquipmentDto,
   ): Promise<Record<string, unknown>> {
     const em = this.createEntityManager();
-    const equipmentAssetData = this.toEquipmentAssetEntityData(
-      createEquipmentDto,
+    const equipmentAsset = em.create(
+      EquipmentAssetEntity,
+      {
+        code: createEquipmentDto.code,
+        name: createEquipmentDto.name,
+        category: createEquipmentDto.category,
+        purchasedAt: parseDateOnly(createEquipmentDto.purchasedAt),
+        purchaseValue: toDecimalString(createEquipmentDto.purchaseValue),
+        status: createEquipmentDto.status ?? null,
+        condition: createEquipmentDto.condition,
+        location: createEquipmentDto.location,
+        nextMaintenanceAt: createEquipmentDto.nextMaintenanceAt
+          ? parseDateOnly(createEquipmentDto.nextMaintenanceAt)
+          : null,
+        note: createEquipmentDto.note,
+      } satisfies RequiredEntityData<EquipmentAssetEntity>,
     );
-    const equipmentAsset = em.create(EquipmentAssetEntity, equipmentAssetData);
 
     em.persist(equipmentAsset);
     await em.flush();
@@ -2099,13 +2245,22 @@ export class GymManagementService {
     createOperatingExpenseDto: CreateOperatingExpenseDto,
   ): Promise<OperatingExpenseRecord> {
     const em = this.createEntityManager();
-    const operatingExpenseData = await this.toOperatingExpenseEntityData(
-      em,
-      createOperatingExpenseDto,
-    );
+    const resolvedEquipmentAsset = createOperatingExpenseDto.equipmentAssetId
+      ? await this.resolveEquipmentAsset(em, createOperatingExpenseDto.equipmentAssetId)
+      : null;
     const operatingExpense = em.create(
       OperatingExpenseEntity,
-      operatingExpenseData,
+      {
+        code: createOperatingExpenseDto.code,
+        expenseDate: parseDateOnly(createOperatingExpenseDto.expenseDate),
+        category: createOperatingExpenseDto.category,
+        equipmentAsset: resolvedEquipmentAsset,
+        vendorName: createOperatingExpenseDto.vendorName,
+        amount: toDecimalString(createOperatingExpenseDto.amount),
+        description: createOperatingExpenseDto.description,
+        attachmentUrl: createOperatingExpenseDto.attachmentUrl,
+        status: "DRAFT",
+      } satisfies RequiredEntityData<OperatingExpenseEntity>,
     );
 
     this.resetOperatingExpenseWorkflow(operatingExpense);
@@ -2804,10 +2959,10 @@ export class GymManagementService {
 
   private async resolvePtIdForUser(
     em: EntityManager,
-    user: Pick<UserEntity, "email" | "id">,
+    user: Pick<UserEntity, "id">,
   ): Promise<string | undefined> {
     const trainer = await em.findOne(PersonalTrainerEntity, {
-      $or: [{ user: user.id }, { email: user.email }],
+      user: user.id,
     });
 
     return trainer?.id;
@@ -2904,12 +3059,6 @@ export class GymManagementService {
   }
 
   private toPersonalTrainerEntityData(
-    dto: CreatePersonalTrainerDto,
-  ): RequiredEntityData<PersonalTrainerEntity>;
-  private toPersonalTrainerEntityData(
-    dto: UpdatePersonalTrainerDto,
-  ): Partial<PersonalTrainerEntity>;
-  private toPersonalTrainerEntityData(
     dto: CreatePersonalTrainerDto | UpdatePersonalTrainerDto,
   ): Partial<PersonalTrainerEntity> {
     const data: Partial<PersonalTrainerEntity> = {};
@@ -2965,10 +3114,6 @@ export class GymManagementService {
     return data;
   }
 
-  private toMemberEntityData(
-    dto: CreateMemberDto,
-  ): RequiredEntityData<MemberEntity>;
-  private toMemberEntityData(dto: UpdateMemberDto): Partial<MemberEntity>;
   private toMemberEntityData(
     dto: CreateMemberDto | UpdateMemberDto,
   ): Partial<MemberEntity> {
@@ -3030,12 +3175,6 @@ export class GymManagementService {
   }
 
   private toMembershipPlanEntityData(
-    dto: CreateMembershipPlanDto,
-  ): RequiredEntityData<MembershipPlanEntity>;
-  private toMembershipPlanEntityData(
-    dto: UpdateMembershipPlanDto,
-  ): Partial<MembershipPlanEntity>;
-  private toMembershipPlanEntityData(
     dto: CreateMembershipPlanDto | UpdateMembershipPlanDto,
   ): Partial<MembershipPlanEntity> {
     const data: Partial<MembershipPlanEntity> = {};
@@ -3084,10 +3223,6 @@ export class GymManagementService {
   }
 
   private toProductEntityData(
-    dto: CreateProductDto,
-  ): RequiredEntityData<ProductEntity>;
-  private toProductEntityData(dto: UpdateProductDto): Partial<ProductEntity>;
-  private toProductEntityData(
     dto: CreateProductDto | UpdateProductDto,
   ): Partial<ProductEntity> {
     const data: Partial<ProductEntity> = {};
@@ -3127,12 +3262,6 @@ export class GymManagementService {
     return data;
   }
 
-  private toEquipmentAssetEntityData(
-    dto: CreateEquipmentDto,
-  ): RequiredEntityData<EquipmentAssetEntity>;
-  private toEquipmentAssetEntityData(
-    dto: UpdateEquipmentDto,
-  ): Partial<EquipmentAssetEntity>;
   private toEquipmentAssetEntityData(
     dto: CreateEquipmentDto | UpdateEquipmentDto,
   ): Partial<EquipmentAssetEntity> {
@@ -3183,14 +3312,6 @@ export class GymManagementService {
     return data;
   }
 
-  private async toOperatingExpenseEntityData(
-    em: EntityManager,
-    dto: CreateOperatingExpenseDto,
-  ): Promise<RequiredEntityData<OperatingExpenseEntity>>;
-  private async toOperatingExpenseEntityData(
-    em: EntityManager,
-    dto: UpdateOperatingExpenseDto,
-  ): Promise<Partial<OperatingExpenseEntity>>;
   private async toOperatingExpenseEntityData(
     em: EntityManager,
     dto: CreateOperatingExpenseDto | UpdateOperatingExpenseDto,

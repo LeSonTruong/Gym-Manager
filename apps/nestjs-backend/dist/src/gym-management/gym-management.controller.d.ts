@@ -5,7 +5,7 @@ import { AttendanceCheckInDto, AttendanceCheckOutDto, CancelMemberMembershipDto,
 import type { AuthenticatedUser } from "./auth/authenticated-user.type";
 import { GymManagementService } from "./gym-management.service";
 declare class LoginDto {
-    email: string;
+    username: string;
     password: string;
 }
 declare class RefreshTokenDto {
@@ -13,6 +13,11 @@ declare class RefreshTokenDto {
 }
 declare class LogoutDto {
     refreshToken: string;
+}
+declare class UpdateAccountDto {
+    username?: string;
+    currentPassword?: string;
+    newPassword?: string;
 }
 type Snapshot = Awaited<ReturnType<GymManagementService["getSnapshot"]>>;
 type LoginResult = Awaited<ReturnType<GymManagementService["login"]>>;
@@ -46,6 +51,7 @@ export declare class GymManagementController {
         loggedOut: true;
     }>>;
     getCurrentUser(currentUser: AuthenticatedUser): Promise<ApiResponse<CurrentUserProfile>>;
+    updateAccount(updateAccountDto: UpdateAccountDto, currentUser: AuthenticatedUser): Promise<ApiResponse<CurrentUserProfile>>;
     getDashboard(): Promise<ApiResponse<Snapshot["dashboard"]>>;
     getSnapshot(): Promise<ApiResponse<Snapshot>>;
     getPts(): Promise<ApiResponse<Snapshot["ptOverview"]>>;
