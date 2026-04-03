@@ -99,8 +99,8 @@ export declare class GymManagementService {
     private findPtContractForPeriod;
     private recalculateAttendanceLog;
     private calculateAttendanceCompensation;
+    private resolveAttendanceStatusAndWorkCredit;
     private generateReferenceCode;
-    private createOfflineContactEmail;
     submitPayrollPeriod(payrollPeriodId: string, submittedByUserId: string): Promise<PayrollPeriodTransitionResult>;
     approvePayrollPeriod(payrollPeriodId: string, approvedByUserId: string): Promise<PayrollPeriodTransitionResult>;
     markPayrollPeriodPaid(payrollPeriodId: string, paidByUserId: string): Promise<PayrollPeriodTransitionResult>;
@@ -128,6 +128,10 @@ export declare class GymManagementService {
     createOperatingExpense(createOperatingExpenseDto: CreateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
     updateOperatingExpense(expenseId: string, updateOperatingExpenseDto: UpdateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
     patchSystemConfig(configKey: string, patchSystemConfigDto: PatchSystemConfigDto, actorUserId?: string): Promise<SystemConfigRecord>;
+    cleanupSystemConfigTrash(): Promise<{
+        removedCount: number;
+        removedKeys: string[];
+    }>;
     private createEntityManager;
     private transitionPayrollPeriodStatus;
     private transitionExpenseStatus;

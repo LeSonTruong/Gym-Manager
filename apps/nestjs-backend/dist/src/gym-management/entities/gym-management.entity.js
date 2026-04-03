@@ -93,16 +93,8 @@ let PersonalTrainerEntity = class PersonalTrainerEntity extends base_entity_1.Ba
     code;
     user;
     fullName;
-    gender;
-    birthDate;
     phone;
-    email;
-    address;
     status;
-    specialties;
-    experienceYears;
-    avatarUrl;
-    startDate;
     deletedAt;
 };
 exports.PersonalTrainerEntity = PersonalTrainerEntity;
@@ -119,45 +111,13 @@ __decorate([
     __metadata("design:type", String)
 ], PersonalTrainerEntity.prototype, "fullName", void 0);
 __decorate([
-    (0, core_1.Property)({ length: 30 }),
-    __metadata("design:type", String)
-], PersonalTrainerEntity.prototype, "gender", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
-], PersonalTrainerEntity.prototype, "birthDate", void 0);
-__decorate([
     (0, core_1.Property)({ length: 40 }),
     __metadata("design:type", String)
 ], PersonalTrainerEntity.prototype, "phone", void 0);
 __decorate([
-    (0, core_1.Property)({ length: 180, unique: true }),
-    __metadata("design:type", String)
-], PersonalTrainerEntity.prototype, "email", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 255 }),
-    __metadata("design:type", String)
-], PersonalTrainerEntity.prototype, "address", void 0);
-__decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
 ], PersonalTrainerEntity.prototype, "status", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.json }),
-    __metadata("design:type", Array)
-], PersonalTrainerEntity.prototype, "specialties", void 0);
-__decorate([
-    (0, core_1.Property)(),
-    __metadata("design:type", Number)
-], PersonalTrainerEntity.prototype, "experienceYears", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 500 }),
-    __metadata("design:type", String)
-], PersonalTrainerEntity.prototype, "avatarUrl", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
-], PersonalTrainerEntity.prototype, "startDate", void 0);
 __decorate([
     (0, core_1.Property)({
         type: core_1.types.datetime,
@@ -457,16 +417,7 @@ exports.PayrollEntryEntity = PayrollEntryEntity = __decorate([
 let MemberEntity = class MemberEntity extends base_entity_1.BaseEntity {
     code;
     fullName;
-    gender;
-    birthDate;
     phone;
-    email;
-    address;
-    heightCm;
-    weightKg;
-    goal;
-    healthNotes;
-    registeredAt;
     status;
     deletedAt;
 };
@@ -480,45 +431,9 @@ __decorate([
     __metadata("design:type", String)
 ], MemberEntity.prototype, "fullName", void 0);
 __decorate([
-    (0, core_1.Property)({ length: 30 }),
-    __metadata("design:type", String)
-], MemberEntity.prototype, "gender", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
-], MemberEntity.prototype, "birthDate", void 0);
-__decorate([
     (0, core_1.Property)({ length: 40 }),
     __metadata("design:type", String)
 ], MemberEntity.prototype, "phone", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 180, unique: true }),
-    __metadata("design:type", String)
-], MemberEntity.prototype, "email", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 255 }),
-    __metadata("design:type", String)
-], MemberEntity.prototype, "address", void 0);
-__decorate([
-    (0, core_1.Property)(),
-    __metadata("design:type", Number)
-], MemberEntity.prototype, "heightCm", void 0);
-__decorate([
-    (0, core_1.Property)(),
-    __metadata("design:type", Number)
-], MemberEntity.prototype, "weightKg", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 255 }),
-    __metadata("design:type", String)
-], MemberEntity.prototype, "goal", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.text }),
-    __metadata("design:type", String)
-], MemberEntity.prototype, "healthNotes", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
-], MemberEntity.prototype, "registeredAt", void 0);
 __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)

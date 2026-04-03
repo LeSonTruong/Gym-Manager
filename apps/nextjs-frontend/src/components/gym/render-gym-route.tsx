@@ -185,15 +185,32 @@ function StatsGrid(props: {
   readonly items: Array<{ readonly label: string; readonly value: string; readonly note: string }>;
 }): JSX.Element {
   const locale = getActiveUiLocale();
+  const summaryTitle = translateText("Thống kê tổng hợp (tuỳ chọn)", locale);
+  const summaryDescription = translateText(
+    "Mặc định ẩn để ưu tiên xem bảng dữ liệu chính.",
+    locale,
+  );
 
   return (
-    <BaseStatsGrid
-      items={props.items.map((item) => ({
-        ...item,
-        label: translateText(item.label, locale),
-        note: translateText(item.note, locale),
-      }))}
-    />
+    <details className="group mb-6 rounded-3xl border border-slate-200/80 bg-white/85 p-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 transition hover:bg-slate-50">
+        <span className="inline-flex items-center gap-2">
+          <span className="pi pi-chart-bar text-[11px] text-[var(--accent-600)]" />
+          {summaryTitle}
+        </span>
+        <span className="pi pi-angle-down text-xs transition group-open:rotate-180" />
+      </summary>
+      <p className="mt-2 px-3 text-xs text-slate-500">{summaryDescription}</p>
+      <div className="mt-3">
+        <BaseStatsGrid
+          items={props.items.map((item) => ({
+            ...item,
+            label: translateText(item.label, locale),
+            note: translateText(item.note, locale),
+          }))}
+        />
+      </div>
+    </details>
   );
 }
 
@@ -240,6 +257,42 @@ function DataTable(props: {
   );
 }
 
+function ModuleFilterForm({
+  query,
+  placeholder,
+  children,
+}: {
+  readonly query: string;
+  readonly placeholder: string;
+  readonly children?: ReactNode;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return (
+    <form method="get" className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3">
+      <label className="min-w-[15.5rem] flex-1">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          {translateText("Tìm kiếm", locale)}
+        </span>
+        <input
+          type="search"
+          name="q"
+          defaultValue={query}
+          placeholder={translateText(placeholder, locale)}
+          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--focus-ring)]"
+        />
+      </label>
+      {children}
+      <button
+        type="submit"
+        className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-slate-800"
+      >
+        {translateText("Lọc", locale)}
+      </button>
+    </form>
+  );
+}
+
 function Badge({ children, tone = "slate" }: { readonly children: ReactNode; readonly tone?: "slate" | "emerald" | "amber" | "rose" | "sky" }): JSX.Element {
   const locale = getActiveUiLocale();
 
@@ -267,6 +320,46 @@ function getSearchParam(
   const value = searchParams?.[key];
 
   return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeSearchQuery(value?: string): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function getModuleSearchQuery(options?: RenderGymRouteOptions): string {
+  return normalizeSearchQuery(getSearchParam(options?.searchParams, "q"));
+}
+
+function matchesSearchQuery(
+  query: string,
+  ...values: Array<string | number | null | undefined>
+): boolean {
+  if (!query) {
+    return true;
+  }
+
+  const searchableText = values
+    .map((value) => {
+      if (value === null || value === undefined) {
+        return "";
+      }
+
+      return String(value);
+    })
+    .join(" ")
+    .toLowerCase();
+
+  return searchableText.includes(query);
+}
+
+function toSortableTimestamp(value?: string): number {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 function canManageGym(options?: RenderGymRouteOptions): boolean {
@@ -556,8 +649,25 @@ function CollapsibleCrudPanel({
   );
 }
 
-function buildDashboardPage(): JSX.Element {
+function buildDashboardPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const dashboardSearchQuery = getModuleSearchQuery(options);
+  const filteredLowStockProducts = sortProductsByStock(snapshot.dashboard.lowStockProducts)
+    .filter((lowStockProduct) =>
+      matchesSearchQuery(
+        dashboardSearchQuery,
+        lowStockProduct.code,
+        lowStockProduct.name,
+      ),
+    );
+  const filteredTopSellingProducts = snapshot.inventoryOverview.topSellingProducts
+    .filter((topSellingProduct) =>
+      matchesSearchQuery(
+        dashboardSearchQuery,
+        topSellingProduct.product.code,
+        topSellingProduct.product.name,
+      ),
+    );
 
   return (
     <>
@@ -596,6 +706,11 @@ function buildDashboardPage(): JSX.Element {
         ]}
       />
 
+      <ModuleFilterForm
+        query={dashboardSearchQuery}
+        placeholder="Tìm sản phẩm theo tên hoặc mã..."
+      />
+
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <SectionCard
           title="Phân tích doanh thu"
@@ -632,7 +747,7 @@ function buildDashboardPage(): JSX.Element {
               "Ngưỡng",
               "Trạng thái",
             ]}
-            rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
+            rows={filteredLowStockProducts.map(
               (product) => [
                 product.name,
                 `${product.stockOnHand} đơn vị`,
@@ -652,7 +767,7 @@ function buildDashboardPage(): JSX.Element {
         >
           <DataTable
             headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
-            rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
+            rows={filteredTopSellingProducts.map((entry) => [
               entry.product.name,
               `${entry.soldQuantity} đơn vị`,
               `${entry.product.stockOnHand} đơn vị`,
@@ -667,6 +782,17 @@ function buildDashboardPage(): JSX.Element {
 function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const ptSearchQuery = getModuleSearchQuery(options);
+  const filteredPtOverview = snapshot.ptOverview.filter((ptOverviewItem) =>
+    matchesSearchQuery(
+      ptSearchQuery,
+      ptOverviewItem.pt.code,
+      ptOverviewItem.pt.fullName,
+      ptOverviewItem.pt.phone,
+      ptOverviewItem.pt.status,
+      getGenderLabel(ptOverviewItem.pt.gender),
+    ),
+  );
 
   return (
     <>
@@ -740,6 +866,10 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
       <SectionCard
         title="Danh sách PT"
       >
+        <ModuleFilterForm
+          query={ptSearchQuery}
+          placeholder="Mã PT, tên PT, số điện thoại..."
+        />
         <DataTable
           headers={[
             "Tên PT",
@@ -749,7 +879,7 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
             "Hội viên phụ trách",
             "Chi tiết",
           ]}
-          rows={snapshot.ptOverview.map((item) => [
+          rows={filteredPtOverview.map((item) => [
             <div key={item.pt.id}>
               <p className="font-semibold text-slate-900">{item.pt.fullName}</p>
             </div>,
@@ -1130,6 +1260,7 @@ function buildPtDetailPage(
 function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const attendanceSearchQuery = getModuleSearchQuery(options);
   const { attendanceLogs } = snapshot.dataset;
   const now = new Date();
   const currentVietnamDate = new Intl.DateTimeFormat("en-CA", {
@@ -1138,6 +1269,10 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
     month: "2-digit",
     day: "2-digit",
   }).format(now);
+  const selectedMonth =
+    getSearchParam(options?.searchParams, "month") ??
+    currentVietnamDate.slice(0, 7);
+  const selectedPtId = getSearchParam(options?.searchParams, "ptId") ?? "";
   const trainerOptions = snapshot.dataset.personalTrainers.map((trainer) => ({
     value: trainer.id,
     label: `${trainer.fullName} | ${trainer.code}`,
@@ -1168,8 +1303,23 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
       value: trainer.id,
       label: `${trainer.fullName} | ${trainer.code}`,
     }));
+  const filteredAttendanceLogs = attendanceLogs
+    .filter((attendanceLog) => attendanceLog.attendanceDate.startsWith(selectedMonth))
+    .filter((attendanceLog) => !selectedPtId || attendanceLog.ptId === selectedPtId)
+    .filter((attendanceLog) =>
+      matchesSearchQuery(
+        attendanceSearchQuery,
+        getTrainerName(snapshot, attendanceLog.ptId),
+        attendanceLog.attendanceDate,
+        attendanceLog.status,
+      ),
+    )
+    .toSorted((leftAttendanceLog, rightAttendanceLog) =>
+      toSortableTimestamp(rightAttendanceLog.checkInAt) -
+      toSortableTimestamp(leftAttendanceLog.checkInAt),
+    );
   const uniqueTrainerCount = new Set(
-    attendanceLogs.map((attendanceLog) => attendanceLog.ptId),
+    filteredAttendanceLogs.map((attendanceLog) => attendanceLog.ptId),
   ).size;
 
   return (
@@ -1188,18 +1338,18 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
           },
           {
             label: "Ca VALID",
-            value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.status === "VALID").length}`,
+            value: `${filteredAttendanceLogs.filter((attendanceLog) => attendanceLog.status === "VALID").length}`,
             note: "Ca đủ giờ chuẩn và được tính full credit.",
           },
           {
             label: "Ca HALF",
-            value: `${attendanceLogs.filter((attendanceLog) => attendanceLog.status === "HALF").length}`,
+            value: `${filteredAttendanceLogs.filter((attendanceLog) => attendanceLog.status === "HALF").length}`,
             note: "Ca thiếu giờ được quy đổi công theo tỷ lệ giờ làm.",
           },
           {
             label: "Tăng ca",
             value: formatHours(
-              attendanceLogs.reduce(
+              filteredAttendanceLogs.reduce(
                 (total, attendanceLog) => total + attendanceLog.overtimeHours,
                 0,
               ),
@@ -1208,13 +1358,46 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
           },
           {
             label: "Công quy đổi",
-            value: `${attendanceLogs.reduce((total, attendanceLog) => total + attendanceLog.workCredit, 0)}`,
+            value: `${filteredAttendanceLogs.reduce((total, attendanceLog) => total + attendanceLog.workCredit, 0)}`,
             note: "Tổng công quy đổi trong kỳ.",
           },
         ]}
       />
 
-      <SectionCard title={`Bảng chấm công (${attendanceLogs.length} bản ghi / ${uniqueTrainerCount} PT)`}>
+      <SectionCard title={`Bảng chấm công (${filteredAttendanceLogs.length} bản ghi / ${uniqueTrainerCount} PT)`}>
+        <ModuleFilterForm
+          query={attendanceSearchQuery}
+          placeholder="Tên PT, mã PT, trạng thái..."
+        >
+          <label className="min-w-[9.5rem]">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Tháng
+            </span>
+            <input
+              type="month"
+              name="month"
+              defaultValue={selectedMonth}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--focus-ring)]"
+            />
+          </label>
+          <label className="min-w-[13rem]">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              PT
+            </span>
+            <select
+              name="ptId"
+              defaultValue={selectedPtId}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--focus-ring)]"
+            >
+              <option value="">Tất cả PT</option>
+              {trainerOptions.map((trainer) => (
+                <option key={`attendance-filter-${trainer.value}`} value={trainer.value}>
+                  {trainer.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </ModuleFilterForm>
         <DataTable
           headers={[
             "PT",
@@ -1225,7 +1408,7 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
             "Tăng ca",
             "Trạng thái",
           ]}
-          rows={attendanceLogs.map((attendanceLog) => [
+          rows={filteredAttendanceLogs.map((attendanceLog) => [
             getTrainerName(snapshot, attendanceLog.ptId),
             attendanceLog.attendanceDate,
             formatDateTime(attendanceLog.checkInAt),
@@ -1277,7 +1460,7 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
                 </form>
               ) : (
                 <div className="rounded-3xl border border-slate-200/80 bg-slate-50/70 p-4 text-sm text-slate-600">
-                  Không có ca đủ điều kiện để chấm công ra (cần ca mở cùng ngày và đã làm đủ tối thiểu 5 giờ).
+                  Không có ca đủ điều kiện để chấm công ra (cần ca mở cùng ngày theo múi giờ Việt Nam).
                 </div>
               )}
             </div>
@@ -1299,6 +1482,31 @@ function buildAttendancePage(options?: RenderGymRouteOptions): JSX.Element {
 function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const payrollSearchQuery = getModuleSearchQuery(options);
+  const filteredPayrollPeriods = snapshot.dataset.payrollPeriods
+    .filter((payrollPeriod) =>
+      matchesSearchQuery(
+        payrollSearchQuery,
+        payrollPeriod.code,
+        payrollPeriod.status,
+        payrollPeriod.from,
+        payrollPeriod.to,
+      ),
+    )
+    .toSorted(
+      (leftPayrollPeriod, rightPayrollPeriod) =>
+        toSortableTimestamp(rightPayrollPeriod.from) -
+        toSortableTimestamp(leftPayrollPeriod.from),
+    );
+  const filteredPayrollByTrainer = snapshot.payrollReport.byTrainer.filter(
+    (payrollItem) =>
+      matchesSearchQuery(
+        payrollSearchQuery,
+        payrollItem.ptName,
+        payrollItem.payrollPeriodCode,
+        payrollItem.status,
+      ),
+  );
 
   return (
     <>
@@ -1332,11 +1540,16 @@ function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
         ]}
       />
 
+      <ModuleFilterForm
+        query={payrollSearchQuery}
+        placeholder="Mã kỳ, tên PT, trạng thái..."
+      />
+
       <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <SectionCard title="Kỳ lương">
           <DataTable
             headers={["Mã", "Khoảng thời gian", "Trạng thái", "Chi tiết"]}
-            rows={snapshot.dataset.payrollPeriods.map((period) => [
+            rows={filteredPayrollPeriods.map((period) => [
               period.code,
               `${formatDate(period.from)} - ${formatDate(period.to)}`,
               <Badge key={period.id} tone={getStatusTone(period.status)}>
@@ -1355,7 +1568,7 @@ function buildPayrollPage(options?: RenderGymRouteOptions): JSX.Element {
         <SectionCard title="Bảng lương theo PT">
           <DataTable
             headers={["PT", "Kỳ", "Thực lĩnh", "Trạng thái"]}
-            rows={snapshot.payrollReport.byTrainer.map((item) => [
+            rows={filteredPayrollByTrainer.map((item) => [
               item.ptName,
               item.payrollPeriodCode,
               formatCurrency(item.netPay),
@@ -1470,9 +1683,27 @@ function buildPayrollPeriodPage(periodId: string): JSX.Element {
 function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const memberSearchQuery = getModuleSearchQuery(options);
   const membersWithPt = snapshot.memberOverview.filter(
     (item) => item.trainer !== undefined,
   ).length;
+  const filteredMembers = sortMembersByDate(snapshot.dataset.members).filter(
+    (memberItem) => {
+      const memberOverview = snapshot.memberOverview.find(
+        (item) => item.member.id === memberItem.id,
+      );
+
+      return matchesSearchQuery(
+        memberSearchQuery,
+        memberItem.code,
+        memberItem.fullName,
+        memberItem.phone,
+        memberItem.status,
+        memberOverview?.membershipPlan?.name,
+        memberOverview?.trainer?.fullName,
+      );
+    },
+  );
 
   return (
     <>
@@ -1531,6 +1762,10 @@ function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
       ) : null}
 
       <SectionCard title="Danh sách hội viên">
+        <ModuleFilterForm
+          query={memberSearchQuery}
+          placeholder="Mã hội viên, tên, số điện thoại, PT..."
+        />
         <DataTable
           headers={[
             "Hội viên",
@@ -1540,7 +1775,7 @@ function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
             "PT phụ trách",
             "Chi tiết",
           ]}
-          rows={sortMembersByDate(snapshot.dataset.members).map((member) => {
+          rows={filteredMembers.map((member) => {
             const overview = snapshot.memberOverview.find(
               (item) => item.member.id === member.id,
             );
@@ -1772,9 +2007,26 @@ function buildMembershipOverviewPage(
 ): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const membershipSearchQuery = getModuleSearchQuery(options);
   const manageableMemberships = snapshot.dataset.memberMemberships.filter(
     (membership) => membership.status !== "CANCELLED",
   );
+  const filteredMemberships = snapshot.dataset.memberMemberships
+    .filter((membership) =>
+      matchesSearchQuery(
+        membershipSearchQuery,
+        getMemberName(snapshot, membership.memberId),
+        getPlanName(snapshot, membership.membershipPlanId),
+        membership.status,
+        membership.startDate,
+        membership.endDate,
+      ),
+    )
+    .toSorted(
+      (leftMembership, rightMembership) =>
+        toSortableTimestamp(rightMembership.startDate) -
+        toSortableTimestamp(leftMembership.startDate),
+    );
   const activeAssignments = snapshot.dataset.memberPtAssignments.filter(
     (assignment) => assignment.status === "ACTIVE",
   );
@@ -1973,9 +2225,13 @@ function buildMembershipOverviewPage(
       ) : null}
 
       <SectionCard title="Gói tập của hội viên">
+        <ModuleFilterForm
+          query={membershipSearchQuery}
+          placeholder="Tên hội viên, tên gói, trạng thái..."
+        />
         <DataTable
           headers={["Hội viên", "Gói", "Khoảng thời gian", "Kèm PT", "Trạng thái"]}
-          rows={snapshot.dataset.memberMemberships.map((membership) => {
+          rows={filteredMemberships.map((membership) => {
             const plan = snapshot.dataset.membershipPlans.find(
               (item) => item.id === membership.membershipPlanId,
             );
@@ -2002,6 +2258,23 @@ function buildMembershipOverviewPage(
 function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const assignmentSearchQuery = getModuleSearchQuery(options);
+  const filteredAssignments = snapshot.dataset.memberPtAssignments
+    .filter((assignment) =>
+      matchesSearchQuery(
+        assignmentSearchQuery,
+        getMemberName(snapshot, assignment.memberId),
+        getTrainerName(snapshot, assignment.ptId),
+        assignment.status,
+        assignment.assignedFrom,
+        assignment.assignedTo,
+      ),
+    )
+    .toSorted(
+      (leftAssignment, rightAssignment) =>
+        toSortableTimestamp(rightAssignment.assignedFrom) -
+        toSortableTimestamp(leftAssignment.assignedFrom),
+    );
 
   return (
     <>
@@ -2027,6 +2300,10 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <SectionCard title="Nhật ký phân công">
+          <ModuleFilterForm
+            query={assignmentSearchQuery}
+            placeholder="Tên hội viên, tên PT, trạng thái..."
+          />
           <DataTable
             headers={[
               "Hội viên",
@@ -2037,7 +2314,7 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
               "Trạng thái",
               "Hành động",
             ]}
-            rows={snapshot.dataset.memberPtAssignments.map((assignment) => [
+            rows={filteredAssignments.map((assignment) => [
               getMemberName(snapshot, assignment.memberId),
               getTrainerName(snapshot, assignment.ptId),
               assignment.commissionType === "PERCENT"
@@ -2118,6 +2395,17 @@ function buildMemberAssignmentsPage(options?: RenderGymRouteOptions): JSX.Elemen
 function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const membershipPlanSearchQuery = getModuleSearchQuery(options);
+  const filteredMembershipPlans = snapshot.dataset.membershipPlans.filter(
+    (membershipPlan) =>
+      matchesSearchQuery(
+        membershipPlanSearchQuery,
+        membershipPlan.code,
+        membershipPlan.name,
+        membershipPlan.type,
+        membershipPlan.status,
+      ),
+  );
 
   return (
     <>
@@ -2214,6 +2502,10 @@ function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element 
       ) : null}
 
       <SectionCard title="Danh mục gói tập">
+        <ModuleFilterForm
+          query={membershipPlanSearchQuery}
+          placeholder="Mã gói, tên gói, loại hoặc trạng thái..."
+        />
         <DataTable
           headers={[
             "Gói",
@@ -2224,7 +2516,7 @@ function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element 
             "Trạng thái",
             "Cập nhật",
           ]}
-          rows={snapshot.dataset.membershipPlans.map((plan) => [
+          rows={filteredMembershipPlans.map((plan) => [
             plan.name,
             plan.type,
             formatCurrency(plan.price),
@@ -2285,8 +2577,24 @@ function buildMembershipPlansPage(options?: RenderGymRouteOptions): JSX.Element 
   );
 }
 
-function buildMembershipInvoicesPage(): JSX.Element {
+function buildMembershipInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const membershipInvoiceSearchQuery = getModuleSearchQuery(options);
+  const filteredMembershipInvoices = snapshot.dataset.membershipInvoices
+    .filter((membershipInvoice) =>
+      matchesSearchQuery(
+        membershipInvoiceSearchQuery,
+        membershipInvoice.code,
+        membershipInvoice.paymentMethod,
+        membershipInvoice.status,
+        getMemberName(snapshot, membershipInvoice.memberId),
+      ),
+    )
+    .toSorted(
+      (leftMembershipInvoice, rightMembershipInvoice) =>
+        toSortableTimestamp(rightMembershipInvoice.invoiceDate) -
+        toSortableTimestamp(leftMembershipInvoice.invoiceDate),
+    );
 
   return (
     <>
@@ -2295,9 +2603,13 @@ function buildMembershipInvoicesPage(): JSX.Element {
         title="Hóa đơn gói tập"
       />
       <SectionCard title="Danh sách hóa đơn gói tập">
+        <ModuleFilterForm
+          query={membershipInvoiceSearchQuery}
+          placeholder="Mã hóa đơn, tên hội viên, phương thức thanh toán..."
+        />
         <DataTable
           headers={["Mã", "Hội viên", "Ngày", "Số tiền", "Thanh toán", "Trạng thái"]}
-          rows={snapshot.dataset.membershipInvoices.map((invoice) => [
+          rows={filteredMembershipInvoices.map((invoice) => [
             invoice.code,
             getMemberName(snapshot, invoice.memberId),
             formatDateTime(invoice.invoiceDate),
@@ -2316,6 +2628,17 @@ function buildMembershipInvoicesPage(): JSX.Element {
 function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const productSearchQuery = getModuleSearchQuery(options);
+  const filteredProducts = sortProductsByStock(snapshot.dataset.products).filter(
+    (productItem) =>
+      matchesSearchQuery(
+        productSearchQuery,
+        productItem.code,
+        productItem.name,
+        productItem.category,
+        productItem.status,
+      ),
+  );
 
   return (
     <>
@@ -2404,6 +2727,10 @@ function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
       ) : null}
 
       <SectionCard title="Danh sách sản phẩm">
+        <ModuleFilterForm
+          query={productSearchQuery}
+          placeholder="Mã sản phẩm, tên sản phẩm, danh mục..."
+        />
         <DataTable
           headers={[
             "Sản phẩm",
@@ -2414,7 +2741,7 @@ function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
             "Ngưỡng",
             "Cập nhật",
           ]}
-          rows={sortProductsByStock(snapshot.dataset.products).map(
+          rows={filteredProducts.map(
             (product) => [
               product.name,
               product.category,
@@ -2481,6 +2808,22 @@ function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
 function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const inventorySearchQuery = getModuleSearchQuery(options);
+  const filteredInventoryTransactions = snapshot.dataset.inventoryTransactions
+    .filter((inventoryTransaction) =>
+      matchesSearchQuery(
+        inventorySearchQuery,
+        getProductName(snapshot, inventoryTransaction.productId),
+        inventoryTransaction.type,
+        inventoryTransaction.referenceCode,
+        inventoryTransaction.note,
+      ),
+    )
+    .toSorted(
+      (leftInventoryTransaction, rightInventoryTransaction) =>
+        toSortableTimestamp(rightInventoryTransaction.transactionDate) -
+        toSortableTimestamp(leftInventoryTransaction.transactionDate),
+    );
 
   return (
     <>
@@ -2562,9 +2905,13 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
       ) : null}
 
       <SectionCard title="Sổ kho">
+        <ModuleFilterForm
+          query={inventorySearchQuery}
+          placeholder="Sản phẩm, loại giao dịch, mã tham chiếu..."
+        />
         <DataTable
           headers={["Ngày", "Sản phẩm", "Loại", "SL", "Tham chiếu", "Ghi chú"]}
-          rows={snapshot.dataset.inventoryTransactions.map((transaction) => [
+          rows={filteredInventoryTransactions.map((transaction) => [
             formatDateTime(transaction.transactionDate),
             getProductName(snapshot, transaction.productId),
             transaction.type,
@@ -2578,17 +2925,41 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
   );
 }
 
-function buildInventoryImportPage(): JSX.Element {
+function buildInventoryImportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
-  const importTransactions = snapshot.dataset.inventoryTransactions.filter(
-    (transaction) => transaction.type === "IMPORT",
-  );
+  const inventoryImportSearchQuery = getModuleSearchQuery(options);
+  const importTransactions = snapshot.dataset.inventoryTransactions
+    .filter((transaction) => transaction.type === "IMPORT")
+    .filter((transaction) =>
+      matchesSearchQuery(
+        inventoryImportSearchQuery,
+        getProductName(snapshot, transaction.productId),
+        transaction.referenceCode,
+      ),
+    )
+    .toSorted(
+      (leftImportTransaction, rightImportTransaction) =>
+        toSortableTimestamp(rightImportTransaction.transactionDate) -
+        toSortableTimestamp(leftImportTransaction.transactionDate),
+    );
+  const filteredLowStockProducts = sortProductsByStock(snapshot.dashboard.lowStockProducts)
+    .filter((lowStockProduct) =>
+      matchesSearchQuery(
+        inventoryImportSearchQuery,
+        lowStockProduct.code,
+        lowStockProduct.name,
+      ),
+    );
 
   return (
     <>
       <PageHeader
         eyebrow="Nhập hàng"
         title="Theo dõi nhập kho"
+      />
+      <ModuleFilterForm
+        query={inventoryImportSearchQuery}
+        placeholder="Tên sản phẩm, mã tham chiếu..."
       />
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <SectionCard title="Giao dịch nhập kho">
@@ -2612,7 +2983,7 @@ function buildInventoryImportPage(): JSX.Element {
               "Ngưỡng",
               "Gợi ý hành động",
             ]}
-            rows={sortProductsByStock(snapshot.dashboard.lowStockProducts).map(
+            rows={filteredLowStockProducts.map(
               (product) => [
                 product.name,
                 `${product.stockOnHand}`,
@@ -2630,6 +3001,22 @@ function buildInventoryImportPage(): JSX.Element {
 function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const salesInvoiceSearchQuery = getModuleSearchQuery(options);
+  const filteredSalesInvoices = snapshot.dataset.salesInvoices
+    .filter((salesInvoice) =>
+      matchesSearchQuery(
+        salesInvoiceSearchQuery,
+        salesInvoice.code,
+        salesInvoice.customerName,
+        salesInvoice.status,
+        salesInvoice.paymentMethod,
+      ),
+    )
+    .toSorted(
+      (leftSalesInvoice, rightSalesInvoice) =>
+        toSortableTimestamp(rightSalesInvoice.invoiceDate) -
+        toSortableTimestamp(leftSalesInvoice.invoiceDate),
+    );
 
   return (
     <>
@@ -2700,6 +3087,10 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
       ) : null}
 
       <SectionCard title="Hóa đơn bán hàng">
+        <ModuleFilterForm
+          query={salesInvoiceSearchQuery}
+          placeholder="Mã hóa đơn, khách hàng, trạng thái..."
+        />
         <DataTable
           headers={[
             "Mã",
@@ -2710,7 +3101,7 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
             "Trạng thái",
             "Chi tiết",
           ]}
-          rows={snapshot.dataset.salesInvoices.map((invoice) => [
+          rows={filteredSalesInvoices.map((invoice) => [
             invoice.code,
             invoice.customerName,
             formatDateTime(invoice.invoiceDate),
@@ -2800,6 +3191,34 @@ function buildInvoiceDetailPage(invoiceId: string): JSX.Element {
 
 function buildRevenueReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const revenueSearchQuery = getModuleSearchQuery(options);
+  const filteredMembershipInvoices = snapshot.dataset.membershipInvoices
+    .filter((membershipInvoice) =>
+      matchesSearchQuery(
+        revenueSearchQuery,
+        membershipInvoice.code,
+        getMemberName(snapshot, membershipInvoice.memberId),
+      ),
+    )
+    .toSorted(
+      (leftMembershipInvoice, rightMembershipInvoice) =>
+        toSortableTimestamp(rightMembershipInvoice.invoiceDate) -
+        toSortableTimestamp(leftMembershipInvoice.invoiceDate),
+    );
+  const filteredServiceInvoices = snapshot.dataset.salesInvoices
+    .filter((salesInvoice) => salesInvoice.status === "CONFIRMED")
+    .filter((salesInvoice) =>
+      matchesSearchQuery(
+        revenueSearchQuery,
+        salesInvoice.code,
+        salesInvoice.customerName,
+      ),
+    )
+    .toSorted(
+      (leftSalesInvoice, rightSalesInvoice) =>
+        toSortableTimestamp(rightSalesInvoice.invoiceDate) -
+        toSortableTimestamp(leftSalesInvoice.invoiceDate),
+    );
 
   return (
     <>
@@ -2833,11 +3252,16 @@ function buildRevenueReportPage(options?: RenderGymRouteOptions): JSX.Element {
         ]}
       />
 
+      <ModuleFilterForm
+        query={revenueSearchQuery}
+        placeholder="Mã hóa đơn, hội viên, khách hàng..."
+      />
+
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <SectionCard title="Hóa đơn gói tập">
           <DataTable
             headers={["Mã", "Hội viên", "Ngày", "Số tiền"]}
-            rows={snapshot.dataset.membershipInvoices.map((invoice) => [
+            rows={filteredMembershipInvoices.map((invoice) => [
               invoice.code,
               getMemberName(snapshot, invoice.memberId),
               formatDateTime(invoice.invoiceDate),
@@ -2848,14 +3272,12 @@ function buildRevenueReportPage(options?: RenderGymRouteOptions): JSX.Element {
         <SectionCard title="Hóa đơn bán lẻ">
           <DataTable
             headers={["Mã", "Khách hàng", "Ngày", "Số tiền"]}
-            rows={snapshot.dataset.salesInvoices
-              .filter((invoice) => invoice.status === "CONFIRMED")
-              .map((invoice) => [
-                invoice.code,
-                invoice.customerName,
-                formatDateTime(invoice.invoiceDate),
-                formatCurrency(invoice.totalAmount),
-              ])}
+            rows={filteredServiceInvoices.map((invoice) => [
+              invoice.code,
+              invoice.customerName,
+              formatDateTime(invoice.invoiceDate),
+              formatCurrency(invoice.totalAmount),
+            ])}
           />
         </SectionCard>
       </div>
@@ -2865,6 +3287,16 @@ function buildRevenueReportPage(options?: RenderGymRouteOptions): JSX.Element {
 
 function buildPayrollReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const payrollReportSearchQuery = getModuleSearchQuery(options);
+  const filteredPayrollReportItems = snapshot.payrollReport.byTrainer.filter(
+    (payrollReportItem) =>
+      matchesSearchQuery(
+        payrollReportSearchQuery,
+        payrollReportItem.ptName,
+        payrollReportItem.payrollPeriodCode,
+        payrollReportItem.status,
+      ),
+  );
 
   return (
     <>
@@ -2897,10 +3329,14 @@ function buildPayrollReportPage(options?: RenderGymRouteOptions): JSX.Element {
           },
         ]}
       />
+      <ModuleFilterForm
+        query={payrollReportSearchQuery}
+        placeholder="Tên PT, mã kỳ, trạng thái..."
+      />
       <SectionCard title="Bảng lương theo PT">
         <DataTable
           headers={["PT", "Kỳ", "Thực lĩnh", "Trạng thái"]}
-          rows={snapshot.payrollReport.byTrainer.map((item) => [
+          rows={filteredPayrollReportItems.map((item) => [
             item.ptName,
             item.payrollPeriodCode,
             formatCurrency(item.netPay),
@@ -2917,8 +3353,30 @@ function buildPayrollReportPage(options?: RenderGymRouteOptions): JSX.Element {
   );
 }
 
-function buildInventoryReportPage(): JSX.Element {
+function buildInventoryReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const inventoryReportSearchQuery = getModuleSearchQuery(options);
+  const filteredTopSellingProducts = snapshot.inventoryOverview.topSellingProducts.filter(
+    (topSellingProduct) =>
+      matchesSearchQuery(
+        inventoryReportSearchQuery,
+        topSellingProduct.product.name,
+        topSellingProduct.product.code,
+      ),
+  );
+  const filteredRecentTransactions = snapshot.inventoryOverview.recentTransactions
+    .filter((recentTransaction) =>
+      matchesSearchQuery(
+        inventoryReportSearchQuery,
+        getProductName(snapshot, recentTransaction.productId),
+        recentTransaction.type,
+      ),
+    )
+    .toSorted(
+      (leftTransaction, rightTransaction) =>
+        toSortableTimestamp(rightTransaction.transactionDate) -
+        toSortableTimestamp(leftTransaction.transactionDate),
+    );
 
   return (
     <>
@@ -2950,11 +3408,15 @@ function buildInventoryReportPage(): JSX.Element {
           },
         ]}
       />
+      <ModuleFilterForm
+        query={inventoryReportSearchQuery}
+        placeholder="Sản phẩm, mã sản phẩm, loại giao dịch..."
+      />
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <SectionCard title="Sản phẩm bán chạy">
           <DataTable
             headers={["Sản phẩm", "Số lượng bán", "Tồn kho hiện tại"]}
-            rows={snapshot.inventoryOverview.topSellingProducts.map((entry) => [
+            rows={filteredTopSellingProducts.map((entry) => [
               entry.product.name,
               `${entry.soldQuantity}`,
               `${entry.product.stockOnHand}`,
@@ -2964,7 +3426,7 @@ function buildInventoryReportPage(): JSX.Element {
         <SectionCard title="Giao dịch kho gần đây">
           <DataTable
             headers={["Ngày", "Sản phẩm", "Loại", "SL"]}
-            rows={snapshot.inventoryOverview.recentTransactions.map(
+            rows={filteredRecentTransactions.map(
               (transaction) => [
                 formatDateTime(transaction.transactionDate),
                 getProductName(snapshot, transaction.productId),
@@ -2981,6 +3443,9 @@ function buildInventoryReportPage(): JSX.Element {
 
 function buildExpenseReportPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
+  const expenseReportSearchQuery = getModuleSearchQuery(options);
+  const filteredExpenseByCategory = Object.entries(snapshot.expenseReport.byCategory)
+    .filter(([category]) => matchesSearchQuery(expenseReportSearchQuery, category));
 
   return (
     <>
@@ -3014,9 +3479,13 @@ function buildExpenseReportPage(options?: RenderGymRouteOptions): JSX.Element {
         ]}
       />
       <SectionCard title="Chi phí theo danh mục">
+        <ModuleFilterForm
+          query={expenseReportSearchQuery}
+          placeholder="Tên danh mục chi phí..."
+        />
         <DataTable
           headers={["Danh mục", "Số tiền"]}
-          rows={Object.entries(snapshot.expenseReport.byCategory).map(
+          rows={filteredExpenseByCategory.map(
             ([category, amount]) => [category, formatCurrency(amount)],
           )}
         />
@@ -3096,6 +3565,17 @@ function buildProfitReportPage(options?: RenderGymRouteOptions): JSX.Element {
 function buildSettingsPage(options?: RenderGymRouteOptions): JSX.Element {
   const snapshot = getGymSnapshot();
   const locale = getLocale(options);
+  const settingsSearchQuery = getModuleSearchQuery(options);
+  const filteredSystemConfigs = snapshot.dataset.systemConfigs.filter(
+    (systemConfig) =>
+      matchesSearchQuery(
+        settingsSearchQuery,
+        systemConfig.key,
+        systemConfig.label,
+        systemConfig.value,
+        systemConfig.description,
+      ),
+  );
   const currentUsername = options?.currentUser?.username ?? "";
 
   return (
@@ -3153,9 +3633,13 @@ function buildSettingsPage(options?: RenderGymRouteOptions): JSX.Element {
         </SectionCard>
       ) : null}
       <SectionCard title="Cấu hình hệ thống">
+        <ModuleFilterForm
+          query={settingsSearchQuery}
+          placeholder="Khóa cấu hình, nhãn, mô tả..."
+        />
         <DataTable
           headers={["Khóa", "Nhãn", "Giá trị", "Mô tả"]}
-          rows={snapshot.dataset.systemConfigs.map((config) => [
+          rows={filteredSystemConfigs.map((config) => [
             config.key,
             config.label,
             isAdmin(options) ? (
@@ -3273,7 +3757,7 @@ export function renderGymRoute(
   setActiveUiLocale(locale);
 
   if (!content && (slug.length === 0 || section === "dashboard")) {
-    content = buildDashboardPage();
+    content = buildDashboardPage(options);
   }
 
   if (!content && section === "login") {
@@ -3321,7 +3805,7 @@ export function renderGymRoute(
   }
 
   if (!content && section === "membership-invoices") {
-    content = buildMembershipInvoicesPage();
+    content = buildMembershipInvoicesPage(options);
   }
 
   if (!content && section === "products") {
@@ -3333,7 +3817,7 @@ export function renderGymRoute(
   }
 
   if (!content && section === "inventory" && entityId === "import") {
-    content = buildInventoryImportPage();
+    content = buildInventoryImportPage(options);
   }
 
   if (!content && section === "invoices" && slug.length === 1) {
@@ -3353,7 +3837,7 @@ export function renderGymRoute(
   }
 
   if (!content && section === "reports" && entityId === "inventory") {
-    content = buildInventoryReportPage();
+    content = buildInventoryReportPage(options);
   }
 
   if (!content && section === "reports" && entityId === "expenses") {

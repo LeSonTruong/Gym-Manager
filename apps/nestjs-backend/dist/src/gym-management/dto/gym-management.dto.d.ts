@@ -2,16 +2,16 @@ export declare class CreatePersonalTrainerDto {
     code: string;
     userId?: string;
     fullName: string;
-    gender: string;
-    birthDate: string;
+    gender?: string;
+    birthDate?: string;
     phone: string;
     email?: string;
-    address: string;
-    status: string;
-    specialties: string[];
-    experienceYears: number;
-    avatarUrl: string;
-    startDate: string;
+    address?: string;
+    status?: string;
+    specialties?: string[];
+    experienceYears?: number;
+    avatarUrl?: string;
+    startDate?: string;
 }
 declare const UpdatePersonalTrainerDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreatePersonalTrainerDto>>;
 export declare class UpdatePersonalTrainerDto extends UpdatePersonalTrainerDto_base {
@@ -19,17 +19,17 @@ export declare class UpdatePersonalTrainerDto extends UpdatePersonalTrainerDto_b
 export declare class CreateMemberDto {
     code: string;
     fullName: string;
-    gender: string;
-    birthDate: string;
+    gender?: string;
+    birthDate?: string;
     phone: string;
     email?: string;
-    address: string;
-    heightCm: number;
-    weightKg: number;
-    goal: string;
-    healthNotes: string;
-    registeredAt: string;
-    status: string;
+    address?: string;
+    heightCm?: number;
+    weightKg?: number;
+    goal?: string;
+    healthNotes?: string;
+    registeredAt?: string;
+    status?: string;
 }
 declare const UpdateMemberDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateMemberDto>>;
 export declare class UpdateMemberDto extends UpdateMemberDto_base {
@@ -148,7 +148,7 @@ export declare class CancelMemberMembershipDto {
     cancelledAt?: string;
 }
 export declare class CreateMemberAssignmentDto {
-    memberId: string;
+    memberId?: string;
     ptId: string;
     memberMembershipId: string;
     assignedFrom: string;

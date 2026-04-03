@@ -52,7 +52,6 @@ function toDecimalString(value) {
 }
 const userRoles = ["ADMIN", "STAFF"];
 const userStatuses = ["ACTIVE", "INACTIVE"];
-const genders = ["MALE", "FEMALE", "OTHER"];
 const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"];
 const attendanceStatuses = ["OPEN", "VALID", "HALF", "INVALID"];
 const payrollPeriodStatuses = ["OPEN", "PENDING_APPROVAL", "APPROVED", "PAID"];
@@ -75,6 +74,9 @@ function isOneOf(value, acceptedValues) {
 function coerceEnumValue(value, acceptedValues, fallback) {
     return isOneOf(value, acceptedValues) ? value : fallback;
 }
+function toOfflineContactEmail(scope, id) {
+    return `${scope}-${id.toLowerCase()}@offline.local`;
+}
 function mapUserEntity(entity) {
     return {
         id: entity.id,
@@ -91,16 +93,16 @@ function mapPersonalTrainerEntity(entity) {
         code: entity.code,
         userId: entity.user?.id ?? undefined,
         fullName: entity.fullName,
-        gender: coerceEnumValue(entity.gender, genders, "OTHER"),
-        birthDate: toDateOnlyString(entity.birthDate),
+        gender: "OTHER",
+        birthDate: "2000-01-01",
         phone: entity.phone,
-        email: entity.email,
-        address: entity.address,
+        email: toOfflineContactEmail("pt", entity.id),
+        address: "",
         status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
-        specialties: entity.specialties,
-        experienceYears: entity.experienceYears,
-        avatarUrl: entity.avatarUrl,
-        startDate: toDateOnlyString(entity.startDate),
+        specialties: [],
+        experienceYears: 0,
+        avatarUrl: "",
+        startDate: toDateOnlyString(entity.createdAt),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
@@ -180,16 +182,16 @@ function mapMemberEntity(entity) {
         id: entity.id,
         code: entity.code,
         fullName: entity.fullName,
-        gender: coerceEnumValue(entity.gender, genders, "OTHER"),
-        birthDate: toDateOnlyString(entity.birthDate),
+        gender: "OTHER",
+        birthDate: "2000-01-01",
         phone: entity.phone,
-        email: entity.email,
-        address: entity.address,
-        heightCm: entity.heightCm,
-        weightKg: entity.weightKg,
-        goal: entity.goal,
-        healthNotes: entity.healthNotes,
-        registeredAt: toDateOnlyString(entity.registeredAt),
+        email: toOfflineContactEmail("member", entity.id),
+        address: "",
+        heightCm: 0,
+        weightKg: 0,
+        goal: "",
+        healthNotes: "",
+        registeredAt: toDateOnlyString(entity.createdAt),
         status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };

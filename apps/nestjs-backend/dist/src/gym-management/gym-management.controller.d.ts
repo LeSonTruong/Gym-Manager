@@ -33,6 +33,7 @@ type MembershipPlanRecord = Awaited<ReturnType<GymManagementService["createMembe
 type ProductRecord = Awaited<ReturnType<GymManagementService["createProduct"]>>;
 type ExpenseRecord = Awaited<ReturnType<GymManagementService["createOperatingExpense"]>>;
 type SystemConfigRecord = Awaited<ReturnType<GymManagementService["patchSystemConfig"]>>;
+type CleanupSettingsTrashResult = Awaited<ReturnType<GymManagementService["cleanupSystemConfigTrash"]>>;
 type AttendanceRecord = Awaited<ReturnType<GymManagementService["checkInAttendance"]>>;
 type PtContractRecord = Awaited<ReturnType<GymManagementService["createPtContract"]>>;
 type MembershipSaleRecord = Awaited<ReturnType<GymManagementService["createMemberMembership"]>>;
@@ -122,6 +123,7 @@ export declare class GymManagementController {
     getProfitReport(): Promise<ApiResponse<Snapshot["profitReport"]>>;
     getSettings(): Promise<ApiResponse<Snapshot["dataset"]["systemConfigs"]>>;
     patchSettings(configKey: string, patchSystemConfigDto: PatchSystemConfigDto, currentUser: AuthenticatedUser): Promise<ApiResponse<SystemConfigRecord>>;
+    cleanupSettingsTrash(): Promise<ApiResponse<CleanupSettingsTrashResult>>;
     private resolveScopedPtId;
 }
 export {};

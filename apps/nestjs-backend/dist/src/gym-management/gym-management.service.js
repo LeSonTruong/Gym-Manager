@@ -289,44 +289,26 @@ let GymManagementService = class GymManagementService {
         }
         this.assertCurrentVietnamDate(attendanceLog.attendanceDate, "attendanceDate");
         this.assertCurrentVietnamDate(checkOutAt, "checkOutAt");
-        const earliestCheckOutAt = new Date(attendanceLog.checkInAt.getTime() + 5 * 36e5);
-        if (checkOutAt < earliestCheckOutAt) {
-            throw new common_1.BadRequestException("Check out is allowed only after 5 working hours from check in");
-        }
         if (checkOutAt <= attendanceLog.checkInAt) {
             throw new common_1.BadRequestException("Check out time must be after check in time");
         }
         const workedHours = Number(((checkOutAt.getTime() - attendanceLog.checkInAt.getTime()) /
             36e5).toFixed(2));
         const ptContract = await this.findActivePtContractEntity(em, pt.id, attendanceLog.attendanceDate);
-        const minValidShiftHours = ptContract
+        const fullShiftHours = ptContract
             ? Number(ptContract.minValidShiftHours)
             : await this.getNumberSystemConfig(em, "min_valid_shift_hours", 5);
         const standardShiftHours = ptContract
             ? Number(ptContract.standardShiftHours)
             : 8;
-        const halfShiftPolicy = await this.getStringSystemConfig(em, "half_shift_policy", "NO_COUNT");
-        let status;
-        let workCredit;
-        if (workedHours >= minValidShiftHours) {
-            status = "VALID";
-            workCredit = 1;
-        }
-        else if (halfShiftPolicy === "HALF_COUNT") {
-            status = "HALF";
-            workCredit = 0.5;
-        }
-        else {
-            status = "INVALID";
-            workCredit = 0;
-        }
+        const { status, workCredit } = this.resolveAttendanceStatusAndWorkCredit(workedHours, fullShiftHours);
         const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(workedHours, standardShiftHours);
         attendanceLog.checkOutAt = checkOutAt;
-        attendanceLog.workedHours = workedHours.toString();
-        attendanceLog.paidHours = paidHours.toString();
-        attendanceLog.overtimeHours = overtimeHours.toString();
+        attendanceLog.workedHours = (0, gym_management_mapper_1.toDecimalString)(workedHours);
+        attendanceLog.paidHours = (0, gym_management_mapper_1.toDecimalString)(paidHours);
+        attendanceLog.overtimeHours = (0, gym_management_mapper_1.toDecimalString)(overtimeHours);
         attendanceLog.status = status;
-        attendanceLog.workCredit = workCredit.toString();
+        attendanceLog.workCredit = (0, gym_management_mapper_1.toDecimalString)(workCredit);
         await em.flush();
         return (0, gym_management_mapper_1.mapAttendanceLogEntity)(attendanceLog);
     }
@@ -529,15 +511,18 @@ let GymManagementService = class GymManagementService {
     }
     async createMemberAssignment(createMemberAssignmentDto) {
         const em = this.createEntityManager();
-        const member = await this.getRequiredMemberEntity(em, createMemberAssignmentDto.memberId);
         const trainer = await this.getRequiredPersonalTrainerEntity(em, createMemberAssignmentDto.ptId);
         const membership = await em.findOne(gym_management_entity_1.MemberMembershipEntity, {
             id: createMemberAssignmentDto.memberMembershipId,
-            member,
             deletedAt: null,
-        }, { populate: ["membershipPlan"] });
+        }, { populate: ["member", "membershipPlan"] });
         if (!membership) {
-            throw new common_1.NotFoundException(`Membership ${createMemberAssignmentDto.memberMembershipId} not found for member ${member.id}`);
+            throw new common_1.NotFoundException(`Membership ${createMemberAssignmentDto.memberMembershipId} not found`);
+        }
+        const { member } = membership;
+        if (createMemberAssignmentDto.memberId !== undefined &&
+            createMemberAssignmentDto.memberId !== member.id) {
+            throw new common_1.BadRequestException(`Membership ${membership.id} does not belong to member ${createMemberAssignmentDto.memberId}`);
         }
         const assignedFrom = (0, gym_management_mapper_1.parseDateOnly)(createMemberAssignmentDto.assignedFrom);
         const activeAssignments = await em.find(gym_management_entity_1.MemberPtAssignmentEntity, {
@@ -624,9 +609,12 @@ let GymManagementService = class GymManagementService {
         const assignments = await em.find(gym_management_entity_1.MemberPtAssignmentEntity, {}, { populate: ["memberMembership", "personalTrainer"] });
         const membershipInvoices = await em.find(gym_management_entity_1.MembershipInvoiceEntity, {}, { populate: ["memberMembership", "member"] });
         const salesInvoices = await em.find(gym_management_entity_1.SalesInvoiceEntity, { status: "CONFIRMED" }, { populate: ["createdByUser", "member"] });
+        const defaultWorkCreditTarget = await this.getNumberSystemConfig(em, "payroll_standard_work_credits", 26);
+        const normalizedDefaultWorkCreditTarget = defaultWorkCreditTarget > 0 ? defaultWorkCreditTarget : 26;
         for (const trainer of trainers) {
             const contract = await this.findPtContractForPeriod(em, trainer.id, payrollPeriod.fromDate, payrollPeriod.toDate);
-            const baseSalaryAmount = await this.getNumberSystemConfig(em, `pt_${trainer.id}_base_salary`, contract ? Number(contract.baseSalary) : 0);
+            const configuredBaseSalaryAmount = await this.getNumberSystemConfig(em, `pt_${trainer.id}_base_salary`, contract ? Number(contract.baseSalary) : 0);
+            const workCreditTarget = await this.getNumberSystemConfig(em, `pt_${trainer.id}_standard_work_credits`, normalizedDefaultWorkCreditTarget);
             const overtimeHourlyRate = await this.getNumberSystemConfig(em, `pt_${trainer.id}_overtime_hourly_rate`, contract ? Number(contract.overtimeHourlyRate) : 0);
             const allowanceAmount = await this.getNumberSystemConfig(em, `pt_${trainer.id}_allowance`, contract ? Number(contract.allowances) : 0);
             const packageCommissionRate = await this.getNumberSystemConfig(em, `pt_${trainer.id}_package_commission_rate`, contract ? Number(contract.packageCommissionRate) : 0);
@@ -643,6 +631,14 @@ let GymManagementService = class GymManagementService {
             const validShiftCredits = this.sumNumbers(attendanceLogs.map((attendanceLog) => Number(attendanceLog.workCredit)));
             const paidHours = this.sumNumbers(attendanceLogs.map((attendanceLog) => Number(attendanceLog.paidHours)));
             const overtimeHours = this.sumNumbers(attendanceLogs.map((attendanceLog) => Number(attendanceLog.overtimeHours)));
+            const normalizedWorkCreditTarget = workCreditTarget > 0
+                ? workCreditTarget
+                : normalizedDefaultWorkCreditTarget;
+            const baseSalaryAmount = this.sumNumbers([
+                configuredBaseSalaryAmount * (normalizedWorkCreditTarget > 0
+                    ? validShiftCredits / normalizedWorkCreditTarget
+                    : 0),
+            ]);
             const assignmentInvoices = membershipInvoices.filter((invoice) => this.isDateWithinPeriod(invoice.invoiceDate, payrollPeriod));
             const packageCommission = this.sumNumbers(assignmentInvoices.map((invoice) => {
                 const assignment = assignments.find((candidate) => candidate.personalTrainer.id === trainer.id &&
@@ -663,7 +659,9 @@ let GymManagementService = class GymManagementService {
             const performanceBonus = packageCount >= performanceBonusThreshold
                 ? performanceBonusAmountValue
                 : 0;
-            const overtimeAmount = overtimeHours * overtimeHourlyRate;
+            const overtimeAmount = this.sumNumbers([
+                overtimeHours * overtimeHourlyRate,
+            ]);
             const attendanceBonusAmount = 0;
             const deductionAmount = 0;
             const penalties = 0;
@@ -956,34 +954,16 @@ let GymManagementService = class GymManagementService {
         if (attendanceLog.checkOutAt <= attendanceLog.checkInAt) {
             throw new common_1.BadRequestException("Check out time must be after check in time");
         }
-        const earliestCheckOutAt = new Date(attendanceLog.checkInAt.getTime() + 5 * 36e5);
-        if (attendanceLog.checkOutAt < earliestCheckOutAt) {
-            throw new common_1.BadRequestException("Check out is allowed only after 5 working hours from check in");
-        }
         const workedHours = Number(((attendanceLog.checkOutAt.getTime() - attendanceLog.checkInAt.getTime()) /
             36e5).toFixed(2));
         const ptContract = await this.findActivePtContractEntity(em, attendanceLog.personalTrainer.id, attendanceLog.attendanceDate);
-        const minValidShiftHours = ptContract
+        const fullShiftHours = ptContract
             ? Number(ptContract.minValidShiftHours)
             : await this.getNumberSystemConfig(em, "min_valid_shift_hours", 5);
         const standardShiftHours = ptContract
             ? Number(ptContract.standardShiftHours)
             : 8;
-        const halfShiftPolicy = await this.getStringSystemConfig(em, "half_shift_policy", "NO_COUNT");
-        let status;
-        let workCredit;
-        if (workedHours >= minValidShiftHours) {
-            status = "VALID";
-            workCredit = 1;
-        }
-        else if (halfShiftPolicy === "HALF_COUNT") {
-            status = "HALF";
-            workCredit = 0.5;
-        }
-        else {
-            status = "INVALID";
-            workCredit = 0;
-        }
+        const { status, workCredit } = this.resolveAttendanceStatusAndWorkCredit(workedHours, fullShiftHours);
         const { paidHours, overtimeHours } = this.calculateAttendanceCompensation(workedHours, standardShiftHours);
         attendanceLog.workedHours = (0, gym_management_mapper_1.toDecimalString)(workedHours);
         attendanceLog.paidHours = (0, gym_management_mapper_1.toDecimalString)(paidHours);
@@ -1004,31 +984,27 @@ let GymManagementService = class GymManagementService {
             overtimeHours,
         };
     }
+    resolveAttendanceStatusAndWorkCredit(workedHours, fullShiftHours) {
+        const normalizedFullShiftHours = fullShiftHours > 0 ? fullShiftHours : 5;
+        if (workedHours <= 0) {
+            return {
+                status: "INVALID",
+                workCredit: 0,
+            };
+        }
+        if (workedHours >= normalizedFullShiftHours) {
+            return {
+                status: "VALID",
+                workCredit: 1,
+            };
+        }
+        return {
+            status: "HALF",
+            workCredit: Number((workedHours / normalizedFullShiftHours).toFixed(2)),
+        };
+    }
     generateReferenceCode(prefix) {
         return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${(0, node_crypto_1.randomUUID)().slice(0, 8).toUpperCase()}`;
-    }
-    createOfflineContactEmail(scope, code) {
-        const normalizedCharacters = [];
-        for (const character of code.trim().toLowerCase()) {
-            const codePoint = character.codePointAt(0) ?? 0;
-            const isAsciiLetter = codePoint >= 97 && codePoint <= 122;
-            const isDigit = codePoint >= 48 && codePoint <= 57;
-            normalizedCharacters.push(isAsciiLetter || isDigit ? character : "-");
-        }
-        let normalizedCode = normalizedCharacters.join("");
-        while (normalizedCode.includes("--")) {
-            normalizedCode = normalizedCode.replaceAll("--", "-");
-        }
-        if (normalizedCode.startsWith("-")) {
-            normalizedCode = normalizedCode.slice(1);
-        }
-        if (normalizedCode.endsWith("-")) {
-            normalizedCode = normalizedCode.slice(0, -1);
-        }
-        if (normalizedCode.length === 0) {
-            normalizedCode = "record";
-        }
-        return `${scope}-${normalizedCode}@offline.local`;
     }
     async submitPayrollPeriod(payrollPeriodId, submittedByUserId) {
         return this.transitionPayrollPeriodStatus(payrollPeriodId, "PENDING_APPROVAL", submittedByUserId);
@@ -1087,22 +1063,12 @@ let GymManagementService = class GymManagementService {
         const trainerUser = createPersonalTrainerDto.userId
             ? await this.getRequiredUserEntity(em, createPersonalTrainerDto.userId)
             : null;
-        const trainerEmail = createPersonalTrainerDto.email ??
-            this.createOfflineContactEmail("pt", createPersonalTrainerDto.code);
         const trainer = em.create(gym_management_entity_1.PersonalTrainerEntity, {
             code: createPersonalTrainerDto.code,
             user: trainerUser,
             fullName: createPersonalTrainerDto.fullName,
-            gender: createPersonalTrainerDto.gender,
-            birthDate: (0, gym_management_mapper_1.parseDateOnly)(createPersonalTrainerDto.birthDate),
             phone: createPersonalTrainerDto.phone,
-            email: trainerEmail,
-            address: createPersonalTrainerDto.address,
-            status: createPersonalTrainerDto.status,
-            specialties: createPersonalTrainerDto.specialties,
-            experienceYears: createPersonalTrainerDto.experienceYears,
-            avatarUrl: createPersonalTrainerDto.avatarUrl,
-            startDate: (0, gym_management_mapper_1.parseDateOnly)(createPersonalTrainerDto.startDate),
+            status: createPersonalTrainerDto.status ?? "ACTIVE",
         });
         em.persist(trainer);
         await em.flush();
@@ -1131,22 +1097,11 @@ let GymManagementService = class GymManagementService {
     }
     async createMember(createMemberDto) {
         const em = this.createEntityManager();
-        const memberEmail = createMemberDto.email ??
-            this.createOfflineContactEmail("member", createMemberDto.code);
         const member = em.create(gym_management_entity_1.MemberEntity, {
             code: createMemberDto.code,
             fullName: createMemberDto.fullName,
-            gender: createMemberDto.gender,
-            birthDate: (0, gym_management_mapper_1.parseDateOnly)(createMemberDto.birthDate),
             phone: createMemberDto.phone,
-            email: memberEmail,
-            address: createMemberDto.address,
-            heightCm: createMemberDto.heightCm,
-            weightKg: createMemberDto.weightKg,
-            goal: createMemberDto.goal,
-            healthNotes: createMemberDto.healthNotes,
-            registeredAt: (0, gym_management_mapper_1.parseDateOnly)(createMemberDto.registeredAt),
-            status: createMemberDto.status,
+            status: createMemberDto.status ?? "ACTIVE",
         });
         em.persist(member);
         await em.flush();
@@ -1317,6 +1272,36 @@ let GymManagementService = class GymManagementService {
         }
         await em.flush();
         return (0, gym_management_mapper_1.mapSystemConfigEntity)(systemConfig);
+    }
+    async cleanupSystemConfigTrash() {
+        const em = this.createEntityManager();
+        const systemConfigs = await em.find(gym_management_entity_1.SystemConfigEntity, {});
+        const activeTrainers = await em.find(gym_management_entity_1.PersonalTrainerEntity, {
+            deletedAt: null,
+        });
+        const activeTrainerIds = new Set(activeTrainers.map((trainer) => trainer.id));
+        const staleConfigs = systemConfigs.filter((systemConfig) => {
+            if (systemConfig.key === "half_shift_policy") {
+                return true;
+            }
+            if (!systemConfig.key.startsWith("pt_")) {
+                return false;
+            }
+            const matchedPtKey = /^pt_([^_]+)_/.exec(systemConfig.key);
+            if (!matchedPtKey) {
+                return false;
+            }
+            const [, ptId] = matchedPtKey;
+            return !activeTrainerIds.has(ptId);
+        });
+        if (staleConfigs.length > 0) {
+            em.remove(staleConfigs);
+            await em.flush();
+        }
+        return {
+            removedCount: staleConfigs.length,
+            removedKeys: staleConfigs.map((config) => config.key),
+        };
     }
     createEntityManager() {
         return this.orm.em.fork();
@@ -1745,35 +1730,11 @@ let GymManagementService = class GymManagementService {
         if (dto.fullName !== undefined) {
             data.fullName = dto.fullName;
         }
-        if (dto.gender !== undefined) {
-            data.gender = dto.gender;
-        }
-        if (dto.birthDate !== undefined) {
-            data.birthDate = (0, gym_management_mapper_1.parseDateOnly)(dto.birthDate);
-        }
         if (dto.phone !== undefined) {
             data.phone = dto.phone;
         }
-        if (dto.email !== undefined) {
-            data.email = dto.email;
-        }
-        if (dto.address !== undefined) {
-            data.address = dto.address;
-        }
         if (dto.status !== undefined) {
             data.status = dto.status;
-        }
-        if (dto.specialties !== undefined) {
-            data.specialties = dto.specialties;
-        }
-        if (dto.experienceYears !== undefined) {
-            data.experienceYears = dto.experienceYears;
-        }
-        if (dto.avatarUrl !== undefined) {
-            data.avatarUrl = dto.avatarUrl;
-        }
-        if (dto.startDate !== undefined) {
-            data.startDate = (0, gym_management_mapper_1.parseDateOnly)(dto.startDate);
         }
         return data;
     }
@@ -1785,35 +1746,8 @@ let GymManagementService = class GymManagementService {
         if (dto.fullName !== undefined) {
             data.fullName = dto.fullName;
         }
-        if (dto.gender !== undefined) {
-            data.gender = dto.gender;
-        }
-        if (dto.birthDate !== undefined) {
-            data.birthDate = (0, gym_management_mapper_1.parseDateOnly)(dto.birthDate);
-        }
         if (dto.phone !== undefined) {
             data.phone = dto.phone;
-        }
-        if (dto.email !== undefined) {
-            data.email = dto.email;
-        }
-        if (dto.address !== undefined) {
-            data.address = dto.address;
-        }
-        if (dto.heightCm !== undefined) {
-            data.heightCm = dto.heightCm;
-        }
-        if (dto.weightKg !== undefined) {
-            data.weightKg = dto.weightKg;
-        }
-        if (dto.goal !== undefined) {
-            data.goal = dto.goal;
-        }
-        if (dto.healthNotes !== undefined) {
-            data.healthNotes = dto.healthNotes;
-        }
-        if (dto.registeredAt !== undefined) {
-            data.registeredAt = (0, gym_management_mapper_1.parseDateOnly)(dto.registeredAt);
         }
         if (dto.status !== undefined) {
             data.status = dto.status;

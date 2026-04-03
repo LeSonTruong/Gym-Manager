@@ -19,16 +19,8 @@ export declare class PersonalTrainerEntity extends BaseEntity {
     code: string;
     user?: UserEntity | null;
     fullName: string;
-    gender: string;
-    birthDate: Date;
     phone: string;
-    email: string;
-    address: string;
     status: string;
-    specialties: string[];
-    experienceYears: number;
-    avatarUrl: string;
-    startDate: Date;
     deletedAt?: Date | null;
 }
 export declare class PtContractEntity extends BaseEntity {
@@ -94,16 +86,7 @@ export declare class PayrollEntryEntity extends BaseEntity {
 export declare class MemberEntity extends BaseEntity {
     code: string;
     fullName: string;
-    gender: string;
-    birthDate: Date;
     phone: string;
-    email: string;
-    address: string;
-    heightCm: number;
-    weightKg: number;
-    goal: string;
-    healthNotes: string;
-    registeredAt: Date;
     status: string;
     deletedAt?: Date | null;
 }

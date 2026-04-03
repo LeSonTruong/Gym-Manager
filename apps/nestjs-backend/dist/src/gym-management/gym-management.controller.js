@@ -340,6 +340,9 @@ let GymManagementController = class GymManagementController {
     async patchSettings(configKey, patchSystemConfigDto, currentUser) {
         return createResponse(await this.gymManagementService.patchSystemConfig(configKey, patchSystemConfigDto, currentUser.user.id));
     }
+    async cleanupSettingsTrash() {
+        return createResponse(await this.gymManagementService.cleanupSystemConfigTrash());
+    }
     resolveScopedPtId(currentUser, requestedPtId) {
         if (!requestedPtId) {
             throw new common_1.ForbiddenException("ptId is required");
@@ -956,6 +959,14 @@ __decorate([
     __metadata("design:paramtypes", [String, gym_management_dto_1.PatchSystemConfigDto, Object]),
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "patchSettings", null);
+__decorate([
+    (0, common_1.Post)("settings/cleanup-trash"),
+    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, audit_action_decorator_1.AuditAction)("SETTINGS_CLEANUP_TRASH", "system_configs"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], GymManagementController.prototype, "cleanupSettingsTrash", null);
 exports.GymManagementController = GymManagementController = __decorate([
     (0, swagger_1.ApiTags)("Gym Management"),
     (0, common_1.Controller)(),

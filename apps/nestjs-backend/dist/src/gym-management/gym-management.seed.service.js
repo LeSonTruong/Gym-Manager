@@ -68,16 +68,7 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             id: member.id,
             code: member.code,
             fullName: member.fullName,
-            gender: member.gender,
-            birthDate: toDateOnly(member.birthDate),
             phone: member.phone,
-            email: member.email,
-            address: member.address,
-            heightCm: member.heightCm,
-            weightKg: member.weightKg,
-            goal: member.goal,
-            healthNotes: member.healthNotes,
-            registeredAt: toDateOnly(member.registeredAt),
             status: member.status,
             deletedAt: toOptionalDateTime(member.deletedAt),
         })));
@@ -123,16 +114,8 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
                 ? em.getReference(gym_management_entity_1.UserEntity, trainer.userId)
                 : null,
             fullName: trainer.fullName,
-            gender: trainer.gender,
-            birthDate: toDateOnly(trainer.birthDate),
             phone: trainer.phone,
-            email: trainer.email,
-            address: trainer.address,
             status: trainer.status,
-            specialties: trainer.specialties,
-            experienceYears: trainer.experienceYears,
-            avatarUrl: trainer.avatarUrl,
-            startDate: toDateOnly(trainer.startDate),
             deletedAt: toOptionalDateTime(trainer.deletedAt),
         })));
         await em.flush();
