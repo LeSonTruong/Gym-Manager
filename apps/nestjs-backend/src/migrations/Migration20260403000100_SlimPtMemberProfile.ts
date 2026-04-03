@@ -1,8 +1,8 @@
 import { Migration } from '@mikro-orm/migrations';
 
 export class GymManagementSlimPtMemberProfileMigration20260403000100 extends Migration {
-  override async up(): Promise<void> {
-    this.addSql(`
+    override async up(): Promise<void> {
+        this.addSql(`
       alter table "personal_trainers" drop column "gender";
       alter table "personal_trainers" drop column "birth_date";
       alter table "personal_trainers" drop column "email";
@@ -22,10 +22,10 @@ export class GymManagementSlimPtMemberProfileMigration20260403000100 extends Mig
       alter table "members" drop column "health_notes";
       alter table "members" drop column "registered_at";
     `);
-  }
+    }
 
-  override async down(): Promise<void> {
-    this.addSql(`
+    override async down(): Promise<void> {
+        this.addSql(`
       alter table "personal_trainers" add column "gender" varchar(30) not null default 'OTHER';
       alter table "personal_trainers" add column "birth_date" date not null default current_date;
       alter table "personal_trainers" add column "email" varchar(180) not null default '';
@@ -53,5 +53,5 @@ export class GymManagementSlimPtMemberProfileMigration20260403000100 extends Mig
         where "email" = '';
       create unique index if not exists "members_email_unique" on "members" ("email");
     `);
-  }
+    }
 }

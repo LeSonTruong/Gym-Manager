@@ -1165,7 +1165,6 @@ let GymManagementService = class GymManagementService {
         const em = this.createEntityManager();
         const member = await this.getRequiredMemberEntity(em, memberId);
         member.status = "INACTIVE";
-        member.deletedAt = new Date();
         await em.flush();
         return (0, gym_management_mapper_1.mapMemberEntity)(member);
     }

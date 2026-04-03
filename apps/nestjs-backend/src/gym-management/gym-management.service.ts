@@ -636,8 +636,8 @@ export class GymManagementService {
   async getPtDetail(ptId: string): Promise<{
     trainer: TrainerRecord;
     contract:
-      | GymManagementSnapshot["dataset"]["ptContracts"][number]
-      | undefined;
+    | GymManagementSnapshot["dataset"]["ptContracts"][number]
+    | undefined;
     attendance: GymManagementSnapshot["dataset"]["attendanceLogs"];
     payrollEntries: GymManagementSnapshot["dataset"]["payrollEntries"];
     assignedMembers: GymManagementSnapshot["dataset"]["members"];
