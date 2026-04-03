@@ -942,20 +942,7 @@ function buildPtDetailPage(
                 <FormGrid>
                   <FormField label="Mã PT" name="code" defaultValue={ptOverview.pt.code} required />
                   <FormField label="Họ và tên" name="fullName" defaultValue={ptOverview.pt.fullName} required />
-                  <FormSelect
-                    label="Giới tính"
-                    name="gender"
-                    defaultValue={ptOverview.pt.gender}
-                    required
-                    options={[
-                      { value: "MALE", label: "Nam" },
-                      { value: "FEMALE", label: "Nữ" },
-                      { value: "OTHER", label: "Khác" },
-                    ]}
-                  />
-                  <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.birthDate)} required />
                   <FormField label="Số điện thoại" name="phone" defaultValue={ptOverview.pt.phone} required />
-                  <FormField label="Địa chỉ" name="address" defaultValue={ptOverview.pt.address} required />
                   <FormSelect
                     label="Trạng thái"
                     name="status"
@@ -966,17 +953,7 @@ function buildPtDetailPage(
                       { value: "INACTIVE", label: "Ngưng hoạt động" },
                     ]}
                   />
-                  <FormField label="Số năm kinh nghiệm" name="experienceYears" type="number" min={0} defaultValue={ptOverview.pt.experienceYears} required />
-                  <FormField label="Ngày bắt đầu" name="startDate" type="date" defaultValue={toDateInputValue(ptOverview.pt.startDate)} required />
-                  <FormField label="Avatar URL" name="avatarUrl" defaultValue={ptOverview.pt.avatarUrl} />
-                  <FormField label="User ID liên kết" name="userId" defaultValue={ptOverview.pt.userId} />
                 </FormGrid>
-                <FormTextArea
-                  label="Chuyên môn"
-                  name="specialties"
-                  defaultValue={ptOverview.pt.specialties.join("\n")}
-                  placeholder={"Yoga\nHIIT"}
-                />
                 <SubmitButton label="Lưu hồ sơ PT" />
               </form>
             </CollapsibleCrudPanel>
@@ -1693,25 +1670,7 @@ function buildMemberDetailPage(
                 <FormGrid>
                   <FormField label="Mã hội viên" name="code" defaultValue={member.code} required />
                   <FormField label="Họ và tên" name="fullName" defaultValue={member.fullName} required />
-                  <FormSelect
-                    label="Giới tính"
-                    name="gender"
-                    defaultValue={member.gender}
-                    required
-                    options={[
-                      { value: "MALE", label: "Nam" },
-                      { value: "FEMALE", label: "Nữ" },
-                      { value: "OTHER", label: "Khác" },
-                    ]}
-                  />
-                  <FormField label="Ngày sinh" name="birthDate" type="date" defaultValue={toDateInputValue(member.birthDate)} required />
                   <FormField label="Số điện thoại" name="phone" defaultValue={member.phone} required />
-                  <FormField label="Địa chỉ" name="address" defaultValue={member.address} required />
-                  <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={member.heightCm} required />
-                  <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={member.weightKg} required />
-                  <FormField label="Mục tiêu" name="goal" defaultValue={member.goal} required />
-                  <FormField label="Ghi chú sức khỏe" name="healthNotes" defaultValue={member.healthNotes} required />
-                  <FormField label="Ngày đăng ký" name="registeredAt" type="date" defaultValue={toDateInputValue(member.registeredAt)} required />
                   <FormSelect
                     label="Trạng thái"
                     name="status"
