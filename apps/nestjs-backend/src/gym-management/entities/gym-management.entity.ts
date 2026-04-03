@@ -69,35 +69,11 @@ export class PersonalTrainerEntity extends BaseEntity {
   @Property({ length: 160 })
   fullName!: string;
 
-  @Property({ length: 30 })
-  gender!: string;
-
-  @Property({ type: types.date, columnType: 'date' })
-  birthDate!: Date;
-
   @Property({ length: 40 })
   phone!: string;
 
-  @Property({ length: 180, unique: true })
-  email!: string;
-
-  @Property({ length: 255 })
-  address!: string;
-
   @Property({ length: 30 })
   status!: string;
-
-  @Property({ type: types.json })
-  specialties!: string[];
-
-  @Property()
-  experienceYears!: number;
-
-  @Property({ length: 500 })
-  avatarUrl!: string;
-
-  @Property({ type: types.date, columnType: 'date' })
-  startDate!: Date;
 
   @Property({
     type: types.datetime,
@@ -284,35 +260,8 @@ export class MemberEntity extends BaseEntity {
   @Property({ length: 160 })
   fullName!: string;
 
-  @Property({ length: 30 })
-  gender!: string;
-
-  @Property({ type: types.date, columnType: 'date' })
-  birthDate!: Date;
-
   @Property({ length: 40 })
   phone!: string;
-
-  @Property({ length: 180, unique: true })
-  email!: string;
-
-  @Property({ length: 255 })
-  address!: string;
-
-  @Property()
-  heightCm!: number;
-
-  @Property()
-  weightKg!: number;
-
-  @Property({ length: 255 })
-  goal!: string;
-
-  @Property({ type: types.text })
-  healthNotes!: string;
-
-  @Property({ type: types.date, columnType: 'date' })
-  registeredAt!: Date;
 
   @Property({ length: 30 })
   status!: string;

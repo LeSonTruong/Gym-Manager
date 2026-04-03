@@ -26,11 +26,13 @@ export class CreatePersonalTrainerDto {
   @IsString()
   fullName!: string;
 
+  @IsOptional()
   @IsString()
-  gender!: string;
+  gender?: string;
 
+  @IsOptional()
   @IsDateString()
-  birthDate!: string;
+  birthDate?: string;
 
   @IsString()
   phone!: string;
@@ -39,25 +41,31 @@ export class CreatePersonalTrainerDto {
   @IsEmail()
   email?: string;
 
+  @IsOptional()
   @IsString()
-  address!: string;
+  address?: string;
 
+  @IsOptional()
   @IsString()
-  status!: string;
+  status?: string;
 
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  specialties!: string[];
+  specialties?: string[];
 
+  @IsOptional()
   @IsInt()
   @Min(0)
-  experienceYears!: number;
+  experienceYears?: number;
 
+  @IsOptional()
   @IsString()
-  avatarUrl!: string;
+  avatarUrl?: string;
 
+  @IsOptional()
   @IsDateString()
-  startDate!: string;
+  startDate?: string;
 }
 
 export class UpdatePersonalTrainerDto extends PartialType(CreatePersonalTrainerDto) {
@@ -71,11 +79,13 @@ export class CreateMemberDto {
   @IsString()
   fullName!: string;
 
+  @IsOptional()
   @IsString()
-  gender!: string;
+  gender?: string;
 
+  @IsOptional()
   @IsDateString()
-  birthDate!: string;
+  birthDate?: string;
 
   @IsString()
   phone!: string;
@@ -84,28 +94,35 @@ export class CreateMemberDto {
   @IsEmail()
   email?: string;
 
+  @IsOptional()
   @IsString()
-  address!: string;
+  address?: string;
 
+  @IsOptional()
   @IsInt()
   @Min(0)
-  heightCm!: number;
+  heightCm?: number;
 
+  @IsOptional()
   @IsInt()
   @Min(0)
-  weightKg!: number;
+  weightKg?: number;
 
+  @IsOptional()
   @IsString()
-  goal!: string;
+  goal?: string;
 
+  @IsOptional()
   @IsString()
-  healthNotes!: string;
+  healthNotes?: string;
 
+  @IsOptional()
   @IsDateString()
-  registeredAt!: string;
+  registeredAt?: string;
 
+  @IsOptional()
   @IsString()
-  status!: string;
+  status?: string;
 }
 
 export class UpdateMemberDto extends PartialType(CreateMemberDto) {

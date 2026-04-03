@@ -1007,16 +1007,8 @@ async function seedData(orm: MikroORM): Promise<void> {
   const pt = em.create(PersonalTrainerEntity, {
     code: "PT-001",
     fullName: "PT Demo",
-    gender: "MALE",
-    birthDate: new Date("1990-01-01T00:00:00.000Z"),
     phone: "0900000000",
-    email: "pt@gym.local",
-    address: "HCM",
     status: "ACTIVE",
-    specialties: ["Strength"],
-    experienceYears: 3,
-    avatarUrl: "/avatar.png",
-    startDate: new Date("2025-01-01T00:00:00.000Z"),
   });
   const ptContract = em.create(PtContractEntity, {
     personalTrainer: pt,
@@ -1039,16 +1031,7 @@ async function seedData(orm: MikroORM): Promise<void> {
   const member = em.create(MemberEntity, {
     code: "MB-001",
     fullName: "Member Demo",
-    gender: "MALE",
-    birthDate: new Date("1995-06-01T00:00:00.000Z"),
     phone: "0911000000",
-    email: "member@gym.local",
-    address: "HCM",
-    heightCm: 175,
-    weightKg: 72,
-    goal: "Muscle gain",
-    healthNotes: "None",
-    registeredAt: new Date("2026-03-01T00:00:00.000Z"),
     status: "ACTIVE",
   });
   const membershipPlan = em.create(MembershipPlanEntity, {

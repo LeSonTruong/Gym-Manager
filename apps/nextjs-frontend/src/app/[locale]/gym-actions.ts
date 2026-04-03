@@ -283,18 +283,8 @@ export async function createPersonalTrainerAction(formData: FormData): Promise<v
 
   await postToBackend(locale, "/api/pts", {
     code: getString(formData, "code"),
-    userId: getOptionalString(formData, "userId"),
     fullName: getString(formData, "fullName"),
-    gender: getString(formData, "gender"),
-    birthDate: getString(formData, "birthDate"),
     phone: getString(formData, "phone"),
-    email: getOptionalString(formData, "email"),
-    address: getString(formData, "address"),
-    status: getString(formData, "status"),
-    specialties: getLineList(formData, "specialties"),
-    experienceYears: getNumberValue(formData, "experienceYears"),
-    avatarUrl: getOptionalString(formData, "avatarUrl") ?? "",
-    startDate: getString(formData, "startDate"),
   });
   revalidatePath(`/${locale}/pts`);
 }
@@ -341,17 +331,7 @@ export async function createMemberAction(formData: FormData): Promise<void> {
   await postToBackend(locale, "/api/members", {
     code: getString(formData, "code"),
     fullName: getString(formData, "fullName"),
-    gender: getString(formData, "gender"),
-    birthDate: getString(formData, "birthDate"),
     phone: getString(formData, "phone"),
-    email: getOptionalString(formData, "email"),
-    address: getString(formData, "address"),
-    heightCm: getNumberValue(formData, "heightCm"),
-    weightKg: getNumberValue(formData, "weightKg"),
-    goal: getString(formData, "goal"),
-    healthNotes: getString(formData, "healthNotes"),
-    registeredAt: getString(formData, "registeredAt"),
-    status: getString(formData, "status"),
   });
   revalidatePath(`/${locale}/members`);
 }
@@ -390,6 +370,7 @@ export async function deleteMemberAction(formData: FormData): Promise<void> {
 
   await postToBackend(locale, `/api/members/${memberId}`, {}, "DELETE");
   revalidatePath(`/${locale}/members`);
+  revalidatePath(`/${locale}/members/${memberId}`);
 }
 
 export async function createMembershipPlanAction(formData: FormData): Promise<void> {

@@ -636,8 +636,8 @@ export class GymManagementService {
   async getPtDetail(ptId: string): Promise<{
     trainer: TrainerRecord;
     contract:
-    | GymManagementSnapshot["dataset"]["ptContracts"][number]
-    | undefined;
+      | GymManagementSnapshot["dataset"]["ptContracts"][number]
+      | undefined;
     attendance: GymManagementSnapshot["dataset"]["attendanceLogs"];
     payrollEntries: GymManagementSnapshot["dataset"]["payrollEntries"];
     assignedMembers: GymManagementSnapshot["dataset"]["members"];
@@ -1822,38 +1822,6 @@ export class GymManagementService {
     return `${prefix}-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomUUID().slice(0, 8).toUpperCase()}`;
   }
 
-  private createOfflineContactEmail(scope: string, code: string): string {
-    const normalizedCharacters: string[] = [];
-
-    for (const character of code.trim().toLowerCase()) {
-      const codePoint = character.codePointAt(0) ?? 0;
-      const isAsciiLetter = codePoint >= 97 && codePoint <= 122;
-      const isDigit = codePoint >= 48 && codePoint <= 57;
-
-      normalizedCharacters.push(isAsciiLetter || isDigit ? character : "-");
-    }
-
-    let normalizedCode = normalizedCharacters.join("");
-
-    while (normalizedCode.includes("--")) {
-      normalizedCode = normalizedCode.replaceAll("--", "-");
-    }
-
-    if (normalizedCode.startsWith("-")) {
-      normalizedCode = normalizedCode.slice(1);
-    }
-
-    if (normalizedCode.endsWith("-")) {
-      normalizedCode = normalizedCode.slice(0, -1);
-    }
-
-    if (normalizedCode.length === 0) {
-      normalizedCode = "record";
-    }
-
-    return `${scope}-${normalizedCode}@offline.local`;
-  }
-
   async submitPayrollPeriod(
     payrollPeriodId: string,
     submittedByUserId: string,
@@ -1967,9 +1935,6 @@ export class GymManagementService {
     const trainerUser = createPersonalTrainerDto.userId
       ? await this.getRequiredUserEntity(em, createPersonalTrainerDto.userId)
       : null;
-    const trainerEmail =
-      createPersonalTrainerDto.email ??
-      this.createOfflineContactEmail("pt", createPersonalTrainerDto.code);
 
     const trainer = em.create(
       PersonalTrainerEntity,
@@ -1977,16 +1942,8 @@ export class GymManagementService {
         code: createPersonalTrainerDto.code,
         user: trainerUser,
         fullName: createPersonalTrainerDto.fullName,
-        gender: createPersonalTrainerDto.gender,
-        birthDate: parseDateOnly(createPersonalTrainerDto.birthDate),
         phone: createPersonalTrainerDto.phone,
-        email: trainerEmail,
-        address: createPersonalTrainerDto.address,
-        status: createPersonalTrainerDto.status,
-        specialties: createPersonalTrainerDto.specialties,
-        experienceYears: createPersonalTrainerDto.experienceYears,
-        avatarUrl: createPersonalTrainerDto.avatarUrl,
-        startDate: parseDateOnly(createPersonalTrainerDto.startDate),
+        status: createPersonalTrainerDto.status ?? "ACTIVE",
       } satisfies RequiredEntityData<PersonalTrainerEntity>,
     );
 
@@ -2029,26 +1986,14 @@ export class GymManagementService {
 
   async createMember(createMemberDto: CreateMemberDto): Promise<MemberRecord> {
     const em = this.createEntityManager();
-    const memberEmail =
-      createMemberDto.email ??
-      this.createOfflineContactEmail("member", createMemberDto.code);
 
     const member = em.create(
       MemberEntity,
       {
         code: createMemberDto.code,
         fullName: createMemberDto.fullName,
-        gender: createMemberDto.gender,
-        birthDate: parseDateOnly(createMemberDto.birthDate),
         phone: createMemberDto.phone,
-        email: memberEmail,
-        address: createMemberDto.address,
-        heightCm: createMemberDto.heightCm,
-        weightKg: createMemberDto.weightKg,
-        goal: createMemberDto.goal,
-        healthNotes: createMemberDto.healthNotes,
-        registeredAt: parseDateOnly(createMemberDto.registeredAt),
-        status: createMemberDto.status,
+        status: createMemberDto.status ?? "ACTIVE",
       } satisfies RequiredEntityData<MemberEntity>,
     );
 
@@ -2078,7 +2023,6 @@ export class GymManagementService {
     const member = await this.getRequiredMemberEntity(em, memberId);
 
     member.status = "INACTIVE";
-    member.deletedAt = new Date();
     await em.flush();
 
     return mapMemberEntity(member);
@@ -3071,44 +3015,12 @@ export class GymManagementService {
       data.fullName = dto.fullName;
     }
 
-    if (dto.gender !== undefined) {
-      data.gender = dto.gender;
-    }
-
-    if (dto.birthDate !== undefined) {
-      data.birthDate = parseDateOnly(dto.birthDate);
-    }
-
     if (dto.phone !== undefined) {
       data.phone = dto.phone;
     }
 
-    if (dto.email !== undefined) {
-      data.email = dto.email;
-    }
-
-    if (dto.address !== undefined) {
-      data.address = dto.address;
-    }
-
     if (dto.status !== undefined) {
       data.status = dto.status;
-    }
-
-    if (dto.specialties !== undefined) {
-      data.specialties = dto.specialties;
-    }
-
-    if (dto.experienceYears !== undefined) {
-      data.experienceYears = dto.experienceYears;
-    }
-
-    if (dto.avatarUrl !== undefined) {
-      data.avatarUrl = dto.avatarUrl;
-    }
-
-    if (dto.startDate !== undefined) {
-      data.startDate = parseDateOnly(dto.startDate);
     }
 
     return data;
@@ -3127,44 +3039,8 @@ export class GymManagementService {
       data.fullName = dto.fullName;
     }
 
-    if (dto.gender !== undefined) {
-      data.gender = dto.gender;
-    }
-
-    if (dto.birthDate !== undefined) {
-      data.birthDate = parseDateOnly(dto.birthDate);
-    }
-
     if (dto.phone !== undefined) {
       data.phone = dto.phone;
-    }
-
-    if (dto.email !== undefined) {
-      data.email = dto.email;
-    }
-
-    if (dto.address !== undefined) {
-      data.address = dto.address;
-    }
-
-    if (dto.heightCm !== undefined) {
-      data.heightCm = dto.heightCm;
-    }
-
-    if (dto.weightKg !== undefined) {
-      data.weightKg = dto.weightKg;
-    }
-
-    if (dto.goal !== undefined) {
-      data.goal = dto.goal;
-    }
-
-    if (dto.healthNotes !== undefined) {
-      data.healthNotes = dto.healthNotes;
-    }
-
-    if (dto.registeredAt !== undefined) {
-      data.registeredAt = parseDateOnly(dto.registeredAt);
     }
 
     if (dto.status !== undefined) {

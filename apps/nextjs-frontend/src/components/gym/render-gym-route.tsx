@@ -699,7 +699,7 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
         <SectionCard title="Thêm PT mới">
           <CollapsibleCrudPanel
             triggerLabel="Mở bảng thêm PT"
-            helperText="Nhấn để mở biểu mẫu tạo PT mới."
+            helperText="Chỉ cần mã PT, họ tên, số điện thoại. Thông tin khác có thể cập nhật sau."
           >
             <form action={createPersonalTrainerAction} className="space-y-4">
               <input type="hidden" name="locale" value={locale} />
@@ -711,60 +711,8 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
                   placeholder="Nguyen Van A"
                   required
                 />
-                <FormSelect
-                  label="Giới tính"
-                  name="gender"
-                  defaultValue="MALE"
-                  required
-                  options={[
-                    { value: "MALE", label: "Nam" },
-                    { value: "FEMALE", label: "Nữ" },
-                    { value: "OTHER", label: "Khác" },
-                  ]}
-                />
-                <FormField label="Ngày sinh" name="birthDate" type="date" required />
                 <FormField label="Số điện thoại" name="phone" required />
-                <FormField label="Địa chỉ" name="address" required />
-                <FormSelect
-                  label="Trạng thái"
-                  name="status"
-                  defaultValue="ACTIVE"
-                  required
-                  options={[
-                    { value: "ACTIVE", label: "Đang hoạt động" },
-                    { value: "INACTIVE", label: "Ngưng hoạt động" },
-                  ]}
-                />
-                <FormField
-                  label="Số năm kinh nghiệm"
-                  name="experienceYears"
-                  type="number"
-                  min={0}
-                  defaultValue={0}
-                  required
-                />
-                <FormField
-                  label="Ngày bắt đầu"
-                  name="startDate"
-                  type="date"
-                  required
-                />
-                <FormField
-                  label="Avatar URL"
-                  name="avatarUrl"
-                  placeholder="https://example.com/avatar.jpg"
-                />
-                <FormField
-                  label="User ID liên kết"
-                  name="userId"
-                  placeholder="Tùy chọn"
-                />
               </FormGrid>
-              <FormTextArea
-                label="Chuyên môn"
-                name="specialties"
-                placeholder={"Yoga\nHIIT"}
-              />
               <SubmitButton label="Tạo PT" />
             </form>
           </CollapsibleCrudPanel>
@@ -1576,41 +1524,16 @@ function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
 
       {isAdmin(options) ? (
         <SectionCard title="Thêm hội viên mới">
-          <CollapsibleCrudPanel triggerLabel="Mở bảng thêm hội viên">
+          <CollapsibleCrudPanel
+            triggerLabel="Mở bảng thêm hội viên"
+            helperText="Chỉ cần mã hội viên, họ tên, số điện thoại. Hệ thống tự điền thông tin mặc định còn lại."
+          >
             <form action={createMemberAction} className="space-y-4">
               <input type="hidden" name="locale" value={locale} />
               <FormGrid>
                 <FormField label="Mã hội viên" name="code" placeholder="MEM-NEW" required />
                 <FormField label="Họ và tên" name="fullName" required />
-                <FormSelect
-                  label="Giới tính"
-                  name="gender"
-                  defaultValue="MALE"
-                  required
-                  options={[
-                    { value: "MALE", label: "Nam" },
-                    { value: "FEMALE", label: "Nữ" },
-                    { value: "OTHER", label: "Khác" },
-                  ]}
-                />
-                <FormField label="Ngày sinh" name="birthDate" type="date" required />
                 <FormField label="Số điện thoại" name="phone" required />
-                <FormField label="Địa chỉ" name="address" required />
-                <FormField label="Chiều cao (cm)" name="heightCm" type="number" min={0} defaultValue={165} required />
-                <FormField label="Cân nặng (kg)" name="weightKg" type="number" min={0} defaultValue={60} required />
-                <FormField label="Mục tiêu" name="goal" required />
-                <FormField label="Ghi chú sức khỏe" name="healthNotes" required />
-                <FormField label="Ngày đăng ký" name="registeredAt" type="date" required />
-                <FormSelect
-                  label="Trạng thái"
-                  name="status"
-                  defaultValue="ACTIVE"
-                  required
-                  options={[
-                    { value: "ACTIVE", label: "Đang hoạt động" },
-                    { value: "INACTIVE", label: "Ngưng hoạt động" },
-                  ]}
-                />
               </FormGrid>
               <SubmitButton label="Tạo hội viên" />
             </form>

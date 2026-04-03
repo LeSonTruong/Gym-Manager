@@ -78,7 +78,6 @@ export function toDecimalString(value: number): string {
 
 const userRoles = ["ADMIN", "STAFF"] as const;
 const userStatuses = ["ACTIVE", "INACTIVE"] as const;
-const genders = ["MALE", "FEMALE", "OTHER"] as const;
 const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"] as const;
 const attendanceStatuses = ["OPEN", "VALID", "HALF", "INVALID"] as const;
 const payrollPeriodStatuses = ["OPEN", "PENDING_APPROVAL", "APPROVED", "PAID"] as const;
@@ -111,6 +110,10 @@ function coerceEnumValue<T extends readonly string[]>(
   return isOneOf(value, acceptedValues) ? value : fallback;
 }
 
+function toOfflineContactEmail(scope: string, id: string): string {
+  return `${scope}-${id.toLowerCase()}@offline.local`;
+}
+
 export function mapUserEntity(entity: UserEntity): DemoUser {
   return {
     id: entity.id,
@@ -128,16 +131,16 @@ export function mapPersonalTrainerEntity(entity: PersonalTrainerEntity): Persona
     code: entity.code,
     userId: entity.user?.id ?? undefined,
     fullName: entity.fullName,
-    gender: coerceEnumValue(entity.gender, genders, "OTHER"),
-    birthDate: toDateOnlyString(entity.birthDate),
+    gender: "OTHER",
+    birthDate: "2000-01-01",
     phone: entity.phone,
-    email: entity.email,
-    address: entity.address,
+    email: toOfflineContactEmail("pt", entity.id),
+    address: "",
     status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
-    specialties: entity.specialties,
-    experienceYears: entity.experienceYears,
-    avatarUrl: entity.avatarUrl,
-    startDate: toDateOnlyString(entity.startDate),
+    specialties: [],
+    experienceYears: 0,
+    avatarUrl: "",
+    startDate: toDateOnlyString(entity.createdAt),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
@@ -222,16 +225,16 @@ export function mapMemberEntity(entity: MemberEntity): Member {
     id: entity.id,
     code: entity.code,
     fullName: entity.fullName,
-    gender: coerceEnumValue(entity.gender, genders, "OTHER"),
-    birthDate: toDateOnlyString(entity.birthDate),
+    gender: "OTHER",
+    birthDate: "2000-01-01",
     phone: entity.phone,
-    email: entity.email,
-    address: entity.address,
-    heightCm: entity.heightCm,
-    weightKg: entity.weightKg,
-    goal: entity.goal,
-    healthNotes: entity.healthNotes,
-    registeredAt: toDateOnlyString(entity.registeredAt),
+    email: toOfflineContactEmail("member", entity.id),
+    address: "",
+    heightCm: 0,
+    weightKg: 0,
+    goal: "",
+    healthNotes: "",
+    registeredAt: toDateOnlyString(entity.createdAt),
     status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
@@ -274,7 +277,7 @@ export function mapMemberPtAssignmentEntity(entity: MemberPtAssignmentEntity): M
     assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
     commissionType:
       typeof entity.commissionType === "string" &&
-        isOneOf(entity.commissionType, commissionTypes)
+      isOneOf(entity.commissionType, commissionTypes)
         ? entity.commissionType
         : undefined,
     commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,
