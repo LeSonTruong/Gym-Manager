@@ -258,10 +258,12 @@ export class GymManagementService {
     }
 
     const user = mapUserEntity(userEntity);
+    const ptId = await this.resolvePtIdForUser(em, userEntity);
     const { accessToken, refreshToken } = await this.issueAuthTokens({
       sessionId: randomUUID(),
       userId: user.id,
       role: user.role,
+      ptId,
     });
 
     return {
@@ -300,10 +302,12 @@ export class GymManagementService {
     }
 
     const user = mapUserEntity(userEntity);
+    const ptId = await this.resolvePtIdForUser(em, userEntity);
     const accessToken = await this.issueAccessToken({
       sessionId: refreshTokenEntity.sessionId,
       userId: user.id,
       role: user.role,
+      ptId,
     });
 
     return {

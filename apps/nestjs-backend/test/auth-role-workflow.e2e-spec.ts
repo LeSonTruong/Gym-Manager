@@ -80,6 +80,7 @@ function toVietnamIsoAtHour(offsetDays: number, hour: number): string {
 }
 
 type UnknownRecord = Record<string, unknown>;
+type MutationMethod = "post" | "patch";
 
 function isRecord(value: unknown): value is UnknownRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -169,17 +170,45 @@ function getAccessToken(response: request.Response): string {
   );
 }
 
+async function expectMutationStatus(options: {
+  app: INestApplication;
+  method: MutationMethod;
+  path: string;
+  expectedStatus: number;
+  payload?: UnknownRecord;
+  token?: string;
+}): Promise<void> {
+  const { app, method, path, expectedStatus, payload, token } = options;
+
+  let requestBuilder =
+    method === "post"
+      ? request(app.getHttpServer()).post(path)
+      : request(app.getHttpServer()).patch(path);
+
+  if (token) {
+    requestBuilder = requestBuilder.set("Authorization", `Bearer ${token}`);
+  }
+
+  if (payload) {
+    requestBuilder = requestBuilder.send(payload);
+  }
+
+  await requestBuilder.expect(expectedStatus);
+}
+
 describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   let app: INestApplication;
   let orm: MikroORM;
   let adminToken: string;
   let adminRefreshToken: string;
   let staffToken: string;
+  let scopedStaffToken: string;
   let payrollPeriodId: string;
   let expenseApproveFlowId: string;
   let expenseRejectFlowId: string;
   let salesInvoiceId: string;
   let ptId: string;
+  let scopedPtId: string;
   let memberId: string;
   let membershipPlanId: string;
   let productId: string;
@@ -290,6 +319,13 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
 
     staffToken = getAccessToken(staffLogin);
 
+    const scopedStaffLogin = await request(app.getHttpServer())
+      .post("/auth/login")
+      .send({ username: "staff_pt", password: "password" })
+      .expect(201);
+
+    scopedStaffToken = getAccessToken(scopedStaffLogin);
+
     const em = orm.em.fork();
 
     const payrollPeriod = await em.findOne(PayrollPeriodEntity, {
@@ -305,6 +341,9 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       code: "SI-001",
     });
     const trainer = await em.findOne(PersonalTrainerEntity, { code: "PT-001" });
+    const scopedTrainer = await em.findOne(PersonalTrainerEntity, {
+      code: "PT-STAFF",
+    });
     const member = await em.findOne(MemberEntity, { code: "MB-001" });
     const membershipPlan = await em.findOne(MembershipPlanEntity, {
       code: "PLAN-001",
@@ -318,6 +357,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       !expenseB ||
       !salesInvoice ||
       !trainer ||
+      !scopedTrainer ||
       !member ||
       !membershipPlan ||
       !product ||
@@ -331,6 +371,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
     expenseRejectFlowId = expenseB.id;
     salesInvoiceId = salesInvoice.id;
     ptId = trainer.id;
+    scopedPtId = scopedTrainer.id;
     memberId = member.id;
     membershipPlanId = membershipPlan.id;
     productId = product.id;
@@ -381,6 +422,55 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         checkOutAt: toVietnamIsoAtHour(0, 15),
       })
       .expect(201);
+  });
+
+  it("enforces attendance scope for staff accounts linked to a PT", async () => {
+    await request(app.getHttpServer())
+      .post("/attendance/check-in")
+      .set("Authorization", `Bearer ${scopedStaffToken}`)
+      .send({ ptId, checkInAt: toVietnamIsoAtHour(0, 10) })
+      .expect(403);
+
+    const scopedCheckInResponse = await request(app.getHttpServer())
+      .post("/attendance/check-in")
+      .set("Authorization", `Bearer ${scopedStaffToken}`)
+      .send({ checkInAt: toVietnamIsoAtHour(0, 10) })
+      .expect(201);
+
+    const scopedAttendanceLogId = getStringField(
+      getResponseDataRecord(scopedCheckInResponse),
+      "id",
+      "response.body.data",
+    );
+
+    await request(app.getHttpServer())
+      .post("/attendance/check-out")
+      .set("Authorization", `Bearer ${scopedStaffToken}`)
+      .send({
+        attendanceLogId: scopedAttendanceLogId,
+        checkOutAt: toVietnamIsoAtHour(0, 16),
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get(`/attendance/pt/${ptId}`)
+      .set("Authorization", `Bearer ${scopedStaffToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/attendance/pt/${scopedPtId}`)
+      .set("Authorization", `Bearer ${scopedStaffToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/attendance/me?ptId=${ptId}`)
+      .set("Authorization", `Bearer ${scopedStaffToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get("/attendance/me")
+      .set("Authorization", `Bearer ${scopedStaffToken}`)
+      .expect(200);
   });
 
   it("blocks attendance check-in/check-out for past or future dates", async () => {
@@ -450,7 +540,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       })
       .expect(400);
 
-    await request(app.getHttpServer())
+    const shortShiftCheckOutResponse = await request(app.getHttpServer())
       .post("/attendance/check-out")
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
@@ -458,17 +548,15 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         attendanceLogId,
         checkOutAt: toVietnamIsoAtHour(0, 12),
       })
-      .expect(400);
-
-    await request(app.getHttpServer())
-      .post("/attendance/check-out")
-      .set("Authorization", `Bearer ${activeAdminToken}`)
-      .send({
-        ptId: tempPtId,
-        attendanceLogId,
-        checkOutAt: toVietnamIsoAtHour(0, 15),
-      })
       .expect(201);
+
+    expect(
+      getStringField(
+        getResponseDataRecord(shortShiftCheckOutResponse),
+        "status",
+        "response.body.data",
+      ),
+    ).toBe("HALF");
   });
 
   it("applies payroll field invariants across transitions", async () => {
@@ -648,6 +736,93 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       "Corrected invoice attachment and amount",
     );
     expect(Number(reopenedExpense?.amount)).toBe(425_000);
+  });
+
+  it("enforces 401/403 for ADMIN-only sensitive mutations", async () => {
+    const adminOnlyCases: Array<{
+      method: MutationMethod;
+      path: string;
+      payload?: UnknownRecord;
+    }> = [
+      {
+        method: "post",
+        path: "/member-memberships",
+        payload: {
+          memberId,
+          membershipPlanId,
+          startDate: "2026-04-01",
+          paymentMethod: "CASH",
+        },
+      },
+      {
+        method: "post",
+        path: "/member-memberships/rbac-membership/renew",
+      },
+      {
+        method: "post",
+        path: "/member-memberships/rbac-membership/cancel",
+      },
+      {
+        method: "post",
+        path: "/member-assignments",
+        payload: {
+          memberId,
+          ptId,
+          memberMembershipId: "rbac-membership",
+          assignedFrom: "2026-04-01",
+        },
+      },
+      {
+        method: "post",
+        path: "/member-assignments/rbac-assignment/end",
+      },
+      {
+        method: "post",
+        path: "/inventory/import",
+        payload: {
+          productId,
+          quantity: 1,
+          unitCost: 10,
+        },
+      },
+      {
+        method: "post",
+        path: `/sales/invoices/${salesInvoiceId}/confirm`,
+      },
+      {
+        method: "post",
+        path: `/sales/invoices/${salesInvoiceId}/cancel`,
+        payload: { cancellationReason: "RBAC check" },
+      },
+      {
+        method: "patch",
+        path: "/settings/rbac-test-key",
+        payload: { value: "enabled" },
+      },
+      {
+        method: "post",
+        path: "/settings/cleanup-trash",
+      },
+    ];
+
+    for (const adminOnlyCase of adminOnlyCases) {
+      await expectMutationStatus({
+        app,
+        method: adminOnlyCase.method,
+        path: adminOnlyCase.path,
+        payload: adminOnlyCase.payload,
+        expectedStatus: 401,
+      });
+
+      await expectMutationStatus({
+        app,
+        method: adminOnlyCase.method,
+        path: adminOnlyCase.path,
+        payload: adminOnlyCase.payload,
+        token: staffToken,
+        expectedStatus: 403,
+      });
+    }
   });
 
   it("applies sales invariants and cancellation reason", async () => {
@@ -1003,11 +1178,25 @@ async function seedData(orm: MikroORM): Promise<void> {
     status: "ACTIVE",
     passwordHash: hashPassword("password"),
   });
+  const scopedStaff = em.create(UserEntity, {
+    fullName: "Scoped Staff",
+    username: "staff_pt",
+    role: "STAFF",
+    status: "ACTIVE",
+    passwordHash: hashPassword("password"),
+  });
 
   const pt = em.create(PersonalTrainerEntity, {
     code: "PT-001",
     fullName: "PT Demo",
     phone: "0900000000",
+    status: "ACTIVE",
+  });
+  const scopedPt = em.create(PersonalTrainerEntity, {
+    code: "PT-STAFF",
+    user: scopedStaff,
+    fullName: "Scoped PT",
+    phone: "0900000009",
     status: "ACTIVE",
   });
   const ptContract = em.create(PtContractEntity, {
@@ -1142,7 +1331,9 @@ async function seedData(orm: MikroORM): Promise<void> {
   em.persist([
     admin,
     staff,
+    scopedStaff,
     pt,
+    scopedPt,
     payrollPeriod,
     payrollEntry,
     expenseA,

@@ -351,10 +351,10 @@ npm run start:dev
 
 ## 7.5 Endpoints local
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:4000/api
-- Swagger: http://localhost:4000/api/docs
-- Health: http://localhost:4000/api/health
+- Frontend: <http://localhost:3000>
+- Backend API: <http://localhost:4000/api>
+- Swagger: <http://localhost:4000/api/docs>
+- Health: <http://localhost:4000/api/health>
 
 ## 8. Bộ lệnh chất lượng và test
 
@@ -424,3 +424,7 @@ Kiểm tra:
 - Backend vẫn có nhiều module nghiệp vụ đầy đủ (bao gồm expenses).
 - Frontend đã được dọn scope route active theo hướng ưu tiên vận hành cốt lõi.
 - Tài liệu này mô tả đúng trạng thái codebase hiện tại để phục vụ onboarding dev, QA và demo nội bộ.
+
+## 13. Auth/RBAC matrix
+
+- Matrix chot pham vi role/scope/test cho Pha 1 xem tai: docs/auth-rbac-endpoint-role-test-matrix.md

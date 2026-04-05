@@ -423,8 +423,10 @@ export class GymManagementController {
   @Get("attendance/pt/:ptId")
   async getAttendanceByPt(
     @Param("ptId") ptId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ApiResponse<PtDetail["attendance"]>> {
-    const ptDetail = await this.gymManagementService.getPtDetail(ptId);
+    const scopedPtId = this.resolveScopedPtId(currentUser, ptId);
+    const ptDetail = await this.gymManagementService.getPtDetail(scopedPtId);
 
     return createResponse(ptDetail.attendance);
   }
@@ -1040,6 +1042,16 @@ export class GymManagementController {
     currentUser: AuthenticatedUser,
     requestedPtId?: string,
   ): string {
+    if (currentUser.role === "STAFF" && currentUser.ptId) {
+      if (requestedPtId && requestedPtId !== currentUser.ptId) {
+        throw new ForbiddenException(
+          "Staff account can only access attendance of its own PT profile",
+        );
+      }
+
+      return currentUser.ptId;
+    }
+
     if (!requestedPtId) {
       throw new ForbiddenException("ptId is required");
     }
