@@ -2,14 +2,6 @@ export type UserRole = 'ADMIN' | 'STAFF';
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CARD';
-export type PaymentProvider = 'MANUAL' | 'VNPAY' | 'MOMO' | 'STRIPE';
-export type PaymentTransactionStatus =
-  | 'PENDING'
-  | 'PROCESSING'
-  | 'SUCCEEDED'
-  | 'FAILED'
-  | 'CANCELLED'
-  | 'REFUNDED';
 export type MembershipPlanType = 'DAY' | 'MONTH' | 'YEAR';
 export type MembershipStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
 export type SalesInvoiceStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
@@ -19,13 +11,6 @@ export type PayrollEntryStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'PAID';
 export type SalaryType = 'MONTHLY' | 'DAILY' | 'HOURLY';
 export type HalfShiftPolicy = 'NO_COUNT' | 'HALF_COUNT';
 export type PtAssignmentStatus = 'ACTIVE' | 'ENDED';
-export type MemberCheckInSource = 'QR' | 'STAFF' | 'MANUAL';
-export type PtBookingStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW';
 export type InventoryTransactionType = 'IMPORT' | 'SALE' | 'ADJUSTMENT';
 export type ExpenseStatus =
   | 'DRAFT'
@@ -39,7 +24,6 @@ export type OperatingExpenseCategory =
   | 'SALARY'
   | 'RENT'
   | 'OTHER';
-export type CommissionType = 'PERCENT' | 'FIXED';
 
 export type DemoUser = {
   id: string;
@@ -59,7 +43,6 @@ export type PersonalTrainer = {
   gender: Gender;
   birthDate: string;
   phone: string;
-  email: string;
   address: string;
   status: UserStatus;
   specialties: string[];
@@ -144,7 +127,6 @@ export type Member = {
   gender: Gender;
   birthDate: string;
   phone: string;
-  email: string;
   address: string;
   heightCm: number;
   weightKg: number;
@@ -162,9 +144,7 @@ export type MembershipPlan = {
   type: MembershipPlanType;
   price: number;
   durationDays: number;
-  usageLimit?: number | undefined;
   includesPt: boolean;
-  includedPtSessions: number;
   perks: string[];
   status: 'ON_SALE' | 'OFF_SALE';
 };
@@ -175,30 +155,8 @@ export type MemberMembership = {
   membershipPlanId: string;
   startDate: string;
   endDate: string;
-  remainingSessions?: number | undefined;
   status: MembershipStatus;
   deletedAt?: string | undefined;
-};
-
-export type MemberCheckIn = {
-  id: string;
-  memberId: string;
-  checkedInAt: string;
-  source: MemberCheckInSource;
-  staffedByUserId?: string | undefined;
-  note?: string | undefined;
-};
-
-export type PtBookingSession = {
-  id: string;
-  memberId: string;
-  ptId: string;
-  memberMembershipId?: string | undefined;
-  scheduledStartAt: string;
-  scheduledEndAt: string;
-  status: PtBookingStatus;
-  note?: string | undefined;
-  createdByUserId: string;
 };
 
 export type MemberPtAssignment = {
@@ -208,8 +166,6 @@ export type MemberPtAssignment = {
   memberMembershipId: string;
   assignedFrom: string;
   assignedTo?: string | undefined;
-  commissionType?: CommissionType | undefined;
-  commissionValue?: number | undefined;
   commissionAmount: number;
   status: PtAssignmentStatus;
   note?: string | undefined;
@@ -276,25 +232,11 @@ export type SalesInvoice = {
   cancellationReason?: string | undefined;
 };
 
-export type PaymentTransaction = {
-  id: string;
-  targetType: 'MEMBERSHIP_INVOICE' | 'SALES_INVOICE' | 'OPERATING_EXPENSE';
-  targetId: string;
-  provider: PaymentProvider;
-  method: PaymentMethod;
-  amount: number;
-  status: PaymentTransactionStatus;
-  externalRef?: string | undefined;
-  paidAt?: string | undefined;
-  note?: string | undefined;
-};
-
 export type OperatingExpense = {
   id: string;
   code: string;
   expenseDate: string;
   category: OperatingExpenseCategory;
-  equipmentAssetId?: string | undefined;
   vendorName: string;
   amount: number;
   description: string;
@@ -306,34 +248,6 @@ export type OperatingExpense = {
   rejectedAt?: string | undefined;
   rejectionReason?: string | undefined;
   paidAt?: string | undefined;
-};
-
-export type EquipmentAsset = {
-  id: string;
-  code: string;
-  name: string;
-  category?: string | undefined;
-  purchasedAt: string;
-  purchaseValue: number;
-  status?: string | undefined;
-  condition: string;
-  location?: string | undefined;
-  nextMaintenanceAt?: string | undefined;
-  note: string;
-  deletedAt?: string | undefined;
-};
-
-export type MaintenanceRecord = {
-  id: string;
-  equipmentAssetId: string;
-  maintenanceDate: string;
-  maintenanceType?: string | undefined;
-  description: string;
-  vendorName: string;
-  amount: number;
-  resultStatus?: string | undefined;
-  note?: string | undefined;
-  createdByUserId?: string | undefined;
 };
 
 export type SystemConfig = {
@@ -356,17 +270,12 @@ export type GymManagementDataset = {
   members: Member[];
   membershipPlans: MembershipPlan[];
   memberMemberships: MemberMembership[];
-  memberCheckIns: MemberCheckIn[];
-  ptBookingSessions: PtBookingSession[];
   memberPtAssignments: MemberPtAssignment[];
   membershipInvoices: MembershipInvoice[];
   products: Product[];
   inventoryTransactions: InventoryTransaction[];
   salesInvoices: SalesInvoice[];
-  paymentTransactions: PaymentTransaction[];
   operatingExpenses: OperatingExpense[];
-  equipmentAssets: EquipmentAsset[];
-  maintenanceRecords: MaintenanceRecord[];
   systemConfigs: SystemConfig[];
 };
 
@@ -385,7 +294,6 @@ export type DashboardSummary = {
   totalPtPayroll: number;
   totalOperatingExpense: number;
   lowStockProducts: Product[];
-  maintenanceAlerts: EquipmentAsset[];
 };
 
 export type PtOverviewItem = {

@@ -39,8 +39,9 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
         this.configService = configService;
     }
     async onModuleInit() {
-        await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'
-            ? this.orm.schema.updateSchema()
+        const isLocalSqlite = ((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite';
+        await (isLocalSqlite
+            ? this.orm.schema.refreshDatabase()
             : this.orm.migrator.up());
         if (!this.configService.get(config_key_enum_1.ConfigKey.ENABLE_DEMO_SEED)) {
             this.logger.log('Skipped demo data seed because ENABLE_DEMO_SEED is disabled');
@@ -68,7 +69,10 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             id: member.id,
             code: member.code,
             fullName: member.fullName,
+            gender: member.gender,
+            birthDate: toDateOnly(member.birthDate),
             phone: member.phone,
+            registeredAt: toDateOnly(member.registeredAt),
             status: member.status,
             deletedAt: toOptionalDateTime(member.deletedAt),
         })));
@@ -80,7 +84,6 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             price: toDecimal(plan.price),
             durationDays: plan.durationDays,
             includesPt: plan.includesPt,
-            includedPtSessions: plan.includedPtSessions,
             perks: plan.perks,
             status: plan.status,
         })));
@@ -114,7 +117,10 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
                 ? em.getReference(gym_management_entity_1.UserEntity, trainer.userId)
                 : null,
             fullName: trainer.fullName,
+            gender: trainer.gender,
+            birthDate: toDateOnly(trainer.birthDate),
             phone: trainer.phone,
+            startDate: toDateOnly(trainer.startDate),
             status: trainer.status,
             deletedAt: toOptionalDateTime(trainer.deletedAt),
         })));
@@ -225,10 +231,6 @@ let GymManagementSeedService = GymManagementSeedService_1 = class GymManagementS
             memberMembership: em.getReference(gym_management_entity_1.MemberMembershipEntity, assignment.memberMembershipId),
             assignedFrom: toDateOnly(assignment.assignedFrom),
             assignedTo: assignment.assignedTo ? toDateOnly(assignment.assignedTo) : null,
-            commissionType: assignment.commissionType ?? 'FIXED',
-            commissionValue: assignment.commissionValue === undefined || assignment.commissionValue === null
-                ? null
-                : toDecimal(assignment.commissionValue),
             commissionAmount: toDecimal(assignment.commissionAmount),
             status: assignment.status,
             note: assignment.note ?? null,

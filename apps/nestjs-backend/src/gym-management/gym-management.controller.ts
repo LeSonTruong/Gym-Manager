@@ -80,6 +80,11 @@ class UpdateAccountDto {
   @IsOptional()
   @IsString()
   @MinLength(3)
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
   username?: string;
 
   @IsOptional()
@@ -536,7 +541,7 @@ export class GymManagementController {
   }
 
   @Post("members")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "STAFF")
   async createMember(
     @Body() createMemberDto: CreateMemberDto,
   ): Promise<ApiResponse<MemberRecord>> {
@@ -565,7 +570,7 @@ export class GymManagementController {
   }
 
   @Patch("members/:id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "STAFF")
   async updateMember(
     @Param("id") memberId: string,
     @Body() updateMemberDto: UpdateMemberDto,
@@ -640,7 +645,7 @@ export class GymManagementController {
   }
 
   @Post("member-memberships")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("MEMBERSHIP_CREATE", "member_memberships")
   async createMemberMembership(
     @Body() createMemberMembershipDto: CreateMemberMembershipDto,
@@ -653,7 +658,7 @@ export class GymManagementController {
   }
 
   @Post("member-memberships/:id/renew")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("MEMBERSHIP_RENEW", "member_memberships")
   async renewMemberMembership(
     @Param("id") membershipId: string,
@@ -668,7 +673,7 @@ export class GymManagementController {
   }
 
   @Post("member-memberships/:id/cancel")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("MEMBERSHIP_CANCEL", "member_memberships")
   async cancelMemberMembership(
     @Param("id") membershipId: string,
@@ -705,7 +710,7 @@ export class GymManagementController {
   }
 
   @Post("member-assignments/:id/end")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("MEMBER_ASSIGNMENT_END", "member_pt_assignments")
   async endMemberAssignment(
     @Param("id") assignmentId: string,
@@ -779,7 +784,7 @@ export class GymManagementController {
   }
 
   @Post("inventory/import")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "STAFF")
   @AuditAction("INVENTORY_IMPORT", "inventory_transactions")
   async importInventory(
     @Body() inventoryImportDto: InventoryImportDto,

@@ -4,7 +4,6 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
-  IsEmail,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -36,10 +35,6 @@ export class CreatePersonalTrainerDto {
 
   @IsString()
   phone!: string;
-
-  @IsOptional()
-  @IsEmail()
-  email?: string;
 
   @IsOptional()
   @IsString()
@@ -89,10 +84,6 @@ export class CreateMemberDto {
 
   @IsString()
   phone!: string;
-
-  @IsOptional()
-  @IsEmail()
-  email?: string;
 
   @IsOptional()
   @IsString()
@@ -146,16 +137,8 @@ export class CreateMembershipPlanDto {
   @Min(1)
   durationDays!: number;
 
-  @IsOptional()
-  @IsInt()
-  usageLimit?: number;
-
   @IsBoolean()
   includesPt!: boolean;
-
-  @IsInt()
-  @Min(0)
-  includedPtSessions!: number;
 
   @IsArray()
   @IsString({ each: true })
@@ -200,46 +183,6 @@ export class UpdateProductDto extends PartialType(CreateProductDto) {
 
 }
 
-export class CreateEquipmentDto {
-  @IsString()
-  code!: string;
-
-  @IsString()
-  name!: string;
-
-  @IsOptional()
-  @IsString()
-  category?: string;
-
-  @IsDateString()
-  purchasedAt!: string;
-
-  @IsNumber()
-  purchaseValue!: number;
-
-  @IsOptional()
-  @IsString()
-  status?: string;
-
-  @IsString()
-  condition!: string;
-
-  @IsOptional()
-  @IsString()
-  location?: string;
-
-  @IsOptional()
-  @IsDateString()
-  nextMaintenanceAt?: string;
-
-  @IsString()
-  note!: string;
-}
-
-export class UpdateEquipmentDto extends PartialType(CreateEquipmentDto) {
-
-}
-
 export class CreateOperatingExpenseDto {
   @IsString()
   code!: string;
@@ -249,10 +192,6 @@ export class CreateOperatingExpenseDto {
 
   @IsString()
   category!: string;
-
-  @IsOptional()
-  @IsString()
-  equipmentAssetId?: string;
 
   @IsString()
   vendorName!: string;
@@ -392,6 +331,10 @@ export class CreateMemberMembershipDto {
   @IsDateString()
   startDate!: string;
 
+  @IsOptional()
+  @IsString()
+  ptId?: string;
+
   @IsString()
   paymentMethod!: string;
 
@@ -404,6 +347,10 @@ export class RenewMemberMembershipDto {
   @IsOptional()
   @IsDateString()
   startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  ptId?: string;
 
   @IsOptional()
   @IsString()
@@ -429,18 +376,6 @@ export class CreateMemberAssignmentDto {
 
   @IsDateString()
   assignedFrom!: string;
-
-  @IsOptional()
-  @IsString()
-  commissionType?: string;
-
-  @IsOptional()
-  @IsNumber()
-  commissionValue?: number;
-
-  @IsOptional()
-  @IsNumber()
-  commissionAmount?: number;
 
   @IsOptional()
   @IsString()
@@ -534,45 +469,4 @@ export class InventoryImportDto {
   @IsOptional()
   @IsString()
   note?: string;
-}
-
-export class CreateMaintenanceDto {
-  @IsString()
-  equipmentAssetId!: string;
-
-  @IsOptional()
-  @IsString()
-  maintenanceType?: string;
-
-  @IsDateString()
-  maintenanceDate!: string;
-
-  @IsString()
-  description!: string;
-
-  @IsString()
-  vendorName!: string;
-
-  @IsNumber()
-  amount!: number;
-
-  @IsOptional()
-  @IsString()
-  resultStatus?: string;
-
-  @IsOptional()
-  @IsString()
-  note?: string;
-
-  @IsOptional()
-  @IsString()
-  equipmentStatus?: string;
-
-  @IsOptional()
-  @IsString()
-  equipmentCondition?: string;
-
-  @IsOptional()
-  @IsDateString()
-  nextMaintenanceAt?: string;
 }

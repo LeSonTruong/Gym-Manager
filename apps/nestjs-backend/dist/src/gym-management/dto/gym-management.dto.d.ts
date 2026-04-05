@@ -5,7 +5,6 @@ export declare class CreatePersonalTrainerDto {
     gender?: string;
     birthDate?: string;
     phone: string;
-    email?: string;
     address?: string;
     status?: string;
     specialties?: string[];
@@ -22,7 +21,6 @@ export declare class CreateMemberDto {
     gender?: string;
     birthDate?: string;
     phone: string;
-    email?: string;
     address?: string;
     heightCm?: number;
     weightKg?: number;
@@ -40,9 +38,7 @@ export declare class CreateMembershipPlanDto {
     type: string;
     price: number;
     durationDays: number;
-    usageLimit?: number;
     includesPt: boolean;
-    includedPtSessions: number;
     perks: string[];
     status: string;
 }
@@ -62,26 +58,10 @@ export declare class CreateProductDto {
 declare const UpdateProductDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateProductDto>>;
 export declare class UpdateProductDto extends UpdateProductDto_base {
 }
-export declare class CreateEquipmentDto {
-    code: string;
-    name: string;
-    category?: string;
-    purchasedAt: string;
-    purchaseValue: number;
-    status?: string;
-    condition: string;
-    location?: string;
-    nextMaintenanceAt?: string;
-    note: string;
-}
-declare const UpdateEquipmentDto_base: import("@nestjs/mapped-types").MappedType<Partial<CreateEquipmentDto>>;
-export declare class UpdateEquipmentDto extends UpdateEquipmentDto_base {
-}
 export declare class CreateOperatingExpenseDto {
     code: string;
     expenseDate: string;
     category: string;
-    equipmentAssetId?: string;
     vendorName: string;
     amount: number;
     description: string;
@@ -137,11 +117,13 @@ export declare class CreateMemberMembershipDto {
     memberId: string;
     membershipPlanId: string;
     startDate: string;
+    ptId?: string;
     paymentMethod: string;
     totalAmount?: number;
 }
 export declare class RenewMemberMembershipDto {
     startDate?: string;
+    ptId?: string;
     paymentMethod?: string;
 }
 export declare class CancelMemberMembershipDto {
@@ -152,9 +134,6 @@ export declare class CreateMemberAssignmentDto {
     ptId: string;
     memberMembershipId: string;
     assignedFrom: string;
-    commissionType?: string;
-    commissionValue?: number;
-    commissionAmount?: number;
     note?: string;
 }
 export declare class EndMemberAssignmentDto {
@@ -189,18 +168,5 @@ export declare class InventoryImportDto {
     transactionDate?: string;
     referenceCode?: string;
     note?: string;
-}
-export declare class CreateMaintenanceDto {
-    equipmentAssetId: string;
-    maintenanceType?: string;
-    maintenanceDate: string;
-    description: string;
-    vendorName: string;
-    amount: number;
-    resultStatus?: string;
-    note?: string;
-    equipmentStatus?: string;
-    equipmentCondition?: string;
-    nextMaintenanceAt?: string;
 }
 export {};

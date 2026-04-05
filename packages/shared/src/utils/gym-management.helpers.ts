@@ -1,7 +1,6 @@
 import type {
   AttendanceLog,
   DashboardSummary,
-  EquipmentAsset,
   ExpenseReport,
   GymManagementDataset,
   GymManagementSnapshot,
@@ -108,13 +107,6 @@ export function findOperatingExpenseById(
   return dataset.operatingExpenses.find((expense) => expense.id === expenseId);
 }
 
-export function findEquipmentAssetById(
-  dataset: GymManagementDataset,
-  equipmentAssetId: string,
-): EquipmentAsset | undefined {
-  return dataset.equipmentAssets.find((asset) => asset.id === equipmentAssetId);
-}
-
 export function getActiveMembershipForMember(
   dataset: GymManagementDataset,
   memberId: string,
@@ -143,7 +135,6 @@ function buildDashboardSummary(dataset: GymManagementDataset): DashboardSummary 
   const confirmedSalesInvoices = dataset.salesInvoices.filter((invoice) => isConfirmedSalesInvoice(invoice));
   const activeMemberships = dataset.memberMemberships.filter((membership) => membership.status === 'ACTIVE');
   const lowStockProducts = dataset.products.filter((product) => product.stockOnHand <= product.minimumStockLevel);
-  const maintenanceAlerts: EquipmentAsset[] = [];
   const membershipTypes = ['DAY', 'MONTH', 'YEAR'] as const;
   const activeMembershipsByType = structuredClone(zeroActiveMembershipsByType);
 
@@ -202,7 +193,6 @@ function buildDashboardSummary(dataset: GymManagementDataset): DashboardSummary 
       dataset.operatingExpenses.filter((expense) => isExpenseCounted(expense)).map((expense) => expense.amount),
     ),
     lowStockProducts,
-    maintenanceAlerts,
   };
 }
 

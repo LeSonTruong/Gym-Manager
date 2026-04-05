@@ -54,10 +54,17 @@ __decorate([
     __metadata("design:type", String)
 ], LogoutDto.prototype, "refreshToken", void 0);
 class UpdateAccountDto {
+    fullName;
     username;
     currentPassword;
     newPassword;
 }
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(3),
+    __metadata("design:type", String)
+], UpdateAccountDto.prototype, "fullName", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -157,8 +164,9 @@ let GymManagementController = class GymManagementController {
         const ptDetail = await this.gymManagementService.getPtDetail(scopedPtId);
         return createResponse(ptDetail.attendance);
     }
-    async getAttendanceByPt(ptId) {
-        const ptDetail = await this.gymManagementService.getPtDetail(ptId);
+    async getAttendanceByPt(ptId, currentUser) {
+        const scopedPtId = this.resolveScopedPtId(currentUser, ptId);
+        const ptDetail = await this.gymManagementService.getPtDetail(scopedPtId);
         return createResponse(ptDetail.attendance);
     }
     async getPayrollPeriods() {
@@ -344,6 +352,12 @@ let GymManagementController = class GymManagementController {
         return createResponse(await this.gymManagementService.cleanupSystemConfigTrash());
     }
     resolveScopedPtId(currentUser, requestedPtId) {
+        if (currentUser.role === "STAFF" && currentUser.ptId) {
+            if (requestedPtId && requestedPtId !== currentUser.ptId) {
+                throw new common_1.ForbiddenException("Staff account can only access attendance of its own PT profile");
+            }
+            return currentUser.ptId;
+        }
         if (!requestedPtId) {
             throw new common_1.ForbiddenException("ptId is required");
         }
@@ -533,8 +547,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)("attendance/pt/:ptId"),
     __param(0, (0, common_1.Param)("ptId")),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], GymManagementController.prototype, "getAttendanceByPt", null);
 __decorate([
@@ -614,7 +629,7 @@ __decorate([
 ], GymManagementController.prototype, "getMembers", null);
 __decorate([
     (0, common_1.Post)("members"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [gym_management_dto_1.CreateMemberDto]),
@@ -636,7 +651,7 @@ __decorate([
 ], GymManagementController.prototype, "getMemberAssignments", null);
 __decorate([
     (0, common_1.Patch)("members/:id"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -690,7 +705,7 @@ __decorate([
 ], GymManagementController.prototype, "getMemberMemberships", null);
 __decorate([
     (0, common_1.Post)("member-memberships"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     (0, audit_action_decorator_1.AuditAction)("MEMBERSHIP_CREATE", "member_memberships"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -699,7 +714,7 @@ __decorate([
 ], GymManagementController.prototype, "createMemberMembership", null);
 __decorate([
     (0, common_1.Post)("member-memberships/:id/renew"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     (0, audit_action_decorator_1.AuditAction)("MEMBERSHIP_RENEW", "member_memberships"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
@@ -709,7 +724,7 @@ __decorate([
 ], GymManagementController.prototype, "renewMemberMembership", null);
 __decorate([
     (0, common_1.Post)("member-memberships/:id/cancel"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     (0, audit_action_decorator_1.AuditAction)("MEMBERSHIP_CANCEL", "member_memberships"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
@@ -734,7 +749,7 @@ __decorate([
 ], GymManagementController.prototype, "createMemberAssignment", null);
 __decorate([
     (0, common_1.Post)("member-assignments/:id/end"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     (0, audit_action_decorator_1.AuditAction)("MEMBER_ASSIGNMENT_END", "member_pt_assignments"),
     __param(0, (0, common_1.Param)("id")),
     __param(1, (0, common_1.Body)()),
@@ -787,7 +802,7 @@ __decorate([
 ], GymManagementController.prototype, "getInventoryTransactions", null);
 __decorate([
     (0, common_1.Post)("inventory/import"),
-    (0, roles_decorator_1.Roles)("ADMIN"),
+    (0, roles_decorator_1.Roles)("ADMIN", "STAFF"),
     (0, audit_action_decorator_1.AuditAction)("INVENTORY_IMPORT", "inventory_transactions"),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),

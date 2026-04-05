@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SystemConfigEntity = exports.AuditLogEntity = exports.MaintenanceRecordEntity = exports.OperatingExpenseEntity = exports.EquipmentAssetEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.InventoryTransactionEntity = exports.ProductEntity = exports.MembershipInvoiceEntity = exports.MemberPtAssignmentEntity = exports.MemberMembershipEntity = exports.MembershipPlanEntity = exports.MemberEntity = exports.PayrollEntryEntity = exports.PayrollPeriodEntity = exports.AttendanceLogEntity = exports.PtContractEntity = exports.PersonalTrainerEntity = exports.RefreshTokenEntity = exports.UserEntity = void 0;
+exports.SystemConfigEntity = exports.AuditLogEntity = exports.OperatingExpenseEntity = exports.SalesInvoiceItemEntity = exports.SalesInvoiceEntity = exports.InventoryTransactionEntity = exports.ProductEntity = exports.MembershipInvoiceEntity = exports.MemberPtAssignmentEntity = exports.MemberMembershipEntity = exports.MembershipPlanEntity = exports.MemberEntity = exports.PayrollEntryEntity = exports.PayrollPeriodEntity = exports.AttendanceLogEntity = exports.PtContractEntity = exports.PersonalTrainerEntity = exports.RefreshTokenEntity = exports.UserEntity = void 0;
 const core_1 = require("@mikro-orm/core");
 const base_entity_1 = require("../../common/entities/base.entity");
 let UserEntity = class UserEntity extends base_entity_1.BaseEntity {
@@ -26,7 +26,7 @@ __decorate([
     __metadata("design:type", String)
 ], UserEntity.prototype, "fullName", void 0);
 __decorate([
-    (0, core_1.Property)({ length: 180, unique: true, fieldName: 'email' }),
+    (0, core_1.Property)({ length: 180, unique: true }),
     __metadata("design:type", String)
 ], UserEntity.prototype, "username", void 0);
 __decorate([
@@ -93,7 +93,10 @@ let PersonalTrainerEntity = class PersonalTrainerEntity extends base_entity_1.Ba
     code;
     user;
     fullName;
+    gender;
+    birthDate;
     phone;
+    startDate;
     status;
     deletedAt;
 };
@@ -111,9 +114,21 @@ __decorate([
     __metadata("design:type", String)
 ], PersonalTrainerEntity.prototype, "fullName", void 0);
 __decorate([
+    (0, core_1.Property)({ length: 30, default: 'OTHER' }),
+    __metadata("design:type", String)
+], PersonalTrainerEntity.prototype, "gender", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', fieldName: 'birth_date' }),
+    __metadata("design:type", Date)
+], PersonalTrainerEntity.prototype, "birthDate", void 0);
+__decorate([
     (0, core_1.Property)({ length: 40 }),
     __metadata("design:type", String)
 ], PersonalTrainerEntity.prototype, "phone", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', fieldName: 'start_date' }),
+    __metadata("design:type", Date)
+], PersonalTrainerEntity.prototype, "startDate", void 0);
 __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
@@ -417,7 +432,10 @@ exports.PayrollEntryEntity = PayrollEntryEntity = __decorate([
 let MemberEntity = class MemberEntity extends base_entity_1.BaseEntity {
     code;
     fullName;
+    gender;
+    birthDate;
     phone;
+    registeredAt;
     status;
     deletedAt;
 };
@@ -431,9 +449,21 @@ __decorate([
     __metadata("design:type", String)
 ], MemberEntity.prototype, "fullName", void 0);
 __decorate([
+    (0, core_1.Property)({ length: 30, default: 'OTHER' }),
+    __metadata("design:type", String)
+], MemberEntity.prototype, "gender", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', fieldName: 'birth_date' }),
+    __metadata("design:type", Date)
+], MemberEntity.prototype, "birthDate", void 0);
+__decorate([
     (0, core_1.Property)({ length: 40 }),
     __metadata("design:type", String)
 ], MemberEntity.prototype, "phone", void 0);
+__decorate([
+    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', fieldName: 'registered_at' }),
+    __metadata("design:type", Date)
+], MemberEntity.prototype, "registeredAt", void 0);
 __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
@@ -456,9 +486,7 @@ let MembershipPlanEntity = class MembershipPlanEntity extends base_entity_1.Base
     type;
     price;
     durationDays;
-    usageLimit;
     includesPt;
-    includedPtSessions;
     perks;
     status;
 };
@@ -484,17 +512,9 @@ __decorate([
     __metadata("design:type", Number)
 ], MembershipPlanEntity.prototype, "durationDays", void 0);
 __decorate([
-    (0, core_1.Property)({ nullable: true }),
-    __metadata("design:type", Object)
-], MembershipPlanEntity.prototype, "usageLimit", void 0);
-__decorate([
     (0, core_1.Property)(),
     __metadata("design:type", Boolean)
 ], MembershipPlanEntity.prototype, "includesPt", void 0);
-__decorate([
-    (0, core_1.Property)(),
-    __metadata("design:type", Number)
-], MembershipPlanEntity.prototype, "includedPtSessions", void 0);
 __decorate([
     (0, core_1.Property)({ type: core_1.types.json }),
     __metadata("design:type", Array)
@@ -511,7 +531,6 @@ let MemberMembershipEntity = class MemberMembershipEntity extends base_entity_1.
     membershipPlan;
     startDate;
     endDate;
-    remainingSessions;
     status;
     deletedAt;
 };
@@ -532,10 +551,6 @@ __decorate([
     (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
     __metadata("design:type", Date)
 ], MemberMembershipEntity.prototype, "endDate", void 0);
-__decorate([
-    (0, core_1.Property)({ nullable: true }),
-    __metadata("design:type", Object)
-], MemberMembershipEntity.prototype, "remainingSessions", void 0);
 __decorate([
     (0, core_1.Property)({ length: 30 }),
     __metadata("design:type", String)
@@ -558,8 +573,6 @@ let MemberPtAssignmentEntity = class MemberPtAssignmentEntity extends base_entit
     memberMembership;
     assignedFrom;
     assignedTo;
-    commissionType;
-    commissionValue;
     commissionAmount;
     status;
     note;
@@ -585,20 +598,6 @@ __decorate([
     (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', nullable: true }),
     __metadata("design:type", Object)
 ], MemberPtAssignmentEntity.prototype, "assignedTo", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 20, fieldName: 'commission_type', nullable: true }),
-    __metadata("design:type", Object)
-], MemberPtAssignmentEntity.prototype, "commissionType", void 0);
-__decorate([
-    (0, core_1.Property)({
-        type: core_1.types.decimal,
-        precision: 15,
-        scale: 2,
-        nullable: true,
-        fieldName: 'commission_value',
-    }),
-    __metadata("design:type", Object)
-], MemberPtAssignmentEntity.prototype, "commissionValue", void 0);
 __decorate([
     (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
     __metadata("design:type", String)
@@ -859,77 +858,10 @@ __decorate([
 exports.SalesInvoiceItemEntity = SalesInvoiceItemEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'sales_invoice_items' })
 ], SalesInvoiceItemEntity);
-let EquipmentAssetEntity = class EquipmentAssetEntity extends base_entity_1.BaseEntity {
-    code;
-    name;
-    category;
-    purchasedAt;
-    purchaseValue;
-    status;
-    condition;
-    location;
-    nextMaintenanceAt;
-    note;
-    deletedAt;
-};
-exports.EquipmentAssetEntity = EquipmentAssetEntity;
-__decorate([
-    (0, core_1.Property)({ length: 40, unique: true }),
-    __metadata("design:type", String)
-], EquipmentAssetEntity.prototype, "code", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 160 }),
-    __metadata("design:type", String)
-], EquipmentAssetEntity.prototype, "name", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 120, nullable: true }),
-    __metadata("design:type", Object)
-], EquipmentAssetEntity.prototype, "category", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
-], EquipmentAssetEntity.prototype, "purchasedAt", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
-    __metadata("design:type", String)
-], EquipmentAssetEntity.prototype, "purchaseValue", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 30, fieldName: 'status', nullable: true }),
-    __metadata("design:type", Object)
-], EquipmentAssetEntity.prototype, "status", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 40, fieldName: 'condition_status' }),
-    __metadata("design:type", String)
-], EquipmentAssetEntity.prototype, "condition", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 160, nullable: true }),
-    __metadata("design:type", Object)
-], EquipmentAssetEntity.prototype, "location", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date', nullable: true }),
-    __metadata("design:type", Object)
-], EquipmentAssetEntity.prototype, "nextMaintenanceAt", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.text }),
-    __metadata("design:type", String)
-], EquipmentAssetEntity.prototype, "note", void 0);
-__decorate([
-    (0, core_1.Property)({
-        type: core_1.types.datetime,
-        columnType: 'timestamp',
-        nullable: true,
-        fieldName: 'deleted_at',
-    }),
-    __metadata("design:type", Object)
-], EquipmentAssetEntity.prototype, "deletedAt", void 0);
-exports.EquipmentAssetEntity = EquipmentAssetEntity = __decorate([
-    (0, core_1.Entity)({ tableName: 'equipment_assets' })
-], EquipmentAssetEntity);
 let OperatingExpenseEntity = class OperatingExpenseEntity extends base_entity_1.BaseEntity {
     code;
     expenseDate;
     category;
-    equipmentAsset;
     vendorName;
     amount;
     description;
@@ -955,10 +887,6 @@ __decorate([
     (0, core_1.Property)({ length: 40 }),
     __metadata("design:type", String)
 ], OperatingExpenseEntity.prototype, "category", void 0);
-__decorate([
-    (0, core_1.ManyToOne)(() => EquipmentAssetEntity, { fieldName: 'equipment_asset_id', nullable: true }),
-    __metadata("design:type", Object)
-], OperatingExpenseEntity.prototype, "equipmentAsset", void 0);
 __decorate([
     (0, core_1.Property)({ length: 160 }),
     __metadata("design:type", String)
@@ -1006,57 +934,6 @@ __decorate([
 exports.OperatingExpenseEntity = OperatingExpenseEntity = __decorate([
     (0, core_1.Entity)({ tableName: 'operating_expenses' })
 ], OperatingExpenseEntity);
-let MaintenanceRecordEntity = class MaintenanceRecordEntity extends base_entity_1.BaseEntity {
-    equipmentAsset;
-    maintenanceType;
-    maintenanceDate;
-    description;
-    vendorName;
-    amount;
-    resultStatus;
-    note;
-    createdByUser;
-};
-exports.MaintenanceRecordEntity = MaintenanceRecordEntity;
-__decorate([
-    (0, core_1.ManyToOne)(() => EquipmentAssetEntity, { fieldName: 'equipment_asset_id' }),
-    __metadata("design:type", EquipmentAssetEntity)
-], MaintenanceRecordEntity.prototype, "equipmentAsset", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 30, fieldName: 'maintenance_type', nullable: true }),
-    __metadata("design:type", Object)
-], MaintenanceRecordEntity.prototype, "maintenanceType", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.date, columnType: 'date' }),
-    __metadata("design:type", Date)
-], MaintenanceRecordEntity.prototype, "maintenanceDate", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.text }),
-    __metadata("design:type", String)
-], MaintenanceRecordEntity.prototype, "description", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 160 }),
-    __metadata("design:type", String)
-], MaintenanceRecordEntity.prototype, "vendorName", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.decimal, precision: 15, scale: 2 }),
-    __metadata("design:type", String)
-], MaintenanceRecordEntity.prototype, "amount", void 0);
-__decorate([
-    (0, core_1.Property)({ length: 30, fieldName: 'result_status', nullable: true }),
-    __metadata("design:type", Object)
-], MaintenanceRecordEntity.prototype, "resultStatus", void 0);
-__decorate([
-    (0, core_1.Property)({ type: core_1.types.text, nullable: true }),
-    __metadata("design:type", Object)
-], MaintenanceRecordEntity.prototype, "note", void 0);
-__decorate([
-    (0, core_1.ManyToOne)(() => UserEntity, { fieldName: 'created_by_user_id', nullable: true }),
-    __metadata("design:type", Object)
-], MaintenanceRecordEntity.prototype, "createdByUser", void 0);
-exports.MaintenanceRecordEntity = MaintenanceRecordEntity = __decorate([
-    (0, core_1.Entity)({ tableName: 'maintenance_records' })
-], MaintenanceRecordEntity);
 let AuditLogEntity = class AuditLogEntity extends base_entity_1.BaseEntity {
     action;
     resource;

@@ -18,6 +18,60 @@
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
       "exportedName": "createMembershipAction"
     },
+    "4011ca1298b550cef5da37a0e65914002514ab4f0d": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "cleanupSystemConfigTrashAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "cleanupSystemConfigTrashAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "cleanupSystemConfigTrashAction"
+    },
+    "4018e05a974ebfb78d2f0b3c7c0a8b7e27ebadaaae": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "setMemberStatusAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "setMemberStatusAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "setMemberStatusAction"
+    },
+    "401ed09fcce93cebebf2cea9e25f72c1e4509fb31c": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": 35660,
+          "async": false,
+          "exportedName": "setPersonalTrainerStatusAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        },
+        "app/[locale]/page": {
+          "moduleId": 87998,
+          "async": false,
+          "exportedName": "setPersonalTrainerStatusAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts",
+      "exportedName": "setPersonalTrainerStatusAction"
+    },
     "4039a0710dbc50f1fbe882668436fa259fd96acff8": {
       "workers": {
         "app/[locale]/[...slug]/page": {

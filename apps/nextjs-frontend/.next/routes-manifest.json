@@ -31,6 +31,15 @@
       "namedRegex": "^/(?<nxtPlocale>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/[locale]/reports/[reportType]/download",
+      "regex": "^/([^/]+?)/reports/([^/]+?)/download(?:/)?$",
+      "routeKeys": {
+        "nxtPlocale": "nxtPlocale",
+        "nxtPreportType": "nxtPreportType"
+      },
+      "namedRegex": "^/(?<nxtPlocale>[^/]+?)/reports/(?<nxtPreportType>[^/]+?)/download(?:/)?$"
+    },
+    {
       "page": "/[locale]/[...slug]",
       "regex": "^/([^/]+?)/(.+?)(?:/)?$",
       "routeKeys": {

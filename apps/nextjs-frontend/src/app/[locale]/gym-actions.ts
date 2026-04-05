@@ -241,6 +241,7 @@ export async function createMembershipAction(formData: FormData): Promise<void> 
     memberId: getString(formData, "memberId"),
     membershipPlanId: getString(formData, "membershipPlanId"),
     startDate: getString(formData, "startDate"),
+    ptId: getOptionalString(formData, "ptId"),
     paymentMethod: getString(formData, "paymentMethod"),
   });
   revalidatePath(`/${locale}/members/memberships`);
@@ -254,6 +255,7 @@ export async function renewMembershipAction(formData: FormData): Promise<void> {
 
   await postToBackend(locale, `/api/member-memberships/${membershipId}/renew`, {
     startDate: getOptionalString(formData, "startDate"),
+    ptId: getOptionalString(formData, "ptId"),
     paymentMethod: getOptionalString(formData, "paymentMethod"),
   });
   revalidatePath(`/${locale}/members/memberships`);
@@ -284,7 +286,10 @@ export async function createPersonalTrainerAction(formData: FormData): Promise<v
   await postToBackend(locale, "/api/pts", {
     code: getString(formData, "code"),
     fullName: getString(formData, "fullName"),
+    gender: getOptionalString(formData, "gender"),
+    birthDate: getOptionalString(formData, "birthDate"),
     phone: getString(formData, "phone"),
+    startDate: getOptionalString(formData, "startDate"),
   });
   revalidatePath(`/${locale}/pts`);
 }
@@ -299,7 +304,26 @@ export async function updatePersonalTrainerAction(formData: FormData): Promise<v
     {
       code: getString(formData, "code"),
       fullName: getString(formData, "fullName"),
+      gender: getOptionalString(formData, "gender"),
+      birthDate: getOptionalString(formData, "birthDate"),
       phone: getString(formData, "phone"),
+      status: getString(formData, "status"),
+      startDate: getOptionalString(formData, "startDate"),
+    },
+    "PATCH",
+  );
+  revalidatePath(`/${locale}/pts`);
+  revalidatePath(`/${locale}/pts/${ptId}`);
+}
+
+export async function setPersonalTrainerStatusAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const ptId = getString(formData, "ptId");
+
+  await postToBackend(
+    locale,
+    `/api/pts/${ptId}`,
+    {
       status: getString(formData, "status"),
     },
     "PATCH",
@@ -322,7 +346,10 @@ export async function createMemberAction(formData: FormData): Promise<void> {
   await postToBackend(locale, "/api/members", {
     code: getString(formData, "code"),
     fullName: getString(formData, "fullName"),
+    gender: getOptionalString(formData, "gender"),
+    birthDate: getOptionalString(formData, "birthDate"),
     phone: getString(formData, "phone"),
+    registeredAt: getOptionalString(formData, "registeredAt"),
   });
   revalidatePath(`/${locale}/members`);
 }
@@ -337,7 +364,26 @@ export async function updateMemberAction(formData: FormData): Promise<void> {
     {
       code: getString(formData, "code"),
       fullName: getString(formData, "fullName"),
+      gender: getOptionalString(formData, "gender"),
+      birthDate: getOptionalString(formData, "birthDate"),
       phone: getString(formData, "phone"),
+      status: getString(formData, "status"),
+      registeredAt: getOptionalString(formData, "registeredAt"),
+    },
+    "PATCH",
+  );
+  revalidatePath(`/${locale}/members`);
+  revalidatePath(`/${locale}/members/${memberId}`);
+}
+
+export async function setMemberStatusAction(formData: FormData): Promise<void> {
+  const locale = getString(formData, "locale") || "en";
+  const memberId = getString(formData, "memberId");
+
+  await postToBackend(
+    locale,
+    `/api/members/${memberId}`,
+    {
       status: getString(formData, "status"),
     },
     "PATCH",
@@ -364,9 +410,7 @@ export async function createMembershipPlanAction(formData: FormData): Promise<vo
     type: getString(formData, "type"),
     price: getNumberValue(formData, "price"),
     durationDays: getNumberValue(formData, "durationDays"),
-    usageLimit: getOptionalNumberValue(formData, "usageLimit"),
     includesPt: getBooleanValue(formData, "includesPt"),
-    includedPtSessions: getNumberValue(formData, "includedPtSessions"),
     perks: getLineList(formData, "perks"),
     status: getString(formData, "status"),
   });
@@ -386,9 +430,7 @@ export async function updateMembershipPlanAction(formData: FormData): Promise<vo
       type: getString(formData, "type"),
       price: getNumberValue(formData, "price"),
       durationDays: getNumberValue(formData, "durationDays"),
-      usageLimit: getOptionalNumberValue(formData, "usageLimit"),
       includesPt: getBooleanValue(formData, "includesPt"),
-      includedPtSessions: getNumberValue(formData, "includedPtSessions"),
       perks: getLineList(formData, "perks"),
       status: getString(formData, "status"),
     },
@@ -482,6 +524,7 @@ export async function updateAccountAction(formData: FormData): Promise<void> {
     locale,
     "/api/auth/account",
     {
+      fullName: getOptionalString(formData, "fullName"),
       username: getOptionalString(formData, "username"),
       currentPassword: getOptionalString(formData, "currentPassword"),
       newPassword: getOptionalString(formData, "newPassword"),
@@ -569,8 +612,7 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
     ptId: getString(formData, "ptId"),
     memberMembershipId: getString(formData, "memberMembershipId"),
     assignedFrom: getString(formData, "assignedFrom"),
-    commissionType: getOptionalString(formData, "commissionType") ?? "PERCENT",
-    commissionValue: getOptionalNumberValue(formData, "commissionValue") ?? 10,
+    note: getOptionalString(formData, "note"),
   });
   revalidatePath(`/${locale}/member-assignments`);
   revalidatePath(`/${locale}/members`);

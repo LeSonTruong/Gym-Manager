@@ -225,7 +225,7 @@ function NavigationGroup({
               className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${active
                 ? 'bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.28)]'
                 : 'text-slate-600 hover:bg-white/70 hover:text-slate-950'
-                } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/70`}
             >
               <span className={`text-sm ${item.iconClassName}`} />
               <span className="font-medium">{item.label}</span>
@@ -337,7 +337,7 @@ export function AppShell({
                   className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-wide transition ${preset === 'professional'
                     ? 'bg-[var(--accent-600)] text-white shadow-[0_10px_24px_rgba(15,23,42,0.2)]'
                     : 'text-slate-600 hover:bg-slate-100'
-                    }`}
+                  }`}
                   onClick={() => {
                     applyPreset('professional');
                   }}
@@ -349,7 +349,7 @@ export function AppShell({
                   className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tracking-wide transition ${preset === 'energetic'
                     ? 'bg-[var(--accent-600)] text-white shadow-[0_10px_24px_rgba(15,23,42,0.2)]'
                     : 'text-slate-600 hover:bg-slate-100'
-                    }`}
+                  }`}
                   onClick={() => {
                     applyPreset('energetic');
                   }}
@@ -404,7 +404,7 @@ export function AppShell({
                     className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition ${active
                       ? 'border-slate-900 bg-[linear-gradient(120deg,#0f172a_0%,#1e293b_100%)] text-white shadow-[0_10px_24px_rgba(15,23,42,0.24)]'
                       : 'border-slate-200 bg-white/90 text-slate-700 hover:bg-slate-50'
-                      }`}
+                    }`}
                   >
                     {item.label}
                   </Link>

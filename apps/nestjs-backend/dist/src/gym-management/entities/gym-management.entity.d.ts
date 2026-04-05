@@ -19,7 +19,10 @@ export declare class PersonalTrainerEntity extends BaseEntity {
     code: string;
     user?: UserEntity | null;
     fullName: string;
+    gender: string;
+    birthDate: Date;
     phone: string;
+    startDate: Date;
     status: string;
     deletedAt?: Date | null;
 }
@@ -86,7 +89,10 @@ export declare class PayrollEntryEntity extends BaseEntity {
 export declare class MemberEntity extends BaseEntity {
     code: string;
     fullName: string;
+    gender: string;
+    birthDate: Date;
     phone: string;
+    registeredAt: Date;
     status: string;
     deletedAt?: Date | null;
 }
@@ -96,9 +102,7 @@ export declare class MembershipPlanEntity extends BaseEntity {
     type: string;
     price: string;
     durationDays: number;
-    usageLimit?: number | null;
     includesPt: boolean;
-    includedPtSessions: number;
     perks: string[];
     status: string;
 }
@@ -107,7 +111,6 @@ export declare class MemberMembershipEntity extends BaseEntity {
     membershipPlan: MembershipPlanEntity;
     startDate: Date;
     endDate: Date;
-    remainingSessions?: number | null;
     status: string;
     deletedAt?: Date | null;
 }
@@ -117,8 +120,6 @@ export declare class MemberPtAssignmentEntity extends BaseEntity {
     memberMembership: MemberMembershipEntity;
     assignedFrom: Date;
     assignedTo?: Date | null;
-    commissionType?: string | null;
-    commissionValue?: string | null;
     commissionAmount: string;
     status: string;
     note?: string | null;
@@ -175,24 +176,10 @@ export declare class SalesInvoiceItemEntity extends BaseEntity {
     unitCost: string;
     lineTotal: string;
 }
-export declare class EquipmentAssetEntity extends BaseEntity {
-    code: string;
-    name: string;
-    category?: string | null;
-    purchasedAt: Date;
-    purchaseValue: string;
-    status?: string | null;
-    condition: string;
-    location?: string | null;
-    nextMaintenanceAt?: Date | null;
-    note: string;
-    deletedAt?: Date | null;
-}
 export declare class OperatingExpenseEntity extends BaseEntity {
     code: string;
     expenseDate: Date;
     category: string;
-    equipmentAsset?: EquipmentAssetEntity | null;
     vendorName: string;
     amount: string;
     description: string;
@@ -204,17 +191,6 @@ export declare class OperatingExpenseEntity extends BaseEntity {
     paidAt?: Date | null;
     attachmentUrl?: string | null;
     status: string;
-}
-export declare class MaintenanceRecordEntity extends BaseEntity {
-    equipmentAsset: EquipmentAssetEntity;
-    maintenanceType?: string | null;
-    maintenanceDate: Date;
-    description: string;
-    vendorName: string;
-    amount: string;
-    resultStatus?: string | null;
-    note?: string | null;
-    createdByUser?: UserEntity | null;
 }
 export declare class AuditLogEntity extends BaseEntity {
     action: string;

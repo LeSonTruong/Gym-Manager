@@ -55,8 +55,11 @@ export class GymManagementSeedService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    await (((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite'
-      ? this.orm.schema.updateSchema()
+    const isLocalSqlite =
+      ((globalThis.process?.env.POSTGRES_HOST) ?? '').toLowerCase() === 'sqlite';
+
+    await (isLocalSqlite
+      ? this.orm.schema.refreshDatabase()
       : this.orm.migrator.up());
 
     if (!this.configService.get<boolean>(ConfigKey.ENABLE_DEMO_SEED)) {
@@ -97,7 +100,10 @@ export class GymManagementSeedService implements OnModuleInit {
           id: member.id,
           code: member.code,
           fullName: member.fullName,
+          gender: member.gender,
+          birthDate: toDateOnly(member.birthDate),
           phone: member.phone,
+          registeredAt: toDateOnly(member.registeredAt),
           status: member.status,
           deletedAt: toOptionalDateTime(member.deletedAt),
         }),
@@ -114,7 +120,6 @@ export class GymManagementSeedService implements OnModuleInit {
           price: toDecimal(plan.price),
           durationDays: plan.durationDays,
           includesPt: plan.includesPt,
-          includedPtSessions: plan.includedPtSessions,
           perks: plan.perks,
           status: plan.status,
         }),
@@ -163,7 +168,10 @@ export class GymManagementSeedService implements OnModuleInit {
             ? em.getReference(UserEntity, trainer.userId)
             : null,
           fullName: trainer.fullName,
+          gender: trainer.gender,
+          birthDate: toDateOnly(trainer.birthDate),
           phone: trainer.phone,
+          startDate: toDateOnly(trainer.startDate),
           status: trainer.status,
           deletedAt: toOptionalDateTime(trainer.deletedAt),
         }),
@@ -317,11 +325,6 @@ export class GymManagementSeedService implements OnModuleInit {
           memberMembership: em.getReference(MemberMembershipEntity, assignment.memberMembershipId),
           assignedFrom: toDateOnly(assignment.assignedFrom),
           assignedTo: assignment.assignedTo ? toDateOnly(assignment.assignedTo) : null,
-          commissionType: assignment.commissionType ?? 'FIXED',
-          commissionValue:
-            assignment.commissionValue === undefined || assignment.commissionValue === null
-              ? null
-              : toDecimal(assignment.commissionValue),
           commissionAmount: toDecimal(assignment.commissionAmount),
           status: assignment.status,
           note: assignment.note ?? null,

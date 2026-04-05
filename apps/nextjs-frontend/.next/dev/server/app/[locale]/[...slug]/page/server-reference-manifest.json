@@ -60,6 +60,18 @@
       "exportedName": "createPayrollPeriodAction",
       "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
     },
+    "4020bedf822e48b6bc54d2cee65ffeba8a5b73dc07": {
+      "workers": {
+        "app/[locale]/[...slug]/page": {
+          "moduleId": "[project]/apps/nextjs-frontend/.next-internal/server/app/[locale]/[...slug]/page/actions.js { ACTIONS_MODULE0 => \"[project]/apps/nextjs-frontend/src/app/[locale]/gym-actions.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "cleanupSystemConfigTrashAction",
+          "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+        }
+      },
+      "exportedName": "cleanupSystemConfigTrashAction",
+      "filename": "apps/nextjs-frontend/src/app/[locale]/gym-actions.ts"
+    },
     "4042ac79414a462fce93a6ed098d846749856340bd": {
       "workers": {
         "app/[locale]/[...slug]/page": {

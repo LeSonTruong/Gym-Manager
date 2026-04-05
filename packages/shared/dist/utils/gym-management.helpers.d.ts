@@ -1,4 +1,4 @@
-import type { AttendanceLog, EquipmentAsset, GymManagementDataset, GymManagementSnapshot, InventoryTransaction, Member, MemberMembership, MemberPtAssignment, MembershipInvoice, MembershipPlan, OperatingExpense, PayrollEntry, PayrollPeriod, PersonalTrainer, PtContract, SalesInvoice } from '../contracts/gym-management';
+import type { AttendanceLog, GymManagementDataset, GymManagementSnapshot, InventoryTransaction, Member, MemberMembership, MemberPtAssignment, MembershipInvoice, MembershipPlan, OperatingExpense, PayrollEntry, PayrollPeriod, PersonalTrainer, PtContract, SalesInvoice } from '../contracts/gym-management';
 export declare function cloneGymManagementDataset(dataset: GymManagementDataset): GymManagementDataset;
 export declare function findPersonalTrainerById(dataset: GymManagementDataset, ptId: string): PersonalTrainer | undefined;
 export declare function findPtContractByPtId(dataset: GymManagementDataset, ptId: string): PtContract | undefined;
@@ -7,7 +7,6 @@ export declare function findMemberById(dataset: GymManagementDataset, memberId: 
 export declare function findMembershipPlanById(dataset: GymManagementDataset, membershipPlanId: string): MembershipPlan | undefined;
 export declare function findSalesInvoiceById(dataset: GymManagementDataset, salesInvoiceId: string): SalesInvoice | undefined;
 export declare function findOperatingExpenseById(dataset: GymManagementDataset, expenseId: string): OperatingExpense | undefined;
-export declare function findEquipmentAssetById(dataset: GymManagementDataset, equipmentAssetId: string): EquipmentAsset | undefined;
 export declare function getActiveMembershipForMember(dataset: GymManagementDataset, memberId: string): MemberMembership | undefined;
 export declare function getActiveAssignmentForMember(dataset: GymManagementDataset, memberId: string): MemberPtAssignment | undefined;
 export declare function getAttendanceByPtId(dataset: GymManagementDataset, ptId: string): AttendanceLog[];

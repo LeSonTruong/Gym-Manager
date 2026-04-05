@@ -20,9 +20,7 @@ import type {
 } from '@next-nest-turbo-boilerplate/shared';
 import {
   AttendanceLogEntity,
-  EquipmentAssetEntity,
   InventoryTransactionEntity,
-  MaintenanceRecordEntity,
   MemberEntity,
   MemberMembershipEntity,
   MemberPtAssignmentEntity,
@@ -78,6 +76,7 @@ export function toDecimalString(value: number): string {
 
 const userRoles = ["ADMIN", "STAFF"] as const;
 const userStatuses = ["ACTIVE", "INACTIVE"] as const;
+const genders = ["MALE", "FEMALE", "OTHER"] as const;
 const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"] as const;
 const attendanceStatuses = ["OPEN", "VALID", "HALF", "INVALID"] as const;
 const payrollPeriodStatuses = ["OPEN", "PENDING_APPROVAL", "APPROVED", "PAID"] as const;
@@ -85,7 +84,6 @@ const payrollEntryStatuses = ["PENDING_APPROVAL", "APPROVED", "PAID"] as const;
 const membershipPlanTypes = ["DAY", "MONTH", "YEAR"] as const;
 const membershipPlanStatuses = ["ON_SALE", "OFF_SALE"] as const;
 const membershipStatuses = ["ACTIVE", "EXPIRED", "CANCELLED"] as const;
-const commissionTypes = ["PERCENT", "FIXED"] as const;
 const assignmentStatuses = ["ACTIVE", "ENDED"] as const;
 const paymentMethods = ["CASH", "BANK_TRANSFER", "CARD"] as const;
 const membershipInvoiceStatuses = ["CONFIRMED", "CANCELLED"] as const;
@@ -110,10 +108,6 @@ function coerceEnumValue<T extends readonly string[]>(
   return isOneOf(value, acceptedValues) ? value : fallback;
 }
 
-function toOfflineContactEmail(scope: string, id: string): string {
-  return `${scope}-${id.toLowerCase()}@offline.local`;
-}
-
 export function mapUserEntity(entity: UserEntity): DemoUser {
   return {
     id: entity.id,
@@ -131,16 +125,15 @@ export function mapPersonalTrainerEntity(entity: PersonalTrainerEntity): Persona
     code: entity.code,
     userId: entity.user?.id ?? undefined,
     fullName: entity.fullName,
-    gender: "OTHER",
-    birthDate: "2000-01-01",
+    gender: coerceEnumValue(entity.gender, genders, "OTHER"),
+    birthDate: toDateOnlyString(entity.birthDate),
     phone: entity.phone,
-    email: toOfflineContactEmail("pt", entity.id),
     address: "",
     status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
     specialties: [],
     experienceYears: 0,
     avatarUrl: "",
-    startDate: toDateOnlyString(entity.createdAt),
+    startDate: toDateOnlyString(entity.startDate),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
 }
@@ -225,16 +218,15 @@ export function mapMemberEntity(entity: MemberEntity): Member {
     id: entity.id,
     code: entity.code,
     fullName: entity.fullName,
-    gender: "OTHER",
-    birthDate: "2000-01-01",
+    gender: coerceEnumValue(entity.gender, genders, "OTHER"),
+    birthDate: toDateOnlyString(entity.birthDate),
     phone: entity.phone,
-    email: toOfflineContactEmail("member", entity.id),
     address: "",
     heightCm: 0,
     weightKg: 0,
     goal: "",
     healthNotes: "",
-    registeredAt: toDateOnlyString(entity.createdAt),
+    registeredAt: toDateOnlyString(entity.registeredAt),
     status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
     deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
   };
@@ -249,7 +241,6 @@ export function mapMembershipPlanEntity(entity: MembershipPlanEntity): Membershi
     price: Number(entity.price),
     durationDays: entity.durationDays,
     includesPt: entity.includesPt,
-    includedPtSessions: entity.includedPtSessions,
     perks: entity.perks,
     status: coerceEnumValue(entity.status, membershipPlanStatuses, "ON_SALE"),
   };
@@ -275,12 +266,6 @@ export function mapMemberPtAssignmentEntity(entity: MemberPtAssignmentEntity): M
     memberMembershipId: entity.memberMembership.id,
     assignedFrom: toDateOnlyString(entity.assignedFrom),
     assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
-    commissionType:
-      typeof entity.commissionType === "string" &&
-        isOneOf(entity.commissionType, commissionTypes)
-        ? entity.commissionType
-        : undefined,
-    commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,
     commissionAmount: Number(entity.commissionAmount),
     status: coerceEnumValue(entity.status, assignmentStatuses, "ACTIVE"),
     note: entity.note ?? undefined,
@@ -378,40 +363,6 @@ export function mapOperatingExpenseEntity(entity: OperatingExpenseEntity): Opera
   };
 }
 
-export function mapEquipmentAssetEntity(entity: EquipmentAssetEntity): Record<string, unknown> {
-  return {
-    id: entity.id,
-    code: entity.code,
-    name: entity.name,
-    category: entity.category ?? undefined,
-    purchasedAt: toDateOnlyString(entity.purchasedAt),
-    purchaseValue: Number(entity.purchaseValue),
-    status: entity.status ?? undefined,
-    condition: entity.condition,
-    location: entity.location ?? undefined,
-    nextMaintenanceAt: entity.nextMaintenanceAt
-      ? toDateOnlyString(entity.nextMaintenanceAt)
-      : undefined,
-    note: entity.note,
-    deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
-  };
-}
-
-export function mapMaintenanceRecordEntity(entity: MaintenanceRecordEntity): Record<string, unknown> {
-  return {
-    id: entity.id,
-    equipmentAssetId: entity.equipmentAsset.id,
-    maintenanceDate: toDateOnlyString(entity.maintenanceDate),
-    maintenanceType: entity.maintenanceType ?? undefined,
-    description: entity.description,
-    vendorName: entity.vendorName,
-    amount: Number(entity.amount),
-    resultStatus: entity.resultStatus ?? undefined,
-    note: entity.note ?? undefined,
-    createdByUserId: entity.createdByUser?.id ?? undefined,
-  };
-}
-
 export function mapSystemConfigEntity(entity: SystemConfigEntity): SystemConfig {
   return {
     key: entity.key,
@@ -475,11 +426,6 @@ export function mapDatasetFromEntities(
       mapSalesInvoiceEntity(invoice, salesInvoiceItemsByInvoiceId.get(invoice.id) ?? []),
     ),
     operatingExpenses: collections.operatingExpenses.map((entity) => mapOperatingExpenseEntity(entity)),
-    memberCheckIns: [],
-    ptBookingSessions: [],
-    paymentTransactions: [],
-    equipmentAssets: [],
-    maintenanceRecords: [],
     systemConfigs: collections.systemConfigs.map((entity) => mapSystemConfigEntity(entity)),
   };
 }

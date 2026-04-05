@@ -76,24 +76,6 @@ export class GymManagementParityMigration20260331000200 extends Migration {
       alter table "products"
         add column "deleted_at" timestamp null;
 
-      alter table "equipment_assets"
-        add column "category" varchar(120) null,
-        add column "status" varchar(30) null,
-        add column "location" varchar(160) null,
-        add column "deleted_at" timestamp null;
-      alter table "equipment_assets"
-        rename column "condition" to "condition_status";
-      alter table "equipment_assets"
-        alter column "next_maintenance_at" drop not null;
-
-      alter table "maintenance_records"
-        add column "maintenance_type" varchar(30) null,
-        add column "result_status" varchar(30) null,
-        add column "note" text null,
-        add column "created_by_user_id" varchar(120) null;
-      alter table "maintenance_records"
-        add constraint "maintenance_records_created_by_user_id_foreign" foreign key ("created_by_user_id") references "users" ("id") on update cascade on delete set null;
-
       alter table "system_configs"
         add column "updated_by_user_id" varchar(120) null,
         add column "created_at" timestamp not null default current_timestamp,
@@ -110,21 +92,6 @@ export class GymManagementParityMigration20260331000200 extends Migration {
         drop column if exists "updated_by_user_id",
         drop column if exists "created_at",
         drop column if exists "updated_at";
-
-      alter table "maintenance_records" drop constraint if exists "maintenance_records_created_by_user_id_foreign";
-      alter table "maintenance_records"
-        drop column if exists "maintenance_type",
-        drop column if exists "result_status",
-        drop column if exists "note",
-        drop column if exists "created_by_user_id";
-
-      alter table "equipment_assets"
-        rename column "condition_status" to "condition";
-      alter table "equipment_assets"
-        drop column if exists "category",
-        drop column if exists "status",
-        drop column if exists "location",
-        drop column if exists "deleted_at";
 
       alter table "products" drop column if exists "deleted_at";
       alter table "member_pt_assignments"

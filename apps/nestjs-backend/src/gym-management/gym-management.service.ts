@@ -37,8 +37,6 @@ import { RedisService } from "../redis/redis.service";
 import {
   AttendanceCheckInDto,
   AttendanceCheckOutDto,
-  CreateMaintenanceDto,
-  CreateEquipmentDto,
   CreateMemberDto,
   CreateMemberAssignmentDto,
   CreateMemberMembershipDto,
@@ -55,7 +53,6 @@ import {
   PatchSystemConfigDto,
   PatchAttendanceDto,
   RenewMemberMembershipDto,
-  UpdateEquipmentDto,
   UpdateMemberDto,
   UpdateMembershipPlanDto,
   UpdateOperatingExpenseDto,
@@ -65,9 +62,7 @@ import {
 } from "./dto/gym-management.dto";
 import {
   AttendanceLogEntity,
-  EquipmentAssetEntity,
   InventoryTransactionEntity,
-  MaintenanceRecordEntity,
   MemberEntity,
   MemberMembershipEntity,
   MemberPtAssignmentEntity,
@@ -89,9 +84,7 @@ import { hashOpaqueToken, hashPassword, verifyPassword } from "./auth/auth-crypt
 import {
   mapAttendanceLogEntity,
   mapDatasetFromEntities,
-  mapEquipmentAssetEntity,
   mapInventoryTransactionEntity,
-  mapMaintenanceRecordEntity,
   mapMemberEntity,
   mapMemberMembershipEntity,
   mapMemberPtAssignmentEntity,
@@ -211,6 +204,7 @@ const operatingExpenseStatuses = [
 
 const salesInvoiceStatuses = ["DRAFT", "CONFIRMED", "CANCELLED"] as const;
 const authTokenRoles = ["ADMIN", "STAFF"] as const;
+const genderValues = ["MALE", "FEMALE", "OTHER"] as const;
 
 function isOneOf<T extends readonly string[]>(
   value: string,
@@ -398,6 +392,7 @@ export class GymManagementService {
   async updateAccountCredentials(
     userId: string,
     updates: {
+      fullName?: string;
       username?: string;
       currentPassword?: string;
       newPassword?: string;
@@ -405,14 +400,19 @@ export class GymManagementService {
   ): Promise<DemoUser> {
     const em = this.createEntityManager();
     const user = await this.getRequiredUserEntity(em, userId);
+    const nextFullName = updates.fullName?.trim();
     const nextUsername = updates.username?.trim();
     const nextPassword = updates.newPassword?.trim();
     const currentPassword = updates.currentPassword?.trim();
 
-    if (!nextUsername && !nextPassword) {
+    if (!nextFullName && !nextUsername && !nextPassword) {
       throw new BadRequestException(
-        "Provide at least one field to update (username or newPassword)",
+        "Provide at least one field to update (fullName, username or newPassword)",
       );
+    }
+
+    if (nextFullName && nextFullName !== user.fullName) {
+      user.fullName = nextFullName;
     }
 
     if (nextUsername && nextUsername !== user.username) {
@@ -615,8 +615,8 @@ export class GymManagementService {
   async getPtDetail(ptId: string): Promise<{
     trainer: TrainerRecord;
     contract:
-    | GymManagementSnapshot["dataset"]["ptContracts"][number]
-    | undefined;
+      | GymManagementSnapshot["dataset"]["ptContracts"][number]
+      | undefined;
     attendance: GymManagementSnapshot["dataset"]["attendanceLogs"];
     payrollEntries: GymManagementSnapshot["dataset"]["payrollEntries"];
     assignedMembers: GymManagementSnapshot["dataset"]["members"];
@@ -715,22 +715,6 @@ export class GymManagementService {
     }
 
     return expense;
-  }
-
-  async getEquipmentDetail(
-    equipmentAssetId: string,
-  ): Promise<Record<string, unknown>> {
-    const em = this.createEntityManager();
-    const equipmentAsset = await em.findOne(EquipmentAssetEntity, {
-      id: equipmentAssetId,
-      deletedAt: null,
-    });
-
-    if (!equipmentAsset) {
-      throw new NotFoundException(`Equipment ${equipmentAssetId} not found`);
-    }
-
-    return mapEquipmentAssetEntity(equipmentAsset);
   }
 
   async createPtContract(
@@ -875,6 +859,7 @@ export class GymManagementService {
   ): Promise<{
     membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
     invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    assignment?: GymManagementSnapshot["dataset"]["memberPtAssignments"][number];
   }> {
     const em = this.createEntityManager();
     const member = await this.getRequiredMemberEntity(
@@ -898,6 +883,17 @@ export class GymManagementService {
     }
 
     const startDate = parseDateOnly(createMemberMembershipDto.startDate);
+    const trainer = createMemberMembershipDto.ptId
+      ? await this.getRequiredPersonalTrainerEntity(em, createMemberMembershipDto.ptId)
+      : null;
+
+    if (membershipPlan.includesPt && !trainer) {
+      throw new BadRequestException("ptId is required for plans that include PT");
+    }
+
+    if (!membershipPlan.includesPt && trainer) {
+      throw new BadRequestException("Selected plan does not include PT support");
+    }
 
     return this.createMembershipSale(
       em,
@@ -906,6 +902,7 @@ export class GymManagementService {
       startDate,
       createMemberMembershipDto.paymentMethod,
       createMemberMembershipDto.totalAmount,
+      trainer,
     );
   }
 
@@ -915,6 +912,7 @@ export class GymManagementService {
   ): Promise<{
     membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
     invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    assignment?: GymManagementSnapshot["dataset"]["memberPtAssignments"][number];
   }> {
     const em = this.createEntityManager();
     const membership = await em.findOne(
@@ -930,6 +928,29 @@ export class GymManagementService {
     const startDate = renewMemberMembershipDto.startDate
       ? parseDateOnly(renewMemberMembershipDto.startDate)
       : this.addDays(membership.endDate, 1);
+    let trainer = renewMemberMembershipDto.ptId
+      ? await this.getRequiredPersonalTrainerEntity(em, renewMemberMembershipDto.ptId)
+      : null;
+
+    if (!trainer && membership.membershipPlan.includesPt) {
+      const activeAssignment = await em.findOne(
+        MemberPtAssignmentEntity,
+        {
+          member: membership.member,
+          status: "ACTIVE",
+        },
+        {
+          populate: ["personalTrainer"],
+          orderBy: { assignedFrom: "desc", createdAt: "desc" },
+        },
+      );
+
+      trainer = activeAssignment?.personalTrainer ?? null;
+    }
+
+    if (membership.membershipPlan.includesPt && !trainer) {
+      throw new BadRequestException("ptId is required when renewing a PT plan");
+    }
 
     return this.createMembershipSale(
       em,
@@ -937,6 +958,8 @@ export class GymManagementService {
       membership.membershipPlan,
       startDate,
       renewMemberMembershipDto.paymentMethod ?? "CASH",
+      undefined,
+      trainer,
     );
   }
 
@@ -1003,42 +1026,21 @@ export class GymManagementService {
       );
     }
 
-    const assignedFrom = parseDateOnly(createMemberAssignmentDto.assignedFrom);
-    const activeAssignments = await em.find(MemberPtAssignmentEntity, {
-      member,
-      status: "ACTIVE",
-    });
-
-    for (const activeAssignment of activeAssignments) {
-      activeAssignment.status = "ENDED";
-      activeAssignment.assignedTo = assignedFrom;
+    if (!membership.membershipPlan.includesPt) {
+      throw new BadRequestException(
+        `Membership ${membership.id} does not include PT support`,
+      );
     }
 
-    const commissionAmount = this.calculateAssignmentCommissionAmount(
-      Number(membership.membershipPlan.price),
-      createMemberAssignmentDto.commissionType,
-      createMemberAssignmentDto.commissionValue,
-      createMemberAssignmentDto.commissionAmount,
-    );
-
-    const assignment = em.create(MemberPtAssignmentEntity, {
-      member,
-      personalTrainer: trainer,
-      memberMembership: membership,
+    const assignedFrom = parseDateOnly(createMemberAssignmentDto.assignedFrom);
+    const assignment = await this.createOrReplaceMemberAssignment(
+      em,
+      membership,
+      trainer,
       assignedFrom,
-      assignedTo: null,
-      commissionType: createMemberAssignmentDto.commissionType ?? "FIXED",
-      commissionValue:
-        createMemberAssignmentDto.commissionValue === undefined
-          ? null
-          : toDecimalString(createMemberAssignmentDto.commissionValue),
-      commissionAmount: toDecimalString(commissionAmount),
-      status: "ACTIVE",
-      note: createMemberAssignmentDto.note ?? null,
-    } as RequiredEntityData<MemberPtAssignmentEntity>);
-
-    em.persist(assignment);
-    await em.flush();
+      Number(membership.membershipPlan.price),
+      createMemberAssignmentDto.note,
+    );
 
     return mapMemberPtAssignmentEntity(assignment);
   }
@@ -1177,11 +1179,6 @@ export class GymManagementService {
         `pt_${trainer.id}_allowance`,
         contract ? Number(contract.allowances) : 0,
       );
-      const packageCommissionRate = await this.getNumberSystemConfig(
-        em,
-        `pt_${trainer.id}_package_commission_rate`,
-        contract ? Number(contract.packageCommissionRate) : 0,
-      );
       const salesCommissionRate = await this.getNumberSystemConfig(
         em,
         `pt_${trainer.id}_sales_commission_rate`,
@@ -1241,13 +1238,7 @@ export class GymManagementService {
             return 0;
           }
 
-          return this.calculateAssignmentCommissionAmount(
-            Number(invoice.totalAmount),
-            assignment.commissionType,
-            assignment.commissionValue ? Number(assignment.commissionValue) : null,
-            Number(assignment.commissionAmount),
-            packageCommissionRate,
-          );
+          return Number(assignment.commissionAmount);
         }),
       );
       const packageCount = assignmentInvoices.filter((invoice) =>
@@ -1430,48 +1421,6 @@ export class GymManagementService {
     return mapInventoryTransactionEntity(transaction);
   }
 
-  async createMaintenance(
-    createMaintenanceDto: CreateMaintenanceDto,
-    createdByUserId: string,
-  ): Promise<Record<string, unknown>> {
-    const em = this.createEntityManager();
-    const equipmentAsset = await this.getRequiredEquipmentAssetEntity(
-      em,
-      createMaintenanceDto.equipmentAssetId,
-    );
-    const createdByUser = await this.getRequiredUserEntity(em, createdByUserId);
-    const maintenanceRecord = em.create(MaintenanceRecordEntity, {
-      equipmentAsset,
-      maintenanceType: createMaintenanceDto.maintenanceType ?? "PREVENTIVE",
-      maintenanceDate: parseDateOnly(createMaintenanceDto.maintenanceDate),
-      description: createMaintenanceDto.description,
-      vendorName: createMaintenanceDto.vendorName,
-      amount: toDecimalString(createMaintenanceDto.amount),
-      resultStatus: createMaintenanceDto.resultStatus ?? "RESOLVED",
-      note: createMaintenanceDto.note ?? null,
-      createdByUser,
-    } as RequiredEntityData<MaintenanceRecordEntity>);
-
-    if (createMaintenanceDto.equipmentStatus !== undefined) {
-      equipmentAsset.status = createMaintenanceDto.equipmentStatus;
-    }
-
-    if (createMaintenanceDto.equipmentCondition !== undefined) {
-      equipmentAsset.condition = createMaintenanceDto.equipmentCondition;
-    }
-
-    if (createMaintenanceDto.nextMaintenanceAt !== undefined) {
-      equipmentAsset.nextMaintenanceAt = parseDateOnly(
-        createMaintenanceDto.nextMaintenanceAt,
-      );
-    }
-
-    em.persist(maintenanceRecord);
-    await em.flush();
-
-    return mapMaintenanceRecordEntity(maintenanceRecord);
-  }
-
   async patchAttendance(
     attendanceLogId: string,
     patchAttendanceDto: PatchAttendanceDto,
@@ -1531,22 +1480,18 @@ export class GymManagementService {
     startDate: Date,
     paymentMethod: string,
     totalAmount?: number,
+    trainer?: PersonalTrainerEntity | null,
   ): Promise<{
     membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
     invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+    assignment?: GymManagementSnapshot["dataset"]["memberPtAssignments"][number];
   }> {
     const endDate = this.addDays(startDate, membershipPlan.durationDays - 1);
-    const remainingSessions =
-      membershipPlan.usageLimit ??
-      (membershipPlan.includedPtSessions > 0
-        ? membershipPlan.includedPtSessions
-        : null);
     const membership = em.create(MemberMembershipEntity, {
       member,
       membershipPlan,
       startDate,
       endDate,
-      remainingSessions,
       status: "ACTIVE",
       deletedAt: null,
     } as RequiredEntityData<MemberMembershipEntity>);
@@ -1567,9 +1512,26 @@ export class GymManagementService {
     em.persist(invoice);
     await em.flush();
 
+    let assignment:
+      | GymManagementSnapshot["dataset"]["memberPtAssignments"][number]
+      | undefined;
+
+    if (trainer) {
+      assignment = mapMemberPtAssignmentEntity(
+        await this.createOrReplaceMemberAssignment(
+          em,
+          membership,
+          trainer,
+          startDate,
+          totalAmount ?? Number(membershipPlan.price),
+        ),
+      );
+    }
+
     return {
       membership: mapMemberMembershipEntity(membership),
       invoice: mapMembershipInvoiceEntity(invoice),
+      assignment,
     };
   }
 
@@ -1650,31 +1612,57 @@ export class GymManagementService {
 
   private calculateAssignmentCommissionAmount(
     baseAmount: number,
-    commissionType?: string | null,
-    commissionValue?: number | null,
-    commissionAmount?: number | null,
     fallbackRate?: number,
   ): number {
-    if (commissionAmount !== undefined && commissionAmount !== null) {
-      return Number(commissionAmount.toFixed(2));
-    }
-
-    if (commissionType === "PERCENT" && commissionValue !== undefined && commissionValue !== null) {
-      const normalizedRate =
-        commissionValue > 1 ? commissionValue / 100 : commissionValue;
-
-      return Number((baseAmount * normalizedRate).toFixed(2));
-    }
-
-    if (commissionValue !== undefined && commissionValue !== null) {
-      return Number(commissionValue.toFixed(2));
-    }
-
     if (fallbackRate !== undefined) {
       return Number((baseAmount * fallbackRate).toFixed(2));
     }
 
     return 0;
+  }
+
+  private async createOrReplaceMemberAssignment(
+    em: EntityManager,
+    membership: MemberMembershipEntity,
+    trainer: PersonalTrainerEntity,
+    assignedFrom: Date,
+    baseAmount: number,
+    note?: string,
+  ): Promise<MemberPtAssignmentEntity> {
+    const activeAssignments = await em.find(MemberPtAssignmentEntity, {
+      member: membership.member,
+      status: "ACTIVE",
+    });
+
+    for (const activeAssignment of activeAssignments) {
+      activeAssignment.status = "ENDED";
+      activeAssignment.assignedTo = assignedFrom;
+    }
+
+    const packageCommissionRate = await this.getPackageCommissionRateForTrainer(
+      em,
+      trainer,
+      assignedFrom,
+    );
+    const commissionAmount = this.calculateAssignmentCommissionAmount(
+      baseAmount,
+      packageCommissionRate,
+    );
+    const assignment = em.create(MemberPtAssignmentEntity, {
+      member: membership.member,
+      personalTrainer: trainer,
+      memberMembership: membership,
+      assignedFrom,
+      assignedTo: null,
+      commissionAmount: toDecimalString(commissionAmount),
+      status: "ACTIVE",
+      note: note ?? null,
+    } as RequiredEntityData<MemberPtAssignmentEntity>);
+
+    em.persist(assignment);
+    await em.flush();
+
+    return assignment;
   }
 
   private isDateWithinPeriod(
@@ -1693,14 +1681,13 @@ export class GymManagementService {
     assignment: MemberPtAssignmentEntity,
     value: Date,
   ): boolean {
-    const timestamp = value.getTime();
-    const assignedFrom = assignment.assignedFrom.getTime();
-    const assignedTo = assignment.assignedTo?.getTime() ?? Number.POSITIVE_INFINITY;
+    const timestamp = new Date(value).getTime();
+    const assignedFrom = new Date(assignment.assignedFrom).getTime();
+    const assignedTo = assignment.assignedTo
+      ? new Date(assignment.assignedTo).getTime()
+      : Number.POSITIVE_INFINITY;
 
-    return (
-      assignment.status === "ACTIVE" ||
-      (timestamp >= assignedFrom && timestamp <= assignedTo)
-    );
+    return timestamp >= assignedFrom && timestamp <= assignedTo;
   }
 
   private async findPtContractForPeriod(
@@ -1952,7 +1939,18 @@ export class GymManagementService {
         code: createPersonalTrainerDto.code,
         user: trainerUser,
         fullName: createPersonalTrainerDto.fullName,
+        gender: coerceEnumValue(
+          createPersonalTrainerDto.gender ?? "OTHER",
+          genderValues,
+          "OTHER",
+        ),
+        birthDate: createPersonalTrainerDto.birthDate
+          ? parseDateOnly(createPersonalTrainerDto.birthDate)
+          : parseDateOnly("2000-01-01"),
         phone: createPersonalTrainerDto.phone,
+        startDate: createPersonalTrainerDto.startDate
+          ? parseDateOnly(createPersonalTrainerDto.startDate)
+          : parseDateOnly(new Date().toISOString()),
         status: createPersonalTrainerDto.status ?? "ACTIVE",
       } satisfies RequiredEntityData<PersonalTrainerEntity>,
     );
@@ -1988,7 +1986,7 @@ export class GymManagementService {
     const trainer = await this.getRequiredPersonalTrainerEntity(em, ptId);
 
     trainer.status = "INACTIVE";
-    trainer.deletedAt = new Date();
+    trainer.deletedAt = null;
     await em.flush();
 
     return mapPersonalTrainerEntity(trainer);
@@ -2002,7 +2000,18 @@ export class GymManagementService {
       {
         code: createMemberDto.code,
         fullName: createMemberDto.fullName,
+        gender: coerceEnumValue(
+          createMemberDto.gender ?? "OTHER",
+          genderValues,
+          "OTHER",
+        ),
+        birthDate: createMemberDto.birthDate
+          ? parseDateOnly(createMemberDto.birthDate)
+          : parseDateOnly("2000-01-01"),
         phone: createMemberDto.phone,
+        registeredAt: createMemberDto.registeredAt
+          ? parseDateOnly(createMemberDto.registeredAt)
+          : parseDateOnly(new Date().toISOString()),
         status: createMemberDto.status ?? "ACTIVE",
       } satisfies RequiredEntityData<MemberEntity>,
     );
@@ -2033,6 +2042,7 @@ export class GymManagementService {
     const member = await this.getRequiredMemberEntity(em, memberId);
 
     member.status = "INACTIVE";
+    member.deletedAt = null;
     await em.flush();
 
     return mapMemberEntity(member);
@@ -2050,9 +2060,7 @@ export class GymManagementService {
         type: createMembershipPlanDto.type,
         price: toDecimalString(createMembershipPlanDto.price),
         durationDays: createMembershipPlanDto.durationDays,
-        usageLimit: createMembershipPlanDto.usageLimit,
         includesPt: createMembershipPlanDto.includesPt,
-        includedPtSessions: createMembershipPlanDto.includedPtSessions,
         perks: createMembershipPlanDto.perks,
         status: createMembershipPlanDto.status,
       } satisfies RequiredEntityData<MembershipPlanEntity>,
@@ -2148,67 +2156,16 @@ export class GymManagementService {
     return mapProductEntity(product);
   }
 
-  async createEquipment(
-    createEquipmentDto: CreateEquipmentDto,
-  ): Promise<Record<string, unknown>> {
-    const em = this.createEntityManager();
-    const equipmentAsset = em.create(
-      EquipmentAssetEntity,
-      {
-        code: createEquipmentDto.code,
-        name: createEquipmentDto.name,
-        category: createEquipmentDto.category,
-        purchasedAt: parseDateOnly(createEquipmentDto.purchasedAt),
-        purchaseValue: toDecimalString(createEquipmentDto.purchaseValue),
-        status: createEquipmentDto.status ?? null,
-        condition: createEquipmentDto.condition,
-        location: createEquipmentDto.location,
-        nextMaintenanceAt: createEquipmentDto.nextMaintenanceAt
-          ? parseDateOnly(createEquipmentDto.nextMaintenanceAt)
-          : null,
-        note: createEquipmentDto.note,
-      } satisfies RequiredEntityData<EquipmentAssetEntity>,
-    );
-
-    em.persist(equipmentAsset);
-    await em.flush();
-
-    return mapEquipmentAssetEntity(equipmentAsset);
-  }
-
-  async updateEquipment(
-    equipmentAssetId: string,
-    updateEquipmentDto: UpdateEquipmentDto,
-  ): Promise<Record<string, unknown>> {
-    const em = this.createEntityManager();
-    const equipmentAsset = await this.getRequiredEquipmentAssetEntity(
-      em,
-      equipmentAssetId,
-    );
-
-    wrap(equipmentAsset).assign(
-      this.toEquipmentAssetEntityData(updateEquipmentDto),
-      { ignoreUndefined: true },
-    );
-    await em.flush();
-
-    return mapEquipmentAssetEntity(equipmentAsset);
-  }
-
   async createOperatingExpense(
     createOperatingExpenseDto: CreateOperatingExpenseDto,
   ): Promise<OperatingExpenseRecord> {
     const em = this.createEntityManager();
-    const resolvedEquipmentAsset = createOperatingExpenseDto.equipmentAssetId
-      ? await this.resolveEquipmentAsset(em, createOperatingExpenseDto.equipmentAssetId)
-      : null;
     const operatingExpense = em.create(
       OperatingExpenseEntity,
       {
         code: createOperatingExpenseDto.code,
         expenseDate: parseDateOnly(createOperatingExpenseDto.expenseDate),
         category: createOperatingExpenseDto.category,
-        equipmentAsset: resolvedEquipmentAsset,
         vendorName: createOperatingExpenseDto.vendorName,
         amount: toDecimalString(createOperatingExpenseDto.amount),
         description: createOperatingExpenseDto.description,
@@ -2308,13 +2265,14 @@ export class GymManagementService {
         return false;
       }
 
-      const matchedPtKey = /^pt_([^_]+)_/.exec(systemConfig.key);
+      const trainerScopedKey = systemConfig.key.slice(3);
+      const separatorIndex = trainerScopedKey.indexOf("_");
 
-      if (!matchedPtKey) {
+      if (separatorIndex <= 0) {
         return false;
       }
 
-      const [, ptId] = matchedPtKey;
+      const ptId = trainerScopedKey.slice(0, separatorIndex);
 
       return !activeTrainerIds.has(ptId);
     });
@@ -2826,6 +2784,24 @@ export class GymManagementService {
     );
   }
 
+  private async getPackageCommissionRateForTrainer(
+    em: EntityManager,
+    trainer: PersonalTrainerEntity,
+    effectiveDate: Date,
+  ): Promise<number> {
+    const contract = await this.findActivePtContractEntity(
+      em,
+      trainer.id,
+      effectiveDate,
+    );
+
+    return this.getNumberSystemConfig(
+      em,
+      `pt_${trainer.id}_package_commission_rate`,
+      contract ? Number(contract.packageCommissionRate) : 0,
+    );
+  }
+
   private async findAttendanceLogForCheckOut(
     em: EntityManager,
     pt: PersonalTrainerEntity,
@@ -2988,7 +2964,7 @@ export class GymManagementService {
       em.find(UserEntity, { deletedAt: null }, { orderBy: { createdAt: "asc", id: "asc" } }),
       em.find(
         PersonalTrainerEntity,
-        { deletedAt: null },
+        {},
         { orderBy: { code: "asc" } },
       ),
       em.findAll(PtContractEntity, {
@@ -3003,7 +2979,7 @@ export class GymManagementService {
       em.findAll(PayrollEntryEntity, {
         orderBy: { createdAt: "asc", id: "asc" },
       }),
-      em.find(MemberEntity, { deletedAt: null }, { orderBy: { code: "asc" } }),
+      em.find(MemberEntity, {}, { orderBy: { code: "asc" } }),
       em.findAll(MembershipPlanEntity, { orderBy: { code: "asc" } }),
       em.find(
         MemberMembershipEntity,
@@ -3066,12 +3042,28 @@ export class GymManagementService {
       data.fullName = dto.fullName;
     }
 
+    if (dto.gender !== undefined) {
+      data.gender = coerceEnumValue(dto.gender, genderValues, "OTHER");
+    }
+
+    if (dto.birthDate !== undefined) {
+      data.birthDate = parseDateOnly(dto.birthDate);
+    }
+
     if (dto.phone !== undefined) {
       data.phone = dto.phone;
     }
 
+    if (dto.startDate !== undefined) {
+      data.startDate = parseDateOnly(dto.startDate);
+    }
+
     if (dto.status !== undefined) {
       data.status = dto.status;
+
+      if (dto.status === "ACTIVE") {
+        data.deletedAt = null;
+      }
     }
 
     return data;
@@ -3090,12 +3082,28 @@ export class GymManagementService {
       data.fullName = dto.fullName;
     }
 
+    if (dto.gender !== undefined) {
+      data.gender = coerceEnumValue(dto.gender, genderValues, "OTHER");
+    }
+
+    if (dto.birthDate !== undefined) {
+      data.birthDate = parseDateOnly(dto.birthDate);
+    }
+
     if (dto.phone !== undefined) {
       data.phone = dto.phone;
     }
 
+    if (dto.registeredAt !== undefined) {
+      data.registeredAt = parseDateOnly(dto.registeredAt);
+    }
+
     if (dto.status !== undefined) {
       data.status = dto.status;
+
+      if (dto.status === "ACTIVE") {
+        data.deletedAt = null;
+      }
     }
 
     return data;
@@ -3126,16 +3134,8 @@ export class GymManagementService {
       data.durationDays = dto.durationDays;
     }
 
-    if (dto.usageLimit !== undefined) {
-      data.usageLimit = dto.usageLimit;
-    }
-
     if (dto.includesPt !== undefined) {
       data.includesPt = dto.includesPt;
-    }
-
-    if (dto.includedPtSessions !== undefined) {
-      data.includedPtSessions = dto.includedPtSessions;
     }
 
     if (dto.perks !== undefined) {
@@ -3189,56 +3189,6 @@ export class GymManagementService {
     return data;
   }
 
-  private toEquipmentAssetEntityData(
-    dto: CreateEquipmentDto | UpdateEquipmentDto,
-  ): Partial<EquipmentAssetEntity> {
-    const data: Partial<EquipmentAssetEntity> = {};
-
-    if (dto.code !== undefined) {
-      data.code = dto.code;
-    }
-
-    if (dto.name !== undefined) {
-      data.name = dto.name;
-    }
-
-    if (dto.category !== undefined) {
-      data.category = dto.category;
-    }
-
-    if (dto.purchasedAt !== undefined) {
-      data.purchasedAt = parseDateOnly(dto.purchasedAt);
-    }
-
-    if (dto.purchaseValue !== undefined) {
-      data.purchaseValue = toDecimalString(dto.purchaseValue);
-    }
-
-    if (dto.status !== undefined) {
-      data.status = dto.status;
-    }
-
-    if (dto.condition !== undefined) {
-      data.condition = dto.condition;
-    }
-
-    if (dto.location !== undefined) {
-      data.location = dto.location;
-    }
-
-    if (dto.nextMaintenanceAt !== undefined) {
-      data.nextMaintenanceAt = dto.nextMaintenanceAt
-        ? parseDateOnly(dto.nextMaintenanceAt)
-        : null;
-    }
-
-    if (dto.note !== undefined) {
-      data.note = dto.note;
-    }
-
-    return data;
-  }
-
   private async toOperatingExpenseEntityData(
     em: EntityManager,
     dto: CreateOperatingExpenseDto | UpdateOperatingExpenseDto,
@@ -3255,11 +3205,6 @@ export class GymManagementService {
 
     if (dto.category !== undefined) {
       data.category = dto.category;
-    }
-
-    if (dto.equipmentAssetId !== undefined) {
-      data.equipmentAsset =
-        (await this.resolveEquipmentAsset(em, dto.equipmentAssetId)) ?? null;
     }
 
     if (dto.vendorName !== undefined) {
@@ -3279,25 +3224,6 @@ export class GymManagementService {
     }
 
     return data;
-  }
-
-  private async resolveEquipmentAsset(
-    em: EntityManager,
-    equipmentAssetId?: string,
-  ): Promise<EquipmentAssetEntity | undefined> {
-    if (equipmentAssetId === undefined || equipmentAssetId === null) {
-      return undefined;
-    }
-
-    const equipmentAsset = await em.findOne(EquipmentAssetEntity, {
-      id: equipmentAssetId,
-    });
-
-    if (!equipmentAsset) {
-      throw new NotFoundException(`Equipment ${equipmentAssetId} not found`);
-    }
-
-    return equipmentAsset;
   }
 
   private async resolveApprovedByUser(
@@ -3338,7 +3264,6 @@ export class GymManagementService {
   ): Promise<PersonalTrainerEntity> {
     const personalTrainer = await em.findOne(PersonalTrainerEntity, {
       id: ptId,
-      deletedAt: null,
     });
 
     if (!personalTrainer) {
@@ -3354,7 +3279,6 @@ export class GymManagementService {
   ): Promise<MemberEntity> {
     const member = await em.findOne(MemberEntity, {
       id: memberId,
-      deletedAt: null,
     });
 
     if (!member) {
@@ -3409,22 +3333,6 @@ export class GymManagementService {
     expenseId: string,
   ): Promise<OperatingExpenseEntity> {
     return this.findOperatingExpenseOrThrow(em, expenseId);
-  }
-
-  private async getRequiredEquipmentAssetEntity(
-    em: EntityManager,
-    equipmentAssetId: string,
-  ): Promise<EquipmentAssetEntity> {
-    const equipmentAsset = await em.findOne(EquipmentAssetEntity, {
-      id: equipmentAssetId,
-      deletedAt: null,
-    });
-
-    if (!equipmentAsset) {
-      throw new NotFoundException(`Equipment ${equipmentAssetId} not found`);
-    }
-
-    return equipmentAsset;
   }
 
   private async findOperatingExpenseOrThrow(

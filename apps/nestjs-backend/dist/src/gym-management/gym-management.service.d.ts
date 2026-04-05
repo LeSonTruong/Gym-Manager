@@ -1,7 +1,7 @@
 import { MikroORM } from "@mikro-orm/core";
 import { type DemoUser, type GymManagementDataset, type GymManagementSnapshot } from "@next-nest-turbo-boilerplate/shared";
 import { RedisService } from "../redis/redis.service";
-import { AttendanceCheckInDto, AttendanceCheckOutDto, CreateMaintenanceDto, CreateEquipmentDto, CreateMemberDto, CreateMemberAssignmentDto, CreateMemberMembershipDto, CreateMembershipPlanDto, CreateOperatingExpenseDto, CreatePayrollPeriodDto, CreatePersonalTrainerDto, CreateProductDto, CreatePtContractDto, CreateSalesInvoiceDto, EndMemberAssignmentDto, GeneratePayrollDto, InventoryImportDto, PatchSystemConfigDto, PatchAttendanceDto, RenewMemberMembershipDto, UpdateEquipmentDto, UpdateMemberDto, UpdateMembershipPlanDto, UpdateOperatingExpenseDto, UpdatePersonalTrainerDto, UpdatePtContractDto, UpdateProductDto } from "./dto/gym-management.dto";
+import { AttendanceCheckInDto, AttendanceCheckOutDto, CreateMemberDto, CreateMemberAssignmentDto, CreateMemberMembershipDto, CreateMembershipPlanDto, CreateOperatingExpenseDto, CreatePayrollPeriodDto, CreatePersonalTrainerDto, CreateProductDto, CreatePtContractDto, CreateSalesInvoiceDto, EndMemberAssignmentDto, GeneratePayrollDto, InventoryImportDto, PatchSystemConfigDto, PatchAttendanceDto, RenewMemberMembershipDto, UpdateMemberDto, UpdateMembershipPlanDto, UpdateOperatingExpenseDto, UpdatePersonalTrainerDto, UpdatePtContractDto, UpdateProductDto } from "./dto/gym-management.dto";
 import type { AuthenticatedUser } from "./auth/authenticated-user.type";
 type LoginResult = {
     user: DemoUser;
@@ -40,6 +40,7 @@ export declare class GymManagementService {
     getCurrentUser(accessToken: string): Promise<DemoUser>;
     getCurrentUserById(userId: string): Promise<DemoUser>;
     updateAccountCredentials(userId: string, updates: {
+        fullName?: string;
         username?: string;
         currentPassword?: string;
         newPassword?: string;
@@ -66,16 +67,17 @@ export declare class GymManagementService {
     }>;
     getSalesInvoiceDetail(salesInvoiceId: string): Promise<GymManagementSnapshot["dataset"]["salesInvoices"][number]>;
     getExpenseDetail(expenseId: string): Promise<OperatingExpenseRecord>;
-    getEquipmentDetail(equipmentAssetId: string): Promise<Record<string, unknown>>;
     createPtContract(ptId: string, createPtContractDto: CreatePtContractDto): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]>;
     updatePtContract(ptId: string, contractId: string, updatePtContractDto: UpdatePtContractDto): Promise<GymManagementSnapshot["dataset"]["ptContracts"][number]>;
     createMemberMembership(createMemberMembershipDto: CreateMemberMembershipDto): Promise<{
         membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
         invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+        assignment?: GymManagementSnapshot["dataset"]["memberPtAssignments"][number];
     }>;
     renewMemberMembership(membershipId: string, renewMemberMembershipDto: RenewMemberMembershipDto): Promise<{
         membership: GymManagementSnapshot["dataset"]["memberMemberships"][number];
         invoice: GymManagementSnapshot["dataset"]["membershipInvoices"][number];
+        assignment?: GymManagementSnapshot["dataset"]["memberPtAssignments"][number];
     }>;
     cancelMemberMembership(membershipId: string, cancelledAt?: string): Promise<GymManagementSnapshot["dataset"]["memberMemberships"][number]>;
     createMemberAssignment(createMemberAssignmentDto: CreateMemberAssignmentDto): Promise<GymManagementSnapshot["dataset"]["memberPtAssignments"][number]>;
@@ -85,7 +87,6 @@ export declare class GymManagementService {
     getPayrollMe(userId: string): Promise<GymManagementSnapshot["dataset"]["payrollEntries"]>;
     createSalesInvoice(createSalesInvoiceDto: CreateSalesInvoiceDto, createdByUserId: string): Promise<GymManagementSnapshot["dataset"]["salesInvoices"][number]>;
     importInventory(inventoryImportDto: InventoryImportDto): Promise<GymManagementSnapshot["dataset"]["inventoryTransactions"][number]>;
-    createMaintenance(createMaintenanceDto: CreateMaintenanceDto, createdByUserId: string): Promise<Record<string, unknown>>;
     patchAttendance(attendanceLogId: string, patchAttendanceDto: PatchAttendanceDto): Promise<AttendanceRecord>;
     private createMembershipSale;
     private ensureValidDateRange;
@@ -94,6 +95,7 @@ export declare class GymManagementService {
     private addDays;
     private sumNumbers;
     private calculateAssignmentCommissionAmount;
+    private createOrReplaceMemberAssignment;
     private isDateWithinPeriod;
     private isAssignmentActiveOnDate;
     private findPtContractForPeriod;
@@ -123,8 +125,6 @@ export declare class GymManagementService {
     createProduct(createProductDto: CreateProductDto): Promise<ProductRecord>;
     updateProduct(productId: string, updateProductDto: UpdateProductDto): Promise<ProductRecord>;
     deleteProduct(productId: string): Promise<ProductRecord>;
-    createEquipment(createEquipmentDto: CreateEquipmentDto): Promise<Record<string, unknown>>;
-    updateEquipment(equipmentAssetId: string, updateEquipmentDto: UpdateEquipmentDto): Promise<Record<string, unknown>>;
     createOperatingExpense(createOperatingExpenseDto: CreateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
     updateOperatingExpense(expenseId: string, updateOperatingExpenseDto: UpdateOperatingExpenseDto): Promise<OperatingExpenseRecord>;
     patchSystemConfig(configKey: string, patchSystemConfigDto: PatchSystemConfigDto, actorUserId?: string): Promise<SystemConfigRecord>;
@@ -148,6 +148,7 @@ export declare class GymManagementService {
     private toVietnamDate;
     private assertCurrentVietnamDate;
     private findActivePtContractEntity;
+    private getPackageCommissionRateForTrainer;
     private findAttendanceLogForCheckOut;
     private getStringSystemConfig;
     private getNumberSystemConfig;
@@ -164,9 +165,7 @@ export declare class GymManagementService {
     private toMemberEntityData;
     private toMembershipPlanEntityData;
     private toProductEntityData;
-    private toEquipmentAssetEntityData;
     private toOperatingExpenseEntityData;
-    private resolveEquipmentAsset;
     private resolveApprovedByUser;
     private getRequiredUserEntity;
     private getRequiredPersonalTrainerEntity;
@@ -175,7 +174,6 @@ export declare class GymManagementService {
     private findMembershipPlanOrThrow;
     private getRequiredProductEntity;
     private getRequiredOperatingExpenseEntity;
-    private getRequiredEquipmentAssetEntity;
     private findOperatingExpenseOrThrow;
 }
 export {};

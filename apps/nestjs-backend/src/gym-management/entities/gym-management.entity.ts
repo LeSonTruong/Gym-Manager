@@ -14,7 +14,7 @@ export class UserEntity extends BaseEntity {
   @Property({ length: 160 })
   fullName!: string;
 
-  @Property({ length: 180, unique: true, fieldName: 'email' })
+  @Property({ length: 180, unique: true })
   username!: string;
 
   @Property({ length: 30 })
@@ -69,8 +69,17 @@ export class PersonalTrainerEntity extends BaseEntity {
   @Property({ length: 160 })
   fullName!: string;
 
+  @Property({ length: 30, default: 'OTHER' })
+  gender!: string;
+
+  @Property({ type: types.date, columnType: 'date', fieldName: 'birth_date' })
+  birthDate!: Date;
+
   @Property({ length: 40 })
   phone!: string;
+
+  @Property({ type: types.date, columnType: 'date', fieldName: 'start_date' })
+  startDate!: Date;
 
   @Property({ length: 30 })
   status!: string;
@@ -260,8 +269,17 @@ export class MemberEntity extends BaseEntity {
   @Property({ length: 160 })
   fullName!: string;
 
+  @Property({ length: 30, default: 'OTHER' })
+  gender!: string;
+
+  @Property({ type: types.date, columnType: 'date', fieldName: 'birth_date' })
+  birthDate!: Date;
+
   @Property({ length: 40 })
   phone!: string;
+
+  @Property({ type: types.date, columnType: 'date', fieldName: 'registered_at' })
+  registeredAt!: Date;
 
   @Property({ length: 30 })
   status!: string;
@@ -292,14 +310,8 @@ export class MembershipPlanEntity extends BaseEntity {
   @Property()
   durationDays!: number;
 
-  @Property({ nullable: true })
-  usageLimit?: number | null;
-
   @Property()
   includesPt!: boolean;
-
-  @Property()
-  includedPtSessions!: number;
 
   @Property({ type: types.json })
   perks!: string[];
@@ -321,9 +333,6 @@ export class MemberMembershipEntity extends BaseEntity {
 
   @Property({ type: types.date, columnType: 'date' })
   endDate!: Date;
-
-  @Property({ nullable: true })
-  remainingSessions?: number | null;
 
   @Property({ length: 30 })
   status!: string;
@@ -353,18 +362,6 @@ export class MemberPtAssignmentEntity extends BaseEntity {
 
   @Property({ type: types.date, columnType: 'date', nullable: true })
   assignedTo?: Date | null;
-
-  @Property({ length: 20, fieldName: 'commission_type', nullable: true })
-  commissionType?: string | null;
-
-  @Property({
-    type: types.decimal,
-    precision: 15,
-    scale: 2,
-    nullable: true,
-    fieldName: 'commission_value',
-  })
-  commissionValue?: string | null;
 
   @Property({ type: types.decimal, precision: 15, scale: 2 })
   commissionAmount!: string;
@@ -522,47 +519,6 @@ export class SalesInvoiceItemEntity extends BaseEntity {
   lineTotal!: string;
 }
 
-@Entity({ tableName: 'equipment_assets' })
-export class EquipmentAssetEntity extends BaseEntity {
-  @Property({ length: 40, unique: true })
-  code!: string;
-
-  @Property({ length: 160 })
-  name!: string;
-
-  @Property({ length: 120, nullable: true })
-  category?: string | null;
-
-  @Property({ type: types.date, columnType: 'date' })
-  purchasedAt!: Date;
-
-  @Property({ type: types.decimal, precision: 15, scale: 2 })
-  purchaseValue!: string;
-
-  @Property({ length: 30, fieldName: 'status', nullable: true })
-  status?: string | null;
-
-  @Property({ length: 40, fieldName: 'condition_status' })
-  condition!: string;
-
-  @Property({ length: 160, nullable: true })
-  location?: string | null;
-
-  @Property({ type: types.date, columnType: 'date', nullable: true })
-  nextMaintenanceAt?: Date | null;
-
-  @Property({ type: types.text })
-  note!: string;
-
-  @Property({
-    type: types.datetime,
-    columnType: 'timestamp',
-    nullable: true,
-    fieldName: 'deleted_at',
-  })
-  deletedAt?: Date | null;
-}
-
 @Entity({ tableName: 'operating_expenses' })
 export class OperatingExpenseEntity extends BaseEntity {
   @Property({ length: 40, unique: true })
@@ -573,9 +529,6 @@ export class OperatingExpenseEntity extends BaseEntity {
 
   @Property({ length: 40 })
   category!: string;
-
-  @ManyToOne(() => EquipmentAssetEntity, { fieldName: 'equipment_asset_id', nullable: true })
-  equipmentAsset?: EquipmentAssetEntity | null;
 
   @Property({ length: 160 })
   vendorName!: string;
@@ -609,36 +562,6 @@ export class OperatingExpenseEntity extends BaseEntity {
 
   @Property({ length: 30 })
   status!: string;
-}
-
-@Entity({ tableName: 'maintenance_records' })
-export class MaintenanceRecordEntity extends BaseEntity {
-  @ManyToOne(() => EquipmentAssetEntity, { fieldName: 'equipment_asset_id' })
-  equipmentAsset!: EquipmentAssetEntity;
-
-  @Property({ length: 30, fieldName: 'maintenance_type', nullable: true })
-  maintenanceType?: string | null;
-
-  @Property({ type: types.date, columnType: 'date' })
-  maintenanceDate!: Date;
-
-  @Property({ type: types.text })
-  description!: string;
-
-  @Property({ length: 160 })
-  vendorName!: string;
-
-  @Property({ type: types.decimal, precision: 15, scale: 2 })
-  amount!: string;
-
-  @Property({ length: 30, fieldName: 'result_status', nullable: true })
-  resultStatus?: string | null;
-
-  @Property({ type: types.text, nullable: true })
-  note?: string | null;
-
-  @ManyToOne(() => UserEntity, { fieldName: 'created_by_user_id', nullable: true })
-  createdByUser?: UserEntity | null;
 }
 
 @Entity({ tableName: 'audit_logs' })

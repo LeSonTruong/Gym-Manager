@@ -19,8 +19,6 @@ exports.mapInventoryTransactionEntity = mapInventoryTransactionEntity;
 exports.mapSalesInvoiceItemEntity = mapSalesInvoiceItemEntity;
 exports.mapSalesInvoiceEntity = mapSalesInvoiceEntity;
 exports.mapOperatingExpenseEntity = mapOperatingExpenseEntity;
-exports.mapEquipmentAssetEntity = mapEquipmentAssetEntity;
-exports.mapMaintenanceRecordEntity = mapMaintenanceRecordEntity;
 exports.mapSystemConfigEntity = mapSystemConfigEntity;
 exports.mapDatasetFromEntities = mapDatasetFromEntities;
 function toDateOnlyString(value) {
@@ -52,6 +50,7 @@ function toDecimalString(value) {
 }
 const userRoles = ["ADMIN", "STAFF"];
 const userStatuses = ["ACTIVE", "INACTIVE"];
+const genders = ["MALE", "FEMALE", "OTHER"];
 const salaryTypes = ["MONTHLY", "DAILY", "HOURLY"];
 const attendanceStatuses = ["OPEN", "VALID", "HALF", "INVALID"];
 const payrollPeriodStatuses = ["OPEN", "PENDING_APPROVAL", "APPROVED", "PAID"];
@@ -59,7 +58,6 @@ const payrollEntryStatuses = ["PENDING_APPROVAL", "APPROVED", "PAID"];
 const membershipPlanTypes = ["DAY", "MONTH", "YEAR"];
 const membershipPlanStatuses = ["ON_SALE", "OFF_SALE"];
 const membershipStatuses = ["ACTIVE", "EXPIRED", "CANCELLED"];
-const commissionTypes = ["PERCENT", "FIXED"];
 const assignmentStatuses = ["ACTIVE", "ENDED"];
 const paymentMethods = ["CASH", "BANK_TRANSFER", "CARD"];
 const membershipInvoiceStatuses = ["CONFIRMED", "CANCELLED"];
@@ -73,9 +71,6 @@ function isOneOf(value, acceptedValues) {
 }
 function coerceEnumValue(value, acceptedValues, fallback) {
     return isOneOf(value, acceptedValues) ? value : fallback;
-}
-function toOfflineContactEmail(scope, id) {
-    return `${scope}-${id.toLowerCase()}@offline.local`;
 }
 function mapUserEntity(entity) {
     return {
@@ -93,16 +88,15 @@ function mapPersonalTrainerEntity(entity) {
         code: entity.code,
         userId: entity.user?.id ?? undefined,
         fullName: entity.fullName,
-        gender: "OTHER",
-        birthDate: "2000-01-01",
+        gender: coerceEnumValue(entity.gender, genders, "OTHER"),
+        birthDate: toDateOnlyString(entity.birthDate),
         phone: entity.phone,
-        email: toOfflineContactEmail("pt", entity.id),
         address: "",
         status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
         specialties: [],
         experienceYears: 0,
         avatarUrl: "",
-        startDate: toDateOnlyString(entity.createdAt),
+        startDate: toDateOnlyString(entity.startDate),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
 }
@@ -182,16 +176,15 @@ function mapMemberEntity(entity) {
         id: entity.id,
         code: entity.code,
         fullName: entity.fullName,
-        gender: "OTHER",
-        birthDate: "2000-01-01",
+        gender: coerceEnumValue(entity.gender, genders, "OTHER"),
+        birthDate: toDateOnlyString(entity.birthDate),
         phone: entity.phone,
-        email: toOfflineContactEmail("member", entity.id),
         address: "",
         heightCm: 0,
         weightKg: 0,
         goal: "",
         healthNotes: "",
-        registeredAt: toDateOnlyString(entity.createdAt),
+        registeredAt: toDateOnlyString(entity.registeredAt),
         status: coerceEnumValue(entity.status, userStatuses, "ACTIVE"),
         deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
     };
@@ -205,7 +198,6 @@ function mapMembershipPlanEntity(entity) {
         price: Number(entity.price),
         durationDays: entity.durationDays,
         includesPt: entity.includesPt,
-        includedPtSessions: entity.includedPtSessions,
         perks: entity.perks,
         status: coerceEnumValue(entity.status, membershipPlanStatuses, "ON_SALE"),
     };
@@ -229,11 +221,6 @@ function mapMemberPtAssignmentEntity(entity) {
         memberMembershipId: entity.memberMembership.id,
         assignedFrom: toDateOnlyString(entity.assignedFrom),
         assignedTo: entity.assignedTo ? toDateOnlyString(entity.assignedTo) : undefined,
-        commissionType: typeof entity.commissionType === "string" &&
-            isOneOf(entity.commissionType, commissionTypes)
-            ? entity.commissionType
-            : undefined,
-        commissionValue: entity.commissionValue ? Number(entity.commissionValue) : undefined,
         commissionAmount: Number(entity.commissionAmount),
         status: coerceEnumValue(entity.status, assignmentStatuses, "ACTIVE"),
         note: entity.note ?? undefined,
@@ -324,38 +311,6 @@ function mapOperatingExpenseEntity(entity) {
         paidAt: entity.paidAt ? toDateTimeString(entity.paidAt) : undefined,
     };
 }
-function mapEquipmentAssetEntity(entity) {
-    return {
-        id: entity.id,
-        code: entity.code,
-        name: entity.name,
-        category: entity.category ?? undefined,
-        purchasedAt: toDateOnlyString(entity.purchasedAt),
-        purchaseValue: Number(entity.purchaseValue),
-        status: entity.status ?? undefined,
-        condition: entity.condition,
-        location: entity.location ?? undefined,
-        nextMaintenanceAt: entity.nextMaintenanceAt
-            ? toDateOnlyString(entity.nextMaintenanceAt)
-            : undefined,
-        note: entity.note,
-        deletedAt: entity.deletedAt ? toDateTimeString(entity.deletedAt) : undefined,
-    };
-}
-function mapMaintenanceRecordEntity(entity) {
-    return {
-        id: entity.id,
-        equipmentAssetId: entity.equipmentAsset.id,
-        maintenanceDate: toDateOnlyString(entity.maintenanceDate),
-        maintenanceType: entity.maintenanceType ?? undefined,
-        description: entity.description,
-        vendorName: entity.vendorName,
-        amount: Number(entity.amount),
-        resultStatus: entity.resultStatus ?? undefined,
-        note: entity.note ?? undefined,
-        createdByUserId: entity.createdByUser?.id ?? undefined,
-    };
-}
 function mapSystemConfigEntity(entity) {
     return {
         key: entity.key,
@@ -391,11 +346,6 @@ function mapDatasetFromEntities(collections, generatedAt = new Date().toISOStrin
         inventoryTransactions: collections.inventoryTransactions.map((entity) => mapInventoryTransactionEntity(entity)),
         salesInvoices: collections.salesInvoices.map((invoice) => mapSalesInvoiceEntity(invoice, salesInvoiceItemsByInvoiceId.get(invoice.id) ?? [])),
         operatingExpenses: collections.operatingExpenses.map((entity) => mapOperatingExpenseEntity(entity)),
-        memberCheckIns: [],
-        ptBookingSessions: [],
-        paymentTransactions: [],
-        equipmentAssets: [],
-        maintenanceRecords: [],
         systemConfigs: collections.systemConfigs.map((entity) => mapSystemConfigEntity(entity)),
     };
 }

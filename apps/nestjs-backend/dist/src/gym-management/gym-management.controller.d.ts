@@ -15,6 +15,7 @@ declare class LogoutDto {
     refreshToken: string;
 }
 declare class UpdateAccountDto {
+    fullName?: string;
     username?: string;
     currentPassword?: string;
     newPassword?: string;
@@ -69,7 +70,7 @@ export declare class GymManagementController {
     checkOutAttendanceCompat(attendanceCheckOutDto: AttendanceCheckOutDto, currentUser: AuthenticatedUser): Promise<ApiResponse<AttendanceRecord>>;
     patchAttendance(attendanceLogId: string, patchAttendanceDto: PatchAttendanceDto): Promise<ApiResponse<AttendanceRecord>>;
     getMyAttendance(ptId: string | undefined, currentUser: AuthenticatedUser): Promise<ApiResponse<PtDetail["attendance"]>>;
-    getAttendanceByPt(ptId: string): Promise<ApiResponse<PtDetail["attendance"]>>;
+    getAttendanceByPt(ptId: string, currentUser: AuthenticatedUser): Promise<ApiResponse<PtDetail["attendance"]>>;
     getPayrollPeriods(): Promise<ApiResponse<Snapshot["dataset"]["payrollPeriods"]>>;
     createPayrollPeriod(createPayrollPeriodDto: CreatePayrollPeriodDto): Promise<ApiResponse<PayrollPeriodRecord>>;
     getPayrollPeriod(payrollPeriodId: string): Promise<ApiResponse<PayrollPeriodDetail>>;

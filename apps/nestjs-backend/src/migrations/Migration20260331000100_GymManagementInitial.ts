@@ -93,21 +93,6 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         constraint "products_code_unique" unique ("code")
       );
 
-      create table "equipment_assets" (
-        "id" varchar(120) not null,
-        "code" varchar(40) not null,
-        "name" varchar(160) not null,
-        "purchased_at" date not null,
-        "purchase_value" numeric(15,2) not null,
-        "condition" varchar(40) not null,
-        "next_maintenance_at" date not null,
-        "note" text not null,
-        "created_at" timestamp not null,
-        "updated_at" timestamp not null,
-        constraint "equipment_assets_pkey" primary key ("id"),
-        constraint "equipment_assets_code_unique" unique ("code")
-      );
-
       create table "system_configs" (
         "key" varchar(120) not null,
         "label" varchar(160) not null,
@@ -221,18 +206,6 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         constraint "inventory_transactions_product_id_foreign" foreign key ("product_id") references "products" ("id") on update cascade
       );
 
-      create table "maintenance_records" (
-        "id" varchar(120) not null,
-        "equipment_asset_id" varchar(120) not null,
-        "maintenance_date" date not null,
-        "description" text not null,
-        "vendor_name" varchar(160) not null,
-        "amount" numeric(15,2) not null,
-        "created_at" timestamp not null,
-        "updated_at" timestamp not null,
-        constraint "maintenance_records_pkey" primary key ("id"),
-        constraint "maintenance_records_equipment_asset_id_foreign" foreign key ("equipment_asset_id") references "equipment_assets" ("id") on update cascade
-      );
     `);
 
     this.addSql(`
@@ -301,7 +274,6 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         "code" varchar(40) not null,
         "expense_date" date not null,
         "category" varchar(40) not null,
-        "equipment_asset_id" varchar(120) null,
         "vendor_name" varchar(160) not null,
         "amount" numeric(15,2) not null,
         "description" text not null,
@@ -317,7 +289,6 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
         "updated_at" timestamp not null,
         constraint "operating_expenses_pkey" primary key ("id"),
         constraint "operating_expenses_code_unique" unique ("code"),
-        constraint "operating_expenses_equipment_asset_id_foreign" foreign key ("equipment_asset_id") references "equipment_assets" ("id") on update cascade on delete set null,
         constraint "operating_expenses_approved_by_user_id_foreign" foreign key ("approved_by_user_id") references "users" ("id") on update cascade on delete set null
       );
     `);
@@ -378,7 +349,6 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
     this.addSql('drop table if exists "sales_invoices" cascade;');
     this.addSql('drop table if exists "member_pt_assignments" cascade;');
     this.addSql('drop table if exists "payroll_entries" cascade;');
-    this.addSql('drop table if exists "maintenance_records" cascade;');
     this.addSql('drop table if exists "inventory_transactions" cascade;');
     this.addSql('drop table if exists "membership_invoices" cascade;');
     this.addSql('drop table if exists "member_memberships" cascade;');
@@ -386,7 +356,6 @@ export class GymManagementInitialMigration20260331000100 extends Migration {
     this.addSql('drop table if exists "attendance_logs" cascade;');
     this.addSql('drop table if exists "pt_contracts" cascade;');
     this.addSql('drop table if exists "system_configs" cascade;');
-    this.addSql('drop table if exists "equipment_assets" cascade;');
     this.addSql('drop table if exists "products" cascade;');
     this.addSql('drop table if exists "membership_plans" cascade;');
     this.addSql('drop table if exists "members" cascade;');

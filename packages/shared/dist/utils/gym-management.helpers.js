@@ -8,7 +8,6 @@ exports.findMemberById = findMemberById;
 exports.findMembershipPlanById = findMembershipPlanById;
 exports.findSalesInvoiceById = findSalesInvoiceById;
 exports.findOperatingExpenseById = findOperatingExpenseById;
-exports.findEquipmentAssetById = findEquipmentAssetById;
 exports.getActiveMembershipForMember = getActiveMembershipForMember;
 exports.getActiveAssignmentForMember = getActiveAssignmentForMember;
 exports.getAttendanceByPtId = getAttendanceByPtId;
@@ -75,9 +74,6 @@ function findSalesInvoiceById(dataset, salesInvoiceId) {
 function findOperatingExpenseById(dataset, expenseId) {
     return dataset.operatingExpenses.find((expense) => expense.id === expenseId);
 }
-function findEquipmentAssetById(dataset, equipmentAssetId) {
-    return dataset.equipmentAssets.find((asset) => asset.id === equipmentAssetId);
-}
 function getActiveMembershipForMember(dataset, memberId) {
     const activeMemberships = dataset.memberMemberships
         .filter((membership) => membership.memberId === memberId && membership.status === 'ACTIVE')
@@ -96,7 +92,6 @@ function buildDashboardSummary(dataset) {
     const confirmedSalesInvoices = dataset.salesInvoices.filter((invoice) => isConfirmedSalesInvoice(invoice));
     const activeMemberships = dataset.memberMemberships.filter((membership) => membership.status === 'ACTIVE');
     const lowStockProducts = dataset.products.filter((product) => product.stockOnHand <= product.minimumStockLevel);
-    const maintenanceAlerts = [];
     const membershipTypes = ['DAY', 'MONTH', 'YEAR'];
     const activeMembershipsByType = structuredClone(zeroActiveMembershipsByType);
     for (const membershipType of membershipTypes) {
@@ -143,7 +138,6 @@ function buildDashboardSummary(dataset) {
             .map((entry) => entry.netPay)),
         totalOperatingExpense: sumValues(dataset.operatingExpenses.filter((expense) => isExpenseCounted(expense)).map((expense) => expense.amount)),
         lowStockProducts,
-        maintenanceAlerts,
     };
 }
 function buildPtOverview(dataset) {

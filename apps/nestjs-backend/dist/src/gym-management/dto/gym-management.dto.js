@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateMaintenanceDto = exports.InventoryImportDto = exports.CreateSalesInvoiceDto = exports.CreateSalesInvoiceItemDto = exports.GeneratePayrollDto = exports.CreatePayrollPeriodDto = exports.EndMemberAssignmentDto = exports.CreateMemberAssignmentDto = exports.CancelMemberMembershipDto = exports.RenewMemberMembershipDto = exports.CreateMemberMembershipDto = exports.UpdatePtContractDto = exports.CreatePtContractDto = exports.PatchAttendanceDto = exports.AttendanceCheckOutDto = exports.AttendanceCheckInDto = exports.PatchSystemConfigDto = exports.CancelSalesInvoiceDto = exports.RejectExpenseDto = exports.UpdateOperatingExpenseDto = exports.CreateOperatingExpenseDto = exports.UpdateEquipmentDto = exports.CreateEquipmentDto = exports.UpdateProductDto = exports.CreateProductDto = exports.UpdateMembershipPlanDto = exports.CreateMembershipPlanDto = exports.UpdateMemberDto = exports.CreateMemberDto = exports.UpdatePersonalTrainerDto = exports.CreatePersonalTrainerDto = void 0;
+exports.InventoryImportDto = exports.CreateSalesInvoiceDto = exports.CreateSalesInvoiceItemDto = exports.GeneratePayrollDto = exports.CreatePayrollPeriodDto = exports.EndMemberAssignmentDto = exports.CreateMemberAssignmentDto = exports.CancelMemberMembershipDto = exports.RenewMemberMembershipDto = exports.CreateMemberMembershipDto = exports.UpdatePtContractDto = exports.CreatePtContractDto = exports.PatchAttendanceDto = exports.AttendanceCheckOutDto = exports.AttendanceCheckInDto = exports.PatchSystemConfigDto = exports.CancelSalesInvoiceDto = exports.RejectExpenseDto = exports.UpdateOperatingExpenseDto = exports.CreateOperatingExpenseDto = exports.UpdateProductDto = exports.CreateProductDto = exports.UpdateMembershipPlanDto = exports.CreateMembershipPlanDto = exports.UpdateMemberDto = exports.CreateMemberDto = exports.UpdatePersonalTrainerDto = exports.CreatePersonalTrainerDto = void 0;
 const class_transformer_1 = require("class-transformer");
 const mapped_types_1 = require("@nestjs/mapped-types");
 const class_validator_1 = require("class-validator");
@@ -20,7 +20,6 @@ class CreatePersonalTrainerDto {
     gender;
     birthDate;
     phone;
-    email;
     address;
     status;
     specialties;
@@ -56,11 +55,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePersonalTrainerDto.prototype, "phone", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
-], CreatePersonalTrainerDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -102,7 +96,6 @@ class CreateMemberDto {
     gender;
     birthDate;
     phone;
-    email;
     address;
     heightCm;
     weightKg;
@@ -134,11 +127,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMemberDto.prototype, "phone", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)(),
-    __metadata("design:type", String)
-], CreateMemberDto.prototype, "email", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -185,9 +173,7 @@ class CreateMembershipPlanDto {
     type;
     price;
     durationDays;
-    usageLimit;
     includesPt;
-    includedPtSessions;
     perks;
     status;
 }
@@ -214,19 +200,9 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateMembershipPlanDto.prototype, "durationDays", void 0);
 __decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsInt)(),
-    __metadata("design:type", Number)
-], CreateMembershipPlanDto.prototype, "usageLimit", void 0);
-__decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], CreateMembershipPlanDto.prototype, "includesPt", void 0);
-__decorate([
-    (0, class_validator_1.IsInt)(),
-    (0, class_validator_1.Min)(0),
-    __metadata("design:type", Number)
-], CreateMembershipPlanDto.prototype, "includedPtSessions", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsString)({ each: true }),
@@ -286,71 +262,10 @@ __decorate([
 class UpdateProductDto extends (0, mapped_types_1.PartialType)(CreateProductDto) {
 }
 exports.UpdateProductDto = UpdateProductDto;
-class CreateEquipmentDto {
-    code;
-    name;
-    category;
-    purchasedAt;
-    purchaseValue;
-    status;
-    condition;
-    location;
-    nextMaintenanceAt;
-    note;
-}
-exports.CreateEquipmentDto = CreateEquipmentDto;
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "code", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "name", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "category", void 0);
-__decorate([
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "purchasedAt", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateEquipmentDto.prototype, "purchaseValue", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "status", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "condition", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "location", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "nextMaintenanceAt", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateEquipmentDto.prototype, "note", void 0);
-class UpdateEquipmentDto extends (0, mapped_types_1.PartialType)(CreateEquipmentDto) {
-}
-exports.UpdateEquipmentDto = UpdateEquipmentDto;
 class CreateOperatingExpenseDto {
     code;
     expenseDate;
     category;
-    equipmentAssetId;
     vendorName;
     amount;
     description;
@@ -369,11 +284,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateOperatingExpenseDto.prototype, "category", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateOperatingExpenseDto.prototype, "equipmentAssetId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
@@ -566,6 +476,7 @@ class CreateMemberMembershipDto {
     memberId;
     membershipPlanId;
     startDate;
+    ptId;
     paymentMethod;
     totalAmount;
 }
@@ -583,6 +494,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateMemberMembershipDto.prototype, "startDate", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateMemberMembershipDto.prototype, "ptId", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateMemberMembershipDto.prototype, "paymentMethod", void 0);
@@ -593,6 +509,7 @@ __decorate([
 ], CreateMemberMembershipDto.prototype, "totalAmount", void 0);
 class RenewMemberMembershipDto {
     startDate;
+    ptId;
     paymentMethod;
 }
 exports.RenewMemberMembershipDto = RenewMemberMembershipDto;
@@ -601,6 +518,11 @@ __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], RenewMemberMembershipDto.prototype, "startDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RenewMemberMembershipDto.prototype, "ptId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -620,9 +542,6 @@ class CreateMemberAssignmentDto {
     ptId;
     memberMembershipId;
     assignedFrom;
-    commissionType;
-    commissionValue;
-    commissionAmount;
     note;
 }
 exports.CreateMemberAssignmentDto = CreateMemberAssignmentDto;
@@ -643,21 +562,6 @@ __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreateMemberAssignmentDto.prototype, "assignedFrom", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMemberAssignmentDto.prototype, "commissionType", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateMemberAssignmentDto.prototype, "commissionValue", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateMemberAssignmentDto.prototype, "commissionAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -800,68 +704,4 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], InventoryImportDto.prototype, "note", void 0);
-class CreateMaintenanceDto {
-    equipmentAssetId;
-    maintenanceType;
-    maintenanceDate;
-    description;
-    vendorName;
-    amount;
-    resultStatus;
-    note;
-    equipmentStatus;
-    equipmentCondition;
-    nextMaintenanceAt;
-}
-exports.CreateMaintenanceDto = CreateMaintenanceDto;
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "equipmentAssetId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "maintenanceType", void 0);
-__decorate([
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "maintenanceDate", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "description", void 0);
-__decorate([
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "vendorName", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateMaintenanceDto.prototype, "amount", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "resultStatus", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "note", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "equipmentStatus", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "equipmentCondition", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)(),
-    __metadata("design:type", String)
-], CreateMaintenanceDto.prototype, "nextMaintenanceAt", void 0);
 //# sourceMappingURL=gym-management.dto.js.map

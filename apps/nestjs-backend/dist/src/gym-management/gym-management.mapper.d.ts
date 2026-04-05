@@ -1,5 +1,5 @@
 import type { AttendanceLog, DemoUser, GymManagementDataset, InventoryTransaction, Member, MemberMembership, MemberPtAssignment, MembershipInvoice, MembershipPlan, OperatingExpense, PayrollEntry, PayrollPeriod, PersonalTrainer, Product, PtContract, SalesInvoice, SalesInvoiceItem, SystemConfig } from '@next-nest-turbo-boilerplate/shared';
-import { AttendanceLogEntity, EquipmentAssetEntity, InventoryTransactionEntity, MaintenanceRecordEntity, MemberEntity, MemberMembershipEntity, MemberPtAssignmentEntity, MembershipInvoiceEntity, MembershipPlanEntity, OperatingExpenseEntity, PayrollEntryEntity, PayrollPeriodEntity, PersonalTrainerEntity, ProductEntity, PtContractEntity, SalesInvoiceEntity, SalesInvoiceItemEntity, SystemConfigEntity, UserEntity } from './entities/gym-management.entity';
+import { AttendanceLogEntity, InventoryTransactionEntity, MemberEntity, MemberMembershipEntity, MemberPtAssignmentEntity, MembershipInvoiceEntity, MembershipPlanEntity, OperatingExpenseEntity, PayrollEntryEntity, PayrollPeriodEntity, PersonalTrainerEntity, ProductEntity, PtContractEntity, SalesInvoiceEntity, SalesInvoiceItemEntity, SystemConfigEntity, UserEntity } from './entities/gym-management.entity';
 export declare function parseDateOnly(value: string): Date;
 export declare function parseDateTime(value: string): Date;
 export declare function toDecimalString(value: number): string;
@@ -19,8 +19,6 @@ export declare function mapInventoryTransactionEntity(entity: InventoryTransacti
 export declare function mapSalesInvoiceItemEntity(entity: SalesInvoiceItemEntity): SalesInvoiceItem;
 export declare function mapSalesInvoiceEntity(entity: SalesInvoiceEntity, items: SalesInvoiceItem[]): SalesInvoice;
 export declare function mapOperatingExpenseEntity(entity: OperatingExpenseEntity): OperatingExpense;
-export declare function mapEquipmentAssetEntity(entity: EquipmentAssetEntity): Record<string, unknown>;
-export declare function mapMaintenanceRecordEntity(entity: MaintenanceRecordEntity): Record<string, unknown>;
 export declare function mapSystemConfigEntity(entity: SystemConfigEntity): SystemConfig;
 export type GymManagementEntityCollections = {
     users: UserEntity[];

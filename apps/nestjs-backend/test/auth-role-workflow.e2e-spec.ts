@@ -13,9 +13,7 @@ import { GymRolesGuard } from "../src/gym-management/auth/gym-roles.guard";
 import {
   AuditLogEntity,
   AttendanceLogEntity,
-  EquipmentAssetEntity,
   InventoryTransactionEntity,
-  MaintenanceRecordEntity,
   MemberEntity,
   MemberMembershipEntity,
   MemberPtAssignmentEntity,
@@ -212,7 +210,6 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
   let memberId: string;
   let membershipPlanId: string;
   let productId: string;
-  let equipmentId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -235,9 +232,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
             InventoryTransactionEntity,
             SalesInvoiceEntity,
             SalesInvoiceItemEntity,
-            EquipmentAssetEntity,
             OperatingExpenseEntity,
-            MaintenanceRecordEntity,
             AuditLogEntity,
             SystemConfigEntity,
           ],
@@ -262,9 +257,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
           InventoryTransactionEntity,
           SalesInvoiceEntity,
           SalesInvoiceItemEntity,
-          EquipmentAssetEntity,
           OperatingExpenseEntity,
-          MaintenanceRecordEntity,
           AuditLogEntity,
           SystemConfigEntity,
         ]),
@@ -349,7 +342,6 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       code: "PLAN-001",
     });
     const product = await em.findOne(ProductEntity, { code: "PR-001" });
-    const equipment = await em.findOne(EquipmentAssetEntity, { code: "EQ-001" });
 
     if (
       !payrollPeriod ||
@@ -360,8 +352,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       !scopedTrainer ||
       !member ||
       !membershipPlan ||
-      !product ||
-      !equipment
+      !product
     ) {
       throw new Error("Seed records were not created for e2e tests");
     }
@@ -375,7 +366,6 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
     memberId = member.id;
     membershipPlanId = membershipPlan.id;
     productId = product.id;
-    equipmentId = equipment.id;
   });
 
   afterAll(async () => {
@@ -488,7 +478,6 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         fullName: "Temp Attendance PT",
         gender: "MALE",
         birthDate: "1995-01-01",
-        email: `temp-attendance-${Date.now()}@gym.local`,
         phone: "0900000001",
         address: "HCMC",
         status: "ACTIVE",
@@ -744,68 +733,79 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       path: string;
       payload?: UnknownRecord;
     }> = [
-        {
-          method: "post",
-          path: "/member-memberships",
-          payload: {
-            memberId,
-            membershipPlanId,
-            startDate: "2026-04-01",
-            paymentMethod: "CASH",
-          },
+      {
+        method: "post",
+        path: "/member-assignments",
+        payload: {
+          memberId,
+          ptId,
+          memberMembershipId: "rbac-membership",
+          assignedFrom: "2026-04-01",
         },
-        {
-          method: "post",
-          path: "/member-memberships/rbac-membership/renew",
+      },
+      {
+        method: "post",
+        path: `/sales/invoices/${salesInvoiceId}/confirm`,
+      },
+      {
+        method: "post",
+        path: `/sales/invoices/${salesInvoiceId}/cancel`,
+        payload: { cancellationReason: "RBAC check" },
+      },
+      {
+        method: "patch",
+        path: "/settings/rbac-test-key",
+        payload: { value: "enabled" },
+      },
+      {
+        method: "post",
+        path: "/settings/cleanup-trash",
+      },
+    ];
+    const staffAllowedCases: Array<{
+      method: MutationMethod;
+      path: string;
+      expectedStatus: number;
+      payload?: UnknownRecord;
+    }> = [
+      {
+        method: "post",
+        path: "/member-memberships",
+        expectedStatus: 404,
+        payload: {
+          memberId: "rbac-member",
+          membershipPlanId,
+          ptId,
+          startDate: "2026-04-01",
+          paymentMethod: "CASH",
         },
-        {
-          method: "post",
-          path: "/member-memberships/rbac-membership/cancel",
+      },
+      {
+        method: "post",
+        path: "/member-memberships/rbac-membership/renew",
+        expectedStatus: 404,
+        payload: {
+          ptId,
         },
-        {
-          method: "post",
-          path: "/member-assignments",
-          payload: {
-            memberId,
-            ptId,
-            memberMembershipId: "rbac-membership",
-            assignedFrom: "2026-04-01",
-          },
+      },
+      {
+        method: "post",
+        path: "/member-memberships/rbac-membership/cancel",
+        expectedStatus: 404,
+      },
+      {
+        method: "post",
+        path: "/inventory/import",
+        expectedStatus: 201,
+        payload: {
+          productId,
+          quantity: 1,
+          unitCost: 10,
         },
-        {
-          method: "post",
-          path: "/member-assignments/rbac-assignment/end",
-        },
-        {
-          method: "post",
-          path: "/inventory/import",
-          payload: {
-            productId,
-            quantity: 1,
-            unitCost: 10,
-          },
-        },
-        {
-          method: "post",
-          path: `/sales/invoices/${salesInvoiceId}/confirm`,
-        },
-        {
-          method: "post",
-          path: `/sales/invoices/${salesInvoiceId}/cancel`,
-          payload: { cancellationReason: "RBAC check" },
-        },
-        {
-          method: "patch",
-          path: "/settings/rbac-test-key",
-          payload: { value: "enabled" },
-        },
-        {
-          method: "post",
-          path: "/settings/cleanup-trash",
-        },
-      ];
+      },
+    ];
 
-    for (const adminOnlyCase of adminOnlyCases) {
+    await Promise.all(adminOnlyCases.map(async (adminOnlyCase) => {
       await expectMutationStatus({
         app,
         method: adminOnlyCase.method,
@@ -822,7 +822,36 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         token: staffToken,
         expectedStatus: 403,
       });
-    }
+    }));
+
+    const assertStaffAllowedCase = async (index: number): Promise<void> => {
+      if (index >= staffAllowedCases.length) {
+        return;
+      }
+
+      const staffAllowedCase = staffAllowedCases[index];
+
+      await expectMutationStatus({
+        app,
+        method: staffAllowedCase.method,
+        path: staffAllowedCase.path,
+        payload: staffAllowedCase.payload,
+        expectedStatus: 401,
+      });
+
+      await expectMutationStatus({
+        app,
+        method: staffAllowedCase.method,
+        path: staffAllowedCase.path,
+        payload: staffAllowedCase.payload,
+        token: staffToken,
+        expectedStatus: staffAllowedCase.expectedStatus,
+      });
+
+      await assertStaffAllowedCase(index + 1);
+    };
+
+    await assertStaffAllowedCase(0);
   });
 
   it("applies sales invariants and cancellation reason", async () => {
@@ -946,13 +975,38 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .send({ username: "admin", password: "password" })
       .expect(201);
     const activeAdminToken = getAccessToken(relogin);
+    const createdMemberResponse = await request(app.getHttpServer())
+      .post("/members")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        code: `MB-API-${Date.now()}`,
+        fullName: "API Member",
+        gender: "OTHER",
+        birthDate: "1999-09-09",
+        phone: "0911999999",
+        registeredAt: "2026-04-01",
+      })
+      .expect(201);
+    const apiMemberId = getStringField(
+      getResponseDataRecord(createdMemberResponse),
+      "id",
+      "response.body.data",
+    );
+    expect(
+      getStringField(
+        getResponseDataRecord(createdMemberResponse),
+        "gender",
+        "response.body.data",
+      ),
+    ).toBe("OTHER");
 
     const membershipResponse = await request(app.getHttpServer())
       .post("/member-memberships")
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
-        memberId,
+        memberId: apiMemberId,
         membershipPlanId,
+        ptId,
         startDate: "2026-04-01",
         paymentMethod: "CASH",
       })
@@ -986,12 +1040,10 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .post("/member-assignments")
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
-        memberId,
+        memberId: apiMemberId,
         ptId,
         memberMembershipId: membershipId,
         assignedFrom: "2026-04-01",
-        commissionType: "PERCENT",
-        commissionValue: 10,
       })
       .expect(201);
 
@@ -1008,7 +1060,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       .set("Authorization", `Bearer ${activeAdminToken}`)
       .send({
         customerName: "Gym member",
-        memberId,
+        memberId: apiMemberId,
         paymentMethod: "CASH",
         discountAmount: 10,
         items: [{ productId, quantity: 2 }],
@@ -1044,16 +1096,7 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
     const maintenanceResponse = await request(app.getHttpServer())
       .post("/maintenance")
       .set("Authorization", `Bearer ${activeAdminToken}`)
-      .send({
-        equipmentAssetId: equipmentId,
-        maintenanceType: "PREVENTIVE",
-        maintenanceDate: "2026-04-02",
-        description: "Quarterly check",
-        vendorName: "Service Co",
-        amount: 250,
-        resultStatus: "RESOLVED",
-        nextMaintenanceAt: "2026-07-02",
-      })
+      .send({})
       .expect(404);
 
     expect(
@@ -1098,7 +1141,6 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         fullName: "Temp Patch PT",
         gender: "MALE",
         birthDate: "1993-01-01",
-        email: `temp-patch-${Date.now()}@gym.local`,
         phone: "0900000002",
         address: "HCMC",
         status: "ACTIVE",
@@ -1114,6 +1156,62 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       "id",
       "response.body.data",
     );
+    expect(
+      getStringField(
+        getResponseDataRecord(patchPtResponse),
+        "birthDate",
+        "response.body.data",
+      ),
+    ).toBe("1993-01-01");
+
+    const deactivatePtResponse = await request(app.getHttpServer())
+      .delete(`/pts/${patchPtId}`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .expect(200);
+    expect(
+      getStringField(
+        getResponseDataRecord(deactivatePtResponse),
+        "status",
+        "response.body.data",
+      ),
+    ).toBe("INACTIVE");
+
+    const ptListResponse = await request(app.getHttpServer())
+      .get("/pts")
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .expect(200);
+    const listedPatchPt = getResponseDataArray(ptListResponse)
+      .map((item, index) => expectRecord(item, `response.body.data[${index}]`))
+      .find((item) => {
+        const ptRecord = getRecordField(item, "pt", "response.body.data[]");
+
+        return getStringField(ptRecord, "id", "response.body.data[].pt") === patchPtId;
+      });
+    expect(listedPatchPt).toBeDefined();
+    expect(
+      getStringField(
+        getRecordField(
+          expectRecord(listedPatchPt, "response.body.data[]"),
+          "pt",
+          "response.body.data[]",
+        ),
+        "status",
+        "response.body.data[].pt",
+      ),
+    ).toBe("INACTIVE");
+
+    const reactivatePtResponse = await request(app.getHttpServer())
+      .patch(`/pts/${patchPtId}`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({ status: "ACTIVE" })
+      .expect(200);
+    expect(
+      getStringField(
+        getResponseDataRecord(reactivatePtResponse),
+        "status",
+        "response.body.data",
+      ),
+    ).toBe("ACTIVE");
 
     const checkInForPatchResponse = await request(app.getHttpServer())
       .post("/attendance/check-in")
@@ -1143,6 +1241,42 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
         "response.body.data",
       ),
     ).toBe("VALID");
+
+    const updatedMemberResponse = await request(app.getHttpServer())
+      .patch(`/members/${apiMemberId}`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({
+        gender: "FEMALE",
+        status: "INACTIVE",
+      })
+      .expect(200);
+    expect(
+      getStringField(
+        getResponseDataRecord(updatedMemberResponse),
+        "gender",
+        "response.body.data",
+      ),
+    ).toBe("FEMALE");
+    expect(
+      getStringField(
+        getResponseDataRecord(updatedMemberResponse),
+        "status",
+        "response.body.data",
+      ),
+    ).toBe("INACTIVE");
+
+    const reactivateMemberResponse = await request(app.getHttpServer())
+      .patch(`/members/${apiMemberId}`)
+      .set("Authorization", `Bearer ${activeAdminToken}`)
+      .send({ status: "ACTIVE" })
+      .expect(200);
+    expect(
+      getStringField(
+        getResponseDataRecord(reactivateMemberResponse),
+        "status",
+        "response.body.data",
+      ),
+    ).toBe("ACTIVE");
 
     const staffPayrollLogin = await request(app.getHttpServer())
       .post("/auth/login")
@@ -1189,14 +1323,20 @@ async function seedData(orm: MikroORM): Promise<void> {
   const pt = em.create(PersonalTrainerEntity, {
     code: "PT-001",
     fullName: "PT Demo",
+    gender: "MALE",
+    birthDate: new Date("1995-01-01T00:00:00.000Z"),
     phone: "0900000000",
+    startDate: new Date("2026-01-01T00:00:00.000Z"),
     status: "ACTIVE",
   });
   const scopedPt = em.create(PersonalTrainerEntity, {
     code: "PT-STAFF",
     user: scopedStaff,
     fullName: "Scoped PT",
+    gender: "MALE",
+    birthDate: new Date("1994-01-01T00:00:00.000Z"),
     phone: "0900000009",
+    startDate: new Date("2026-01-01T00:00:00.000Z"),
     status: "ACTIVE",
   });
   const ptContract = em.create(PtContractEntity, {
@@ -1220,7 +1360,10 @@ async function seedData(orm: MikroORM): Promise<void> {
   const member = em.create(MemberEntity, {
     code: "MB-001",
     fullName: "Member Demo",
+    gender: "FEMALE",
+    birthDate: new Date("1998-01-01T00:00:00.000Z"),
     phone: "0911000000",
+    registeredAt: new Date("2026-03-01T00:00:00.000Z"),
     status: "ACTIVE",
   });
   const membershipPlan = em.create(MembershipPlanEntity, {
@@ -1229,25 +1372,10 @@ async function seedData(orm: MikroORM): Promise<void> {
     type: "MONTH",
     price: "1500000",
     durationDays: 30,
-    usageLimit: null,
     includesPt: true,
-    includedPtSessions: 12,
     perks: ["PT sessions"],
     status: "ON_SALE",
   });
-  const equipment = em.create(EquipmentAssetEntity, {
-    code: "EQ-001",
-    name: "Row Machine",
-    category: "Cardio",
-    purchasedAt: new Date("2025-01-10T00:00:00.000Z"),
-    purchaseValue: "1000",
-    status: "IN_USE",
-    condition: "GOOD",
-    location: "Zone A",
-    nextMaintenanceAt: new Date("2026-04-15T00:00:00.000Z"),
-    note: "Seeded equipment",
-  });
-
   const payrollPeriod = em.create(PayrollPeriodEntity, {
     code: "PP-2026-03",
     fromDate: new Date("2026-03-01T00:00:00.000Z"),
@@ -1344,7 +1472,6 @@ async function seedData(orm: MikroORM): Promise<void> {
     salesInvoiceItem,
     ptContract,
     membershipPlan,
-    equipment,
   ]);
   await em.flush();
 }
