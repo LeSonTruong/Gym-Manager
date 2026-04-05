@@ -744,66 +744,66 @@ describe("Auth/RBAC/Workflow (e2e + DB assertions)", () => {
       path: string;
       payload?: UnknownRecord;
     }> = [
-      {
-        method: "post",
-        path: "/member-memberships",
-        payload: {
-          memberId,
-          membershipPlanId,
-          startDate: "2026-04-01",
-          paymentMethod: "CASH",
+        {
+          method: "post",
+          path: "/member-memberships",
+          payload: {
+            memberId,
+            membershipPlanId,
+            startDate: "2026-04-01",
+            paymentMethod: "CASH",
+          },
         },
-      },
-      {
-        method: "post",
-        path: "/member-memberships/rbac-membership/renew",
-      },
-      {
-        method: "post",
-        path: "/member-memberships/rbac-membership/cancel",
-      },
-      {
-        method: "post",
-        path: "/member-assignments",
-        payload: {
-          memberId,
-          ptId,
-          memberMembershipId: "rbac-membership",
-          assignedFrom: "2026-04-01",
+        {
+          method: "post",
+          path: "/member-memberships/rbac-membership/renew",
         },
-      },
-      {
-        method: "post",
-        path: "/member-assignments/rbac-assignment/end",
-      },
-      {
-        method: "post",
-        path: "/inventory/import",
-        payload: {
-          productId,
-          quantity: 1,
-          unitCost: 10,
+        {
+          method: "post",
+          path: "/member-memberships/rbac-membership/cancel",
         },
-      },
-      {
-        method: "post",
-        path: `/sales/invoices/${salesInvoiceId}/confirm`,
-      },
-      {
-        method: "post",
-        path: `/sales/invoices/${salesInvoiceId}/cancel`,
-        payload: { cancellationReason: "RBAC check" },
-      },
-      {
-        method: "patch",
-        path: "/settings/rbac-test-key",
-        payload: { value: "enabled" },
-      },
-      {
-        method: "post",
-        path: "/settings/cleanup-trash",
-      },
-    ];
+        {
+          method: "post",
+          path: "/member-assignments",
+          payload: {
+            memberId,
+            ptId,
+            memberMembershipId: "rbac-membership",
+            assignedFrom: "2026-04-01",
+          },
+        },
+        {
+          method: "post",
+          path: "/member-assignments/rbac-assignment/end",
+        },
+        {
+          method: "post",
+          path: "/inventory/import",
+          payload: {
+            productId,
+            quantity: 1,
+            unitCost: 10,
+          },
+        },
+        {
+          method: "post",
+          path: `/sales/invoices/${salesInvoiceId}/confirm`,
+        },
+        {
+          method: "post",
+          path: `/sales/invoices/${salesInvoiceId}/cancel`,
+          payload: { cancellationReason: "RBAC check" },
+        },
+        {
+          method: "patch",
+          path: "/settings/rbac-test-key",
+          payload: { value: "enabled" },
+        },
+        {
+          method: "post",
+          path: "/settings/cleanup-trash",
+        },
+      ];
 
     for (const adminOnlyCase of adminOnlyCases) {
       await expectMutationStatus({
