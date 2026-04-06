@@ -12,6 +12,7 @@ import {
   SectionCard as BaseSectionCard,
   StatsGrid as BaseStatsGrid,
 } from "./gym-ui.tsx";
+import { FormAutocompleteSelect as BaseFormAutocompleteSelect } from "./form-autocomplete-select.component.tsx";
 import {
   cancelMembershipAction,
   checkInAttendanceAction,
@@ -414,6 +415,34 @@ function getScopedOptionValue(
   return getSearchParameter(options?.searchParams, key) ?? fallback;
 }
 
+function buildPathWithSearchParams(
+  path: string,
+  searchParameters: SearchParametersRecord | undefined,
+  overrides: Record<string, string | undefined>,
+): string {
+  const normalizedSearchParameters = new URLSearchParams();
+
+  for (const [key, rawValue] of Object.entries(searchParameters ?? {})) {
+    const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+
+    if (value) {
+      normalizedSearchParameters.set(key, value);
+    }
+  }
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value) {
+      normalizedSearchParameters.set(key, value);
+    } else {
+      normalizedSearchParameters.delete(key);
+    }
+  }
+
+  const queryString = normalizedSearchParameters.toString();
+
+  return queryString.length > 0 ? `${path}?${queryString}` : path;
+}
+
 function matchesSearchQuery(
   query: string,
   ...values: Array<string | number | undefined>
@@ -674,6 +703,54 @@ function FormSelect({
   );
 }
 
+function FormAutocompleteSelect({
+  label,
+  name,
+  options,
+  defaultValue,
+  required = false,
+  placeholder,
+  invalidSelectionMessage,
+  emptyStateMessage,
+}: {
+  readonly label: string;
+  readonly name: string;
+  readonly options: Array<{ readonly label: string; readonly value: string }>;
+  readonly defaultValue?: string;
+  readonly required?: boolean;
+  readonly placeholder?: string;
+  readonly invalidSelectionMessage?: string;
+  readonly emptyStateMessage?: string;
+}): JSX.Element {
+  const locale = getActiveUiLocale();
+
+  return (
+    <BaseFormAutocompleteSelect
+      label={translateText(label, locale)}
+      name={name}
+      options={options.map((option) => ({
+        value: option.value,
+        label: translateText(option.label, locale),
+      }))}
+      defaultValue={defaultValue}
+      isRequired={required}
+      placeholder={
+        placeholder ? translateText(placeholder, locale) : undefined
+      }
+      invalidSelectionMessage={
+        invalidSelectionMessage
+          ? translateText(invalidSelectionMessage, locale)
+          : undefined
+      }
+      emptyStateMessage={
+        emptyStateMessage
+          ? translateText(emptyStateMessage, locale)
+          : translateText("Không có gợi ý phù hợp.", locale)
+      }
+    />
+  );
+}
+
 function FormTextArea({
   label,
   name,
@@ -899,7 +976,7 @@ function buildPtsPage(options?: RenderGymRouteOptions): JSX.Element {
         getGenderLabel(ptOverviewItem.pt.gender),
       ),
     );
-  const sortedPtOverview = (() : typeof filteredPtOverview => {
+  const sortedPtOverview = ((): typeof filteredPtOverview => {
     switch (ptSort) {
       case "name-desc": {
         return sortByVietnameseText(
@@ -1442,10 +1519,9 @@ function buildPtDetailPage(
                 </p>
                 <button
                   type="submit"
-                  className={`rounded-full px-5 py-3 text-sm font-semibold text-white transition ${
-                    ptOverview.pt.status === "ACTIVE"
-                      ? "bg-rose-600 hover:bg-rose-700"
-                      : "bg-emerald-600 hover:bg-emerald-700"
+                  className={`rounded-full px-5 py-3 text-sm font-semibold text-white transition ${ptOverview.pt.status === "ACTIVE"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-emerald-600 hover:bg-emerald-700"
                   }`}
                 >
                   {ptOverview.pt.status === "ACTIVE"
@@ -1971,7 +2047,7 @@ function buildMembersPage(options?: RenderGymRouteOptions): JSX.Element {
       memberOverview?.trainer?.fullName,
     );
   });
-  const sortedMembers = (() : typeof filteredMembers => {
+  const sortedMembers = ((): typeof filteredMembers => {
     switch (memberSort) {
       case "name-asc": {
         return sortByVietnameseText(
@@ -2361,10 +2437,9 @@ function buildMemberDetailPage(
                 </p>
                 <button
                   type="submit"
-                  className={`rounded-full px-5 py-3 text-sm font-semibold text-white transition ${
-                    member.status === "ACTIVE"
-                      ? "bg-rose-600 hover:bg-rose-700"
-                      : "bg-emerald-600 hover:bg-emerald-700"
+                  className={`rounded-full px-5 py-3 text-sm font-semibold text-white transition ${member.status === "ACTIVE"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-emerald-600 hover:bg-emerald-700"
                   }`}
                 >
                   {member.status === "ACTIVE"
@@ -2436,6 +2511,11 @@ function buildMembershipOverviewPage(
   const ptQuickQuery = getScopedSearchQuery(options, "ptQ");
   const membershipStatusFilter = getScopedOptionValue(options, "status", "ALL");
   const membershipSort = getScopedOptionValue(options, "sort", "start-newest");
+  const membershipStatusQuickFilters = [
+    { value: "ALL", label: "Tất cả" },
+    { value: "ACTIVE", label: "Đang hoạt động" },
+    { value: "EXPIRED", label: "Đã hết hạn" },
+  ] as const;
   const defaultStartDate =
     getSearchParameter(options?.searchParams, "startDate") ??
     getTodayDateInputValue();
@@ -2466,7 +2546,7 @@ function buildMembershipOverviewPage(
         membership.endDate,
       ),
     );
-  const sortedMemberships = (() : typeof filteredMemberships => {
+  const sortedMemberships = ((): typeof filteredMemberships => {
     switch (membershipSort) {
       case "start-oldest": {
         return filteredMemberships.toSorted(
@@ -2648,23 +2728,26 @@ function buildMembershipOverviewPage(
                   <form action={createMembershipAction} className="space-y-4">
                     <input type="hidden" name="locale" value={locale} />
                     <FormGrid>
-                      <FormSelect
+                      <FormAutocompleteSelect
                         label="Hội viên"
                         name="memberId"
                         required
                         options={saleMemberOptions}
+                        placeholder="Gõ mã, tên hoặc số điện thoại để chọn"
                       />
-                      <FormSelect
+                      <FormAutocompleteSelect
                         label="Gói tập"
                         name="membershipPlanId"
                         required
                         options={salePlanOptions}
+                        placeholder="Gõ tên gói để chọn"
                       />
-                      <FormSelect
+                      <FormAutocompleteSelect
                         label="PT đồng hành"
                         name="ptId"
                         defaultValue=""
                         options={saleTrainerOptions}
+                        placeholder="Để trống nếu không chọn PT"
                       />
                       <FormField
                         label="Ngày bắt đầu"
@@ -2771,7 +2854,7 @@ function buildMembershipOverviewPage(
             <SectionCard title="Gia hạn nhanh">
               <form action={renewMembershipAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
-                <FormSelect
+                <FormAutocompleteSelect
                   label="Gói hiện có"
                   name="membershipId"
                   required
@@ -2779,6 +2862,7 @@ function buildMembershipOverviewPage(
                     value: membership.id,
                     label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)} | ${humanizeStatus(membership.status)}`,
                   }))}
+                  placeholder="Gõ tên hội viên hoặc tên gói để chọn"
                 />
                 <FormGrid>
                   <FormField
@@ -2786,11 +2870,12 @@ function buildMembershipOverviewPage(
                     name="startDate"
                     type="date"
                   />
-                  <FormSelect
+                  <FormAutocompleteSelect
                     label="PT cho kỳ mới"
                     name="ptId"
                     defaultValue=""
                     options={saleTrainerOptions}
+                    placeholder="Để trống nếu giữ nguyên"
                   />
                   <FormSelect
                     label="Phương thức thanh toán"
@@ -2811,7 +2896,7 @@ function buildMembershipOverviewPage(
             <SectionCard title="Hủy gói tập">
               <form action={cancelMembershipAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
-                <FormSelect
+                <FormAutocompleteSelect
                   label="Gói tập"
                   name="membershipId"
                   required
@@ -2819,6 +2904,7 @@ function buildMembershipOverviewPage(
                     value: membership.id,
                     label: `${getMemberName(snapshot, membership.memberId)} | ${getPlanName(snapshot, membership.membershipPlanId)}`,
                   }))}
+                  placeholder="Gõ tên hội viên hoặc tên gói để chọn"
                 />
                 <FormField
                   label="Thời điểm hủy"
@@ -2833,10 +2919,47 @@ function buildMembershipOverviewPage(
       ) : null}
 
       <SectionCard title="Gói tập của hội viên">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Trạng thái nhanh
+          </span>
+          {membershipStatusQuickFilters.map((statusFilterItem) => {
+            const isActiveFilter =
+              membershipStatusFilter === statusFilterItem.value;
+
+            return (
+              <Link
+                key={`membership-status-quick-${statusFilterItem.value}`}
+                href={buildPathWithSearchParams(
+                  "/members/memberships",
+                  options?.searchParams,
+                  { status: statusFilterItem.value },
+                )}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${isActiveFilter
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-slate-900"
+                }`}
+              >
+                {translateText(statusFilterItem.label, getActiveUiLocale())}
+              </Link>
+            );
+          })}
+        </div>
         <ModuleFilterForm
           query={membershipSearchQuery}
           placeholder="Tên hội viên, tên gói, PT, trạng thái..."
-        />
+        >
+          <ModuleFilterSelect
+            label="Trạng thái gói"
+            name="status"
+            defaultValue={membershipStatusFilter}
+            options={[
+              { value: "ALL", label: "Tất cả" },
+              { value: "ACTIVE", label: "Đang hoạt động" },
+              { value: "EXPIRED", label: "Đã hết hạn" },
+            ]}
+          />
+        </ModuleFilterForm>
         <DataTable
           headers={[
             "Hội viên",
@@ -3107,14 +3230,15 @@ function buildMembershipPlansPage(
             <CollapsibleCrudPanel triggerLabel="Mở bảng ngừng bán gói">
               <form action={deleteMembershipPlanAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
-                <FormSelect
+                <FormAutocompleteSelect
                   label="Gói tập"
                   name="planId"
                   required
                   options={snapshot.dataset.membershipPlans.map((plan) => ({
                     value: plan.id,
-                    label: `${plan.name} | ${humanizeStatus(plan.status)}`,
+                    label: `${plan.code} | ${plan.name} | ${humanizeStatus(plan.status)}`,
                   }))}
+                  placeholder="Gõ mã hoặc tên gói để chọn"
                 />
                 <button
                   type="submit"
@@ -3293,7 +3417,7 @@ function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
         productItem.status,
       ),
     );
-  const sortedProducts = (() : typeof filteredProducts => {
+  const sortedProducts = ((): typeof filteredProducts => {
     switch (productSort) {
       case "name-asc": {
         return sortByVietnameseText(
@@ -3428,14 +3552,15 @@ function buildProductsPage(options?: RenderGymRouteOptions): JSX.Element {
             <CollapsibleCrudPanel triggerLabel="Mở bảng ngừng sản phẩm">
               <form action={deleteProductAction} className="space-y-4">
                 <input type="hidden" name="locale" value={locale} />
-                <FormSelect
+                <FormAutocompleteSelect
                   label="Sản phẩm"
                   name="productId"
                   required
                   options={snapshot.dataset.products.map((product) => ({
                     value: product.id,
-                    label: `${product.name} | ${humanizeStatus(product.status)}`,
+                    label: `${product.code} | ${product.name} | ${humanizeStatus(product.status)}`,
                   }))}
+                  placeholder="Gõ mã hoặc tên sản phẩm để chọn"
                 />
                 <button
                   type="submit"
@@ -3647,11 +3772,12 @@ function buildInventoryPage(options?: RenderGymRouteOptions): JSX.Element {
                 form nhap.
               </p>
               <FormGrid>
-                <FormSelect
+                <FormAutocompleteSelect
                   label="Sản phẩm"
                   name="productId"
                   required
                   options={importProductOptions}
+                  placeholder="Gõ mã hoặc tên sản phẩm để chọn"
                 />
                 <FormField
                   label="Số lượng"
@@ -3857,7 +3983,7 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
         salesInvoice.paymentMethod,
       ),
     );
-  const sortedSalesInvoices = (() : typeof filteredSalesInvoices => {
+  const sortedSalesInvoices = ((): typeof filteredSalesInvoices => {
     switch (invoiceSort) {
       case "date-oldest": {
         return filteredSalesInvoices.toSorted(
@@ -3964,7 +4090,7 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
           <form action={createSalesInvoiceAction} className="space-y-4">
             <input type="hidden" name="locale" value={locale} />
             <FormGrid>
-              <FormSelect
+              <FormAutocompleteSelect
                 label="Hội viên (tùy chọn)"
                 name="memberId"
                 defaultValue=""
@@ -3972,17 +4098,19 @@ function buildInvoicesPage(options?: RenderGymRouteOptions): JSX.Element {
                   { value: "", label: "Khách lẻ" },
                   ...saleMemberOptions,
                 ]}
+                placeholder="Gõ tên hội viên hoặc để trống nếu khách lẻ"
               />
               <FormField
                 label="Tên khách hàng (tùy chọn)"
                 name="customerName"
                 placeholder="Trần Văn A"
               />
-              <FormSelect
+              <FormAutocompleteSelect
                 label="Sản phẩm"
                 name="productId"
                 required
                 options={saleProductOptions}
+                placeholder="Gõ mã hoặc tên sản phẩm để chọn"
               />
               <FormField
                 label="Số lượng"

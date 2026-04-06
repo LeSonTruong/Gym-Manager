@@ -1,108 +1,103 @@
-# Next Nest Turbo Template
+# Gym Manager MVP
 
-A clean monorepo starter for fullstack applications built with:
+Tài liệu này xác định phạm vi MVP (Minimum Viable Product) cho dự án Gym Manager.
+Mục tiêu là ra mắt nhanh một phiên bản có thể vận hành thực tế, giải quyết bài toán quản lý phòng gym cơ bản.
 
-- `Next.js` frontend
-- `NestJS` backend
-- `PostgreSQL` via `MikroORM`
-- `Turborepo` for workspace orchestration
+## 1. Mục tiêu MVP
 
-The repository is intentionally generic so it can be used as a template for new business domains.
+- Quản lý được thành viên, gói tập, check-in và lịch sử tham gia.
+- Có phân quyền tối thiểu để vận hành an toàn (Admin, Staff, Member).
+- Có bộ API và giao diện có thể demo end-to-end.
+- Đạt khả năng triển khai production cơ bản bằng Docker.
 
-## Workspace Layout
+## 2. Đối tượng người dùng
 
-```text
-apps/
-├─ nextjs-frontend
-└─ nestjs-backend
+- Admin: cấu hình hệ thống, quản lý nhân sự, xem tổng quan.
+- Staff (lễ tân/PT): tạo cập nhật thành viên, check-in, theo dõi gói tập.
+- Member: xem thông tin cá nhân, trạng thái gói tập, lịch sử check-in.
 
-packages/
-└─ shared
-```
+## 3. Phạm vi MVP (In Scope)
 
-## Included Baseline
+### 3.1 Auth + RBAC
 
-- Monorepo workspaces with `npm` + `turbo`
-- Next.js App Router frontend with `next-intl`, `React Query`, `PrimeReact`
-- NestJS backend with config validation, Swagger, health check, Redis, email module
-- Shared workspace for cross-app TypeScript contracts
-- Dockerfiles for frontend and backend
-- GitHub Actions for build, lint, security scanning and release tagging
-- Husky + lint-staged + commitlint
+- Đăng nhập bằng email/số điện thoại và mật khẩu.
+- JWT authentication.
+- Role-based access control cho 3 vai trò: Admin, Staff, Member.
 
-## Requirements
+### 3.2 Quản lý thành viên
 
-- `Node.js 24.14.0`
-- `npm 11.11.0`
-- `Docker` with `docker compose`
+- Tạo/sửa/xem thông tin thành viên.
+- Tìm kiếm thành viên theo tên, số điện thoại, mã thành viên.
+- Trạng thái thành viên: active, inactive.
 
-## Quick Start
+### 3.3 Quản lý gói tập
 
-1. Install dependencies:
+- Tạo gói tập (tên gói, thời hạn, giá).
+- Gán gói tập cho thành viên.
+- Theo dõi ngày bắt đầu, ngày kết thúc, trạng thái còn hạn/hết hạn.
 
-```bash
-npm install
-```
+### 3.4 Check-in và điểm danh
 
-2. Copy environment files:
+- Staff check-in cho thành viên.
+- Lưu lịch sử check-in theo thời gian.
+- Kiểm tra gói tập còn hạn trước khi check-in.
 
-```bash
-cp apps/nextjs-frontend/.env.example apps/nextjs-frontend/.env
-cp apps/nestjs-backend/.env.example apps/nestjs-backend/.env
-```
+### 3.5 Dashboard cơ bản
 
-3. Start local infrastructure:
+- Tổng số thành viên.
+- Số check-in hôm nay.
+- Số thành viên sắp hết hạn gói tập.
 
-```bash
-cd apps/nestjs-backend
-docker compose up -d
-cd ../..
-```
+### 3.6 Audit log tối thiểu
 
-4. Build the workspaces:
+- Ghi log các thao tác quan trọng: tạo/sửa/xóa thành viên, gán gói tập, check-in.
 
-```bash
-npm run build
-```
+## 4. Ngoài phạm vi MVP (Out of Scope)
 
-5. Start the apps in development mode:
+- Thanh toán online và hóa đơn điện tử.
+- Tích hợp thiết bị vào/ra (QR gate, turnstile, face id).
+- Mobile app native.
+- Gợi ý AI/phân tích nâng cao.
+- Marketing automation (SMS/email campaign phức tạp).
 
-```bash
-npm run start:dev
-```
+## 5. User flow chính
 
-## Useful Commands
+1. Staff đăng nhập vào hệ thống.
+2. Tạo mới hoặc tìm thành viên.
+3. Gán gói tập cho thành viên.
+4. Khi thành viên đến phòng gym, staff check-in.
+5. Hệ thống lưu lịch sử và cập nhật dashboard.
+6. Admin theo dõi tổng quan và xử lý các trường hợp hết hạn.
 
-```bash
-npm run build
-npm run lint
-npm run lint:fix
-npm run test:unit
-npm run test:e2e
-npm run docker:build
-npm run docker:start:dev
-```
+## 6. Tiêu chí hoàn thành MVP (Definition of Done)
 
-## Local Endpoints
+- Hoàn tất API cho auth, member, package, check-in.
+- Frontend thực hiện được các flow chính:
+  - Đăng nhập
+  - Quản lý thành viên
+  - Gán gói tập
+  - Check-in
+  - Xem dashboard cơ bản
+- Có test tối thiểu:
+  - Unit test cho business logic quan trọng
+  - E2E test cho flow đăng nhập và check-in
+- Chạy được bằng Docker Compose cho backend và frontend.
+- Có dữ liệu seed để demo.
 
-- Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:4000/api`
-- Swagger: `http://localhost:4000/api/docs`
-- Health: `http://localhost:4000/api/health`
-- Maildev: `http://localhost:1080`
+## 7. Mốc thời gian đề xuất (4 tuần)
 
-## Template Cleanup Checklist
+- Tuần 1: Auth + RBAC + data model.
+- Tuần 2: Member + package management.
+- Tuần 3: Check-in + dashboard + audit log.
+- Tuần 4: Test, hardening, docker deploy, demo.
 
-When starting a real project, the first recommended changes are:
+## 8. KPI MVP
 
-1. Replace placeholder copy and branding.
-2. Add your domain entities, modules and pages.
-3. Adjust environment variables for your target infrastructure.
-4. Remove demo/example code you no longer need.
-5. Regenerate `package-lock.json` after dependency or package-name changes.
+- 100% flow chính chạy được end-to-end.
+- Thời gian check-in trung bình < 5 giây/thành viên.
+- Tỷ lệ lỗi API trong flow chính < 1% trong môi trường test.
+- Demo ổn định cho tối thiểu 1 phòng gym.
 
-## Additional Docs
+---
 
-- [Frontend README](./apps/nextjs-frontend/README.md)
-- [Backend README](./apps/nestjs-backend/README.md)
-- [Shared README](./packages/shared/README.md)
+Nếu cần, phiên bản tiếp theo (post-MVP) sẽ ưu tiên thanh toán online, mobile app và báo cáo nâng cao.

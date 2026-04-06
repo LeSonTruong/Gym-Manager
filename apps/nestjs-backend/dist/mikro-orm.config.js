@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const migrations_1 = require("@mikro-orm/migrations");
 const core_1 = require("@mikro-orm/core");
 const postgresql_1 = require("@mikro-orm/postgresql");
-const sqlite_1 = require("@mikro-orm/sqlite");
 require("dotenv/config");
 const isLocalSqlite = (process.env.POSTGRES_HOST ?? '').toLowerCase() === 'sqlite';
 const baseConfig = {
@@ -16,10 +15,19 @@ const baseConfig = {
     debug: process.env.POSTGRES_DEBUG_MODE === 'true',
     extensions: [migrations_1.Migrator],
 };
+function resolveSqliteDriver() {
+    try {
+        const sqlitePackage = require('@mikro-orm/sqlite');
+        return sqlitePackage.SqliteDriver;
+    }
+    catch {
+        throw new Error('SQLite driver is not installed. Install optional dependencies to use POSTGRES_HOST=sqlite.');
+    }
+}
 const mikroOrmConfig = isLocalSqlite
     ? (0, core_1.defineConfig)({
         ...baseConfig,
-        driver: sqlite_1.SqliteDriver,
+        driver: resolveSqliteDriver(),
         dbName: process.env.POSTGRES_DB_NAME ?? 'gym-manager.local.sqlite',
     })
     : (0, core_1.defineConfig)({
