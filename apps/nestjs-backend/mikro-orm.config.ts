@@ -1,7 +1,6 @@
-import {Migrator} from '@mikro-orm/migrations';
-import {defineConfig} from '@mikro-orm/core';
-import {PostgreSqlDriver} from '@mikro-orm/postgresql';
-import {SqliteDriver} from '@mikro-orm/sqlite';
+import { Migrator } from '@mikro-orm/migrations';
+import { defineConfig } from '@mikro-orm/core';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 // eslint-disable-next-line import-x/no-unassigned-import
 import 'dotenv/config';
 
@@ -17,10 +16,23 @@ const baseConfig = {
   extensions: [Migrator],
 };
 
+function resolveSqliteDriver() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
+    const sqlitePackage = require('@mikro-orm/sqlite') as { SqliteDriver: unknown };
+
+    return sqlitePackage.SqliteDriver as never;
+  } catch {
+    throw new Error(
+      'SQLite driver is not installed. Install optional dependencies to use POSTGRES_HOST=sqlite.',
+    );
+  }
+}
+
 const mikroOrmConfig = isLocalSqlite
   ? defineConfig({
     ...baseConfig,
-    driver: SqliteDriver,
+    driver: resolveSqliteDriver(),
     dbName: process.env.POSTGRES_DB_NAME ?? 'gym-manager.local.sqlite',
   })
   : defineConfig({

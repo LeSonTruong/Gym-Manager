@@ -1,0 +1,36 @@
+# Start from deny-all to keep build context minimal
+**
+
+# Root files used by docker builds
+!package.json
+!package-lock.json
+!turbo.json
+
+# Workspace source paths required by current Dockerfiles
+!apps/
+!apps/nestjs-backend/
+!apps/nestjs-backend/**
+!apps/nextjs-frontend/
+!apps/nextjs-frontend/**
+!packages/
+!packages/shared/
+!packages/shared/**
+
+# Re-exclude generated and local artifacts inside allowed paths
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/coverage
+**/*.tsbuildinfo
+apps/nextjs-frontend/test-results
+apps/nextjs-frontend/playwright-report
+run-logs
+
+# Exclude local env and logs from build context
+**/.env
+**/.env.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

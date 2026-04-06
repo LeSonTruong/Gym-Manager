@@ -17,6 +17,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,html,yml,yaml}\"",
     "prepare": "husky",
     "docker:build": "turbo run docker:build",
+    "docker:build:release": "node scripts/docker-build-release.mjs",
+    "docker:push:release": "node scripts/docker-build-release.mjs --push",
     "docker:start:dev": "turbo run docker:start:dev",
     "docker:run:local": "npm run docker:start:dev"
   },
