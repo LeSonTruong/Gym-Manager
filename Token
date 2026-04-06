@@ -1,3 +1,0 @@
-$Env:GH_USER = "LeSonTruong"
-$Env:GHCR_TOKEN = "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"
-$Env:GHCR_TOKEN | docker login ghcr.io -u $Env:GH_USER --password-stdin
