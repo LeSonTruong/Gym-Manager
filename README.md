@@ -101,3 +101,94 @@ Mục tiêu là ra mắt nhanh một phiên bản có thể vận hành thực t
 ---
 
 Nếu cần, phiên bản tiếp theo (post-MVP) sẽ ưu tiên thanh toán online, mobile app và báo cáo nâng cao.
+
+## 9. Hướng dẫn sử dụng nhanh
+
+### 9.1 Yêu cầu môi trường
+
+- Docker Desktop
+- Node.js `24.14.0`
+- npm `11.11.0`
+
+### 9.2 Chạy Local Dev
+
+Chạy lần đầu trong PowerShell tại thư mục dự án:
+
+```powershell
+npm ci
+
+Copy-Item apps/nestjs-backend/.env.example apps/nestjs-backend/.env -Force
+Copy-Item apps/nextjs-frontend/.env.example apps/nextjs-frontend/.env -Force
+
+npm --workspace nestjs-backend run start:dev:infra
+npm run start:dev
+```
+
+Truy cập:
+
+- Frontend: `http://localhost:3000/vi/login`
+- Backend Health: `http://localhost:4000/api/health`
+- Swagger: `http://localhost:4000/api/docs`
+
+Tài khoản demo:
+
+- Username: `admin`, Password: `demo123`
+- Username: `staff`, Password: `demo123`
+
+### 9.3 Dừng Local Dev
+
+- Nhấn `Ctrl + C` ở terminal chạy `npm run start:dev`
+- Dừng hạ tầng PostgreSQL/Redis:
+
+```powershell
+npm --workspace nestjs-backend run stop:dev:infra
+```
+
+### 9.4 Deploy Production bằng Docker Compose
+
+Repository đã có file deploy sẵn: `docker-compose.deploy.yml`.
+
+#### Bước 1: Đăng nhập GHCR
+
+```powershell
+$Env:GH_USER = "LeSonTruong"
+$Env:GHCR_TOKEN = "<PAT_CO_QUYEN_read_write_packages>"
+$Env:GHCR_TOKEN | docker login ghcr.io -u $Env:GH_USER --password-stdin
+```
+
+#### Bước 2: Cấu hình biến môi trường deploy
+
+```powershell
+$Env:IMAGE_TAG = "71123aa9489c"
+$Env:POSTGRES_PASSWORD = "<DB_PASSWORD_MANH>"
+$Env:REDIS_PASSWORD = "<REDIS_PASSWORD_MANH>"
+$Env:PUBLIC_FRONTEND_URL = "http://<VPS_IP>:3000"
+$Env:PUBLIC_BACKEND_URL = "http://<VPS_IP>:4000"
+```
+
+#### Bước 3: Chạy stack production
+
+```powershell
+docker compose -f docker-compose.deploy.yml pull
+docker compose -f docker-compose.deploy.yml up -d
+docker compose -f docker-compose.deploy.yml ps
+```
+
+#### Bước 4: Dừng stack production
+
+```powershell
+docker compose -f docker-compose.deploy.yml down
+```
+
+Nếu muốn dừng và xóa luôn dữ liệu database/cache:
+
+```powershell
+docker compose -f docker-compose.deploy.yml down -v
+```
+
+### 9.5 Password và Token có cần đổi mỗi lần chạy không?
+
+- Không cần đổi password mỗi lần chạy. Bạn có thể đặt một lần rồi dùng lại.
+- Chỉ cần đổi khi muốn tăng bảo mật (rotate credentials).
+- Token GHCR không cần lưu vào code/repo. Token chỉ dùng để `docker login`.
+- Sau khi login thành công, Docker lưu credential cục bộ; bạn không cần nhập lại ở mỗi lần `docker compose up -d`.

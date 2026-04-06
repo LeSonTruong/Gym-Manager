@@ -1,0 +1,97 @@
+name: gym-manager
+
+services:
+  postgres:
+    image: postgres:17.5-bullseye
+    container_name: gym-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_NAME:-gym_manager}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TZ: ${POSTGRES_TIMEZONE:-UTC}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB_NAME:-gym_manager}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gym-network
+
+  redis:
+    image: redis:8.2-alpine
+    container_name: gym-redis
+    restart: unless-stopped
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD:-redis}" ]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redis} ping | grep PONG" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - gym-network
+
+  backend:
+    image: ghcr.io/lesontruong/nestjs-backend:${IMAGE_TAG:-latest}
+    container_name: gym-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      FRONTEND_HOST: ${PUBLIC_FRONTEND_URL:-http://localhost:3000}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-true}
+      ENABLE_DEMO_SEED: ${ENABLE_DEMO_SEED:-false}
+      POSTGRES_DB_NAME: ${POSTGRES_DB_NAME:-gym_manager}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_TIMEZONE: ${POSTGRES_TIMEZONE:-UTC}
+      POSTGRES_DEBUG_MODE: ${POSTGRES_DEBUG_MODE:-false}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis}
+    networks:
+      - gym-network
+
+  frontend:
+    image: ghcr.io/lesontruong/nextjs-frontend:${IMAGE_TAG:-latest}
+    container_name: gym-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      GYM_BACKEND_URL: http://backend:4000
+      NEXT_PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:4000}
+      GYM_FRONTEND_DEMO_EMAIL: ${GYM_FRONTEND_DEMO_EMAIL:-admin@gymmanager.local}
+      GYM_FRONTEND_DEMO_PASSWORD: ${GYM_FRONTEND_DEMO_PASSWORD:-demo123}
+    networks:
+      - gym-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+
+networks:
+  gym-network:
+    name: gym-network
