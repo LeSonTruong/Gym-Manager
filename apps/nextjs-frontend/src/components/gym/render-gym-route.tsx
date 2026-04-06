@@ -13,6 +13,7 @@ import {
   StatsGrid as BaseStatsGrid,
 } from "./gym-ui.tsx";
 import { FormAutocompleteSelect as BaseFormAutocompleteSelect } from "./form-autocomplete-select.component.tsx";
+import { ModuleFilterFormClient } from "./module-filter-form.client.tsx";
 import {
   cancelMembershipAction,
   checkInAttendanceAction,
@@ -281,32 +282,18 @@ function ModuleFilterForm({
   readonly children?: ReactNode;
 }): JSX.Element {
   const locale = getActiveUiLocale();
+  const debounceMs = 150;
 
   return (
-    <form
-      method="get"
-      className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3"
+    <ModuleFilterFormClient
+      query={query}
+      searchLabel={translateText("Tìm kiếm", locale)}
+      placeholder={translateText(placeholder, locale)}
+      filterButtonLabel={translateText("Lọc", locale)}
+      debounceMs={debounceMs}
     >
-      <label className="min-w-[15.5rem] flex-1">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-          {translateText("Tìm kiếm", locale)}
-        </span>
-        <input
-          type="search"
-          name="q"
-          defaultValue={query}
-          placeholder={translateText(placeholder, locale)}
-          className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-[var(--accent-500)] focus:ring-2 focus:ring-[var(--focus-ring)]"
-        />
-      </label>
       {children}
-      <button
-        type="submit"
-        className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-slate-800"
-      >
-        {translateText("Lọc", locale)}
-      </button>
-    </form>
+    </ModuleFilterFormClient>
   );
 }
 
@@ -1522,7 +1509,7 @@ function buildPtDetailPage(
                   className={`rounded-full px-5 py-3 text-sm font-semibold text-white transition ${ptOverview.pt.status === "ACTIVE"
                     ? "bg-rose-600 hover:bg-rose-700"
                     : "bg-emerald-600 hover:bg-emerald-700"
-                  }`}
+                    }`}
                 >
                   {ptOverview.pt.status === "ACTIVE"
                     ? "Ngừng PT"
@@ -2440,7 +2427,7 @@ function buildMemberDetailPage(
                   className={`rounded-full px-5 py-3 text-sm font-semibold text-white transition ${member.status === "ACTIVE"
                     ? "bg-rose-600 hover:bg-rose-700"
                     : "bg-emerald-600 hover:bg-emerald-700"
-                  }`}
+                    }`}
                 >
                   {member.status === "ACTIVE"
                     ? "Ngừng hội viên"
@@ -2938,7 +2925,7 @@ function buildMembershipOverviewPage(
                 className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${isActiveFilter
                   ? "border-slate-900 bg-slate-900 text-white"
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 {translateText(statusFilterItem.label, getActiveUiLocale())}
               </Link>
